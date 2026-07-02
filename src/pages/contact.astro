@@ -1,0 +1,77 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+---
+
+<Layout title="Contact — Paparmane" description="Parlons de votre projet. Contactez le studio Paparmane.">
+  <div class="cursor" data-cursor></div>
+
+  <Header />
+
+  <main>
+    <section class="contact-page">
+      <p class="section-label" data-reveal><span></span>Contact</p>
+      <h1 class="contact-page__title">
+        <span class="line" data-reveal>Parlons de</span>
+        <span class="line" data-reveal>votre projet<span class="dot">.</span></span>
+      </h1>
+
+      <div class="contact-page__grid">
+        <div class="contact-page__info">
+          <div data-reveal>
+            <span>Email</span>
+            <a href="mailto:bonjour@paparmane.com">bonjour@paparmane.com</a>
+          </div>
+          <div data-reveal>
+            <span>Téléphone</span>
+            <a href="tel:+15055550125">(505) 555-0125</a>
+          </div>
+          <div data-reveal>
+            <span>Studio</span>
+            <p>3891 Ranchview Dr.<br />Richardson, TX</p>
+          </div>
+          <div data-reveal>
+            <span>Réseaux</span>
+            <p>Instagram · Behance · LinkedIn</p>
+          </div>
+        </div>
+
+        <form
+          class="contact-form"
+          name="contact"
+          method="POST"
+          data-netlify="true"
+          netlify-honeypot="bot-field"
+          data-reveal
+        >
+          <input type="hidden" name="form-name" value="contact" />
+          <p class="hidden-field">
+            <label>Ne pas remplir : <input name="bot-field" /></label>
+          </p>
+
+          <label class="field">
+            <span>Nom</span>
+            <input type="text" name="name" placeholder="Votre nom" required />
+          </label>
+          <label class="field">
+            <span>Email</span>
+            <input type="email" name="email" placeholder="vous@exemple.com" required />
+          </label>
+          <label class="field">
+            <span>Sujet</span>
+            <input type="text" name="subject" placeholder="À propos de…" />
+          </label>
+          <label class="field">
+            <span>Message</span>
+            <textarea name="message" rows="5" placeholder="Parlez-nous de votre projet…" required></textarea>
+          </label>
+
+          <button type="submit" class="btn btn--pill contact-form__submit">Envoyer le message</button>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <Footer />
+</Layout>
