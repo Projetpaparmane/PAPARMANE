@@ -1,0 +1,17 @@
+---
+const stats = [
+  { n: 120, plus: true, label: "Projets livrés" },
+  { n: 48, plus: true, label: "Clients heureux" },
+  { n: 15, plus: false, label: "Récompenses design" },
+  { n: 6, plus: false, label: "Ans d'expérience" },
+];
+---
+<section class="stats">
+  {stats.map((s) => (
+    <div class="stat" data-reveal>
+      <span class="stat__num" data-counter={s.n}>0</span>
+      {s.plus && <span class="stat__plus">+</span>}
+      <p>{s.label}</p>
+    </div>
+  ))}
+</section>

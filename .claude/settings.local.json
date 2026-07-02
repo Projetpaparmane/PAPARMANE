@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm -v)",
+      "Bash(git --version)",
+      "Bash(git config *)",
+      "Bash(gh --version)",
+      "Bash(gh auth *)",
+      "Bash(netlify --version)",
+      "Bash(npm install *)",
+      "Bash(npx astro *)",
+      "Bash(git init *)",
+      "Bash(git branch *)",
+      "Bash(git add *)",
+      "Bash(git commit -q -m 'Initial commit: PAPARMANE — Astro creative agency site *)"
+    ]
+  }
+}
