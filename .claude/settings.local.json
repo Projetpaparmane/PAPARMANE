@@ -17,7 +17,11 @@
       "Bash(npm config *)",
       "Bash(echo \"prefix set to $\\(npm config get prefix\\)\")",
       "Bash(/Users/isasmith/.npm-global/bin/netlify --version)",
-      "WebFetch(domain:paparmane.netlify.app)"
+      "WebFetch(domain:paparmane.netlify.app)",
+      "Bash(curl -sL -A \"Mozilla/5.0\" -o /dev/null -w \"%{url_effective} \\(%{http_code}\\)\\\\n\" https://pacini.com/)",
+      "Bash(curl -sL -A \"Mozilla/5.0\" https://pacini.com/)",
+      "Bash(mkdir -p public/projects)",
+      "Bash(curl -sL --max-time 45 \"https://image.thum.io/get/width/1200/crop/1500/noanimate/https://pacini.com/\" -o public/projects/pacini.jpg)"
     ]
   }
 }
