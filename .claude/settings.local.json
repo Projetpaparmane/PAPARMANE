@@ -12,7 +12,12 @@
       "Bash(git init *)",
       "Bash(git branch *)",
       "Bash(git add *)",
-      "Bash(git commit -q -m 'Initial commit: PAPARMANE — Astro creative agency site *)"
+      "Bash(git commit -q -m 'Initial commit: PAPARMANE — Astro creative agency site *)",
+      "Bash(brew --version)",
+      "Bash(npm config *)",
+      "Bash(echo \"prefix set to $\\(npm config get prefix\\)\")",
+      "Bash(/Users/isasmith/.npm-global/bin/netlify --version)",
+      "WebFetch(domain:paparmane.netlify.app)"
     ]
   }
 }
