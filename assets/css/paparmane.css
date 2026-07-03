@@ -69,6 +69,15 @@
   background: #e64015 !important;
   color: #e64015 !important;
 }
+/* CTA "GO!" : le thème prévoyait un long mot (font 360px réduit à ~30px selon
+   la largeur). Pour "GO!" on force une taille qui remplit bien le cercle. */
+.cta-area .section-title {
+  font-size: clamp(72px, 13vw, 150px) !important;
+  line-height: 1 !important;
+  text-align: center !important;
+}
+.cta-area .section-title a { display: inline-block; }
+
 /* Rond orange inline dans le titre du hero (remplace la forme du thème) */
 .title-round {
   display: inline-block;
