@@ -55,7 +55,9 @@
   background: #e64015 !important;
   color: #e64015 !important;
 }
-/* mots mis en avant à l'intérieur des grands titres */
+/* gros titres de section entiers en orange (version audacieuse) */
+.section-title,
+.section-title a,
 .section-title span,
 .page-title span,
 .big-text {
