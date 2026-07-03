@@ -1,9 +1,8 @@
-# Static HTML site (Redox template) — no build step.
+# Static HTML site (Redox template) — no build step, publish the repo root.
 [build]
-  command = "echo 'Static site — no build needed'"
   publish = "."
 
-# Long-cache immutable-ish assets
+# Long-cache the template assets
 [[headers]]
   for = "/assets/*"
   [headers.values]
