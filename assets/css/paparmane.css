@@ -59,6 +59,19 @@
   background: #e64015 !important;
   color: #e64015 !important;
 }
+/* Rond orange inline dans le titre du hero (remplace la forme du thème) */
+.title-round {
+  display: inline-block;
+  width: 0.62em;
+  height: 0.62em;
+  border-radius: 50%;
+  background: #e64015;
+  vertical-align: middle;
+  margin: 0 0.18em;
+  position: relative;
+  top: -0.05em;
+}
+
 /* accent orange sur les mots-clés des titres + le grand mot décoratif
    (les gros titres de section restent en blanc — plus lisible) */
 .section-title span,
