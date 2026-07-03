@@ -22,7 +22,10 @@
       "Bash(curl -sL -A \"Mozilla/5.0\" https://pacini.com/)",
       "Bash(mkdir -p public/projects)",
       "Bash(curl -sL --max-time 45 \"https://image.thum.io/get/width/1200/crop/1500/noanimate/https://pacini.com/\" -o public/projects/pacini.jpg)",
-      "Bash(grep -vE '\\\\.html$')"
+      "Bash(grep -vE '\\\\.html$')",
+      "Bash(curl -sL https://paparmane.netlify.app/?cb=__TRACKED_VAR__)",
+      "Bash(curl -sL -o /dev/null -w \"%{http_code}\\\\n\" \"https://paparmane.netlify.app/assets/imgs/pacini.jpg\")",
+      "Bash(curl -sL -o /dev/null -w \"%{http_code}\\\\n\" \"https://paparmane.netlify.app/assets/css/paparmane.css\")"
     ]
   }
 }
