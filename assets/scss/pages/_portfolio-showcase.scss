@@ -1,0 +1,249 @@
+/* portfolio showcase page css */
+.body-portfolio-showcase {
+    .container {
+        &.large {
+            @media (min-width: 1650px) {
+                max-width: 1650px;
+            }
+        }
+    }
+
+    &.dark {
+        .header-area-2 .side-toggle {
+            background-color: #1D1C1C;
+        }
+    }
+
+    .header-area-2 .side-toggle {
+        background-color: #F3F3F3;
+    }
+
+    .footer-area-4 .footer-widget-wrapper-box {
+        margin-top: 0px;
+    }
+}
+
+
+/* work area 5 style  */
+.work-area-5 {
+    .works-wrapper-box {
+        border-top: 1px solid var(--border);
+        margin-top: 80px;
+        padding-top: 70px;
+
+        @media #{$xxl} {
+            padding-top: 50px;
+        }
+
+        @media #{$lg} {
+            padding-top: 40px;
+        }
+    }
+}
+
+.works-wrapper-5 {
+    display: grid;
+    gap: 40px 40px;
+    grid-template-columns: repeat(4, 1fr);
+
+    @media #{$xxl} {
+        gap: 30px 30px;
+    }
+
+    @media #{$lg} {
+        gap: 20px 20px;
+    }
+
+    @media #{$lg} {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    @media #{$md} {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    @media #{$xs} {
+        grid-template-columns: repeat(1, 1fr);
+    }
+
+    >* {
+
+        &.span-2 {
+            grid-column: span 2;
+        }
+
+        &.grid-column-start-1 {
+            grid-column-start: 1;
+
+            @media #{$md} {
+                grid-column-start: auto;
+            }
+        }
+
+        &.grid-column-start-2 {
+            grid-column-start: 2;
+
+            @media #{$md} {
+                grid-column-start: auto;
+            }
+        }
+
+        &.grid-column-start-3 {
+            grid-column-start: 3;
+
+            @media #{$md} {
+                grid-column-start: auto;
+            }
+        }
+
+        &:nth-child(n) {
+            @media #{$md} {
+                grid-column-start: auto;
+            }
+        }
+
+    }
+
+    .work-box {
+        min-height: 375px;
+
+        .thumb {
+            border-radius: 15px;
+            overflow: hidden;
+
+            img {
+                width: 100%;
+            }
+        }
+    }
+
+    .section-header {
+        margin-top: -8px;
+
+        .section-title {
+            font-size: 36px;
+            font-weight: 400;
+            line-height: 1.33;
+            letter-spacing: -0.05em;
+            max-width: 440px;
+
+            @media #{$xxl} {
+                font-size: 30px;
+                max-width: 370px;
+            }
+
+            @media #{$lg} {
+                font-size: 24px;
+                max-width: 300px;
+            }
+        }
+
+        .header-shape-1 {
+            margin-top: 44px;
+
+            @media #{$lg} {
+                margin-top: 24px;
+            }
+
+            img {
+                width: 65px;
+
+                @media #{$xxl} {
+                    width: 55px;
+                }
+
+                @media #{$lg} {
+                    width: 45px;
+                }
+            }
+        }
+    }
+
+    .services-wrapper-box {
+        margin-top: -7px;
+        margin-bottom: -6px;
+        display: flex;
+        gap: 20px;
+        flex-direction: column;
+        justify-content: space-between;
+
+        .subtitle {
+            font-size: 20px;
+            font-weight: 400;
+            line-height: 28px;
+            color: var(--primary);
+            text-decoration: underline;
+            text-decoration-thickness: 2px;
+            text-underline-offset: 2px;
+        }
+    }
+
+    .service-box {
+        .title {
+            font-size: 36px;
+            font-weight: 400;
+            line-height: 1.33;
+            letter-spacing: -0.05em;
+
+            @media #{$xxl} {
+                font-size: 30px;
+            }
+
+            @media #{$lg} {
+                font-size: 24px;
+            }
+
+            a:hover {
+                color: var(--secondary);
+            }
+        }
+    }
+}
+
+$hoverEasing: cubic-bezier(0.23, 1, 0.32, 1);
+$returnEasing: cubic-bezier(0.445, 0.05, 0.55, 0.95);
+
+.card-wrap {
+    transform: perspective(700px);
+    transform-style: preserve-3d;
+    cursor: pointer;
+    max-height: 375px;
+    position: relative;
+
+    &:hover {
+        .card-bg {
+            transition: 0.6s $hoverEasing, opacity 1s $hoverEasing;
+            opacity: 1;
+        }
+
+        .card {
+            transition: 0.6s $hoverEasing, $hoverEasing;
+        }
+    }
+}
+
+.card {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    background-repeat: no-repeat;
+    overflow: hidden;
+    border-radius: 10px;
+    transition: 1s $returnEasing;
+    will-change: transform;
+    border: none;
+}
+
+.card-bg {
+    position: absolute;
+    top: -18px;
+    left: -18px;
+    width: 110%;
+    height: 110%;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: cover;
+    transition: 1s $returnEasing, opacity 5s 1s $returnEasing;
+    pointer-events: none;
+}

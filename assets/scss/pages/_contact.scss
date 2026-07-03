@@ -1,0 +1,284 @@
+/* contact page css */
+
+/* Loading effect */
+.loading-form {
+    display: none;
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    z-index: 99;
+    left: 0;
+    background: rgba(0, 0, 0, 0.5);
+    color: var(--white);
+    font-size: 20px;
+    text-align: center;
+    padding-top: 20%;
+}
+
+.success-message {
+    color: green;
+    margin-top: 10px;
+}
+
+.error-message {
+    color: red;
+    margin-top: 10px;
+}
+
+#response-message {
+    margin-top: 10px;
+}
+
+
+.contact-area-contact-page {
+
+    .section-header {
+        border-top: 1px solid var(--border);
+        padding-top: 37px;
+
+        @media #{$md} {
+            padding-top: 7px;
+        }
+    }
+
+    .section-title-wrapper {
+        display: grid;
+        gap: 15px 60px;
+        grid-template-columns: 1fr 1235px;
+
+        @media #{$xxl} {
+            grid-template-columns: 1fr 1000px;
+        }
+
+        @media #{$xl} {
+            grid-template-columns: 1fr 850px;
+        }
+
+        @media #{$lg} {
+            grid-template-columns: 1fr 750px;
+        }
+
+        @media #{$md} {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .subtitle-wrapper {
+        margin-top: 8px;
+    }
+
+    .section-title {
+        max-width: 875px;
+
+        @media #{$xxl} {
+            max-width: 675px;
+        }
+
+        @media #{$xl} {
+            max-width: 495px;
+        }
+    }
+
+    .section-content-wrapper {
+        margin-top: 90px;
+        margin-bottom: 4px;
+        display: grid;
+        gap: 40px 60px;
+        grid-template-columns: 1fr 1030px;
+        align-items: flex-start;
+
+        @media #{$xxl} {
+            margin-top: 60px;
+            grid-template-columns: 1fr 730px;
+        }
+
+        @media #{$xl} {
+            grid-template-columns: 1fr 680px;
+        }
+
+        @media #{$lg} {
+            grid-template-columns: 1fr 550px;
+        }
+
+        @media #{$md} {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .contact-mail {
+        .title {
+            font-size: 20px;
+            font-weight: 400;
+            line-height: 20px;
+            color: var(--primary);
+        }
+
+        .text {
+            font-family: var(--font_sequelsansromanbody);
+            font-size: 30px;
+            font-weight: 310;
+            line-height: 1.16;
+            letter-spacing: -0.07em;
+            color: var(--primary);
+            max-width: 410px;
+            margin-top: 24px;
+
+            @media #{$xxl} {
+                font-size: 24px;
+                max-width: 330px;
+            }
+
+            @media #{$lg} {
+                font-size: 20px;
+                max-width: 280px;
+            }
+
+            a {
+                text-decoration: underline;
+                text-decoration-skip-ink: auto;
+                text-decoration-thickness: 1px;
+                text-underline-offset: 3px;
+
+                &:hover {
+                    color: var(--secondary);
+                }
+            }
+        }
+    }
+
+    .contact-social {
+        margin-top: 51px;
+
+        .title {
+            font-size: 20px;
+            font-weight: 400;
+            line-height: 20px;
+            color: var(--primary);
+        }
+
+        .social-links {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            margin-top: 24px;
+
+            a {
+                font-family: var(--font_sequelsansromanbody);
+                font-size: 30px;
+                font-weight: 310;
+                line-height: 1.16;
+                letter-spacing: -0.07em;
+                color: var(--primary);
+                display: inline-block;
+                transition: all 0.5s;
+
+                @media #{$xxl} {
+                    font-size: 24px;
+                }
+
+                @media #{$lg} {
+                    font-size: 20px;
+                }
+
+                &:hover {
+                    text-decoration: underline;
+                    text-decoration-skip-ink: auto;
+                    text-decoration-thickness: 1px;
+                    text-underline-offset: 3px;
+                }
+            }
+        }
+
+    }
+
+
+    .contact-formwrap {
+        display: grid;
+        gap: 60px 60px;
+        grid-template-columns: repeat(2, 1fr);
+
+        @media #{$xl} {
+            gap: 40px 40px;
+        }
+
+        @media #{$lg} {
+            gap: 30px 30px;
+        }
+
+        @media #{$sm} {
+            grid-template-columns: repeat(1, 1fr);
+        }
+
+        .message {
+            grid-column: span 2;
+            margin-top: 30px;
+
+            @media #{$sm} {
+                grid-column: auto;
+            }
+        }
+    }
+
+    .contact-formfield {
+        input {
+            width: 100%;
+            height: 40px;
+            border: none;
+            border-bottom: 1px solid var(--primary);
+            outline: none;
+            background-color: transparent;
+            transition: all 0.5s;
+            color: var(--primary);
+
+            &:focus {
+                border-color: var(--primary);
+            }
+
+            &::placeholder {
+                color: var(--primary);
+            }
+
+            &:-webkit-autofill,
+            &:-webkit-autofill:focus {
+                transition: background-color 0s 600000s, color 0s 600000s !important;
+            }
+        }
+
+        select {
+            width: 100%;
+            height: 40px;
+            border: none;
+            border-bottom: 1px solid var(--primary);
+            outline: none;
+            background-color: transparent;
+            transition: all 0.5s;
+            color: var(--primary);
+
+            &:focus {
+                border-color: var(--primary);
+            }
+
+            option {
+                width: 100%;
+                max-width: 100%;
+
+                @include dark {
+                    background-color: var(--black);
+                }
+
+                &[disabled] {
+                    background-color: var(--black) !important;
+                }
+            }
+        }
+    }
+
+    .submit-btn {
+        margin-top: 50px;
+
+        @media #{$xl} {
+            margin-top: 40px;
+        }
+    }
+}

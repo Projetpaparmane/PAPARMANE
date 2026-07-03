@@ -1,0 +1,312 @@
+/* work details page css */
+.work-details-area {
+    .section-header {
+        margin-top: 17px;
+    }
+
+    .section-title-wrapper {
+        display: grid;
+        gap: 20px 29px;
+        grid-template-columns: 315px 1fr;
+
+        @media #{$xxl} {
+            grid-template-columns: 245px 1fr;
+        }
+
+        @media #{$xl} {
+            grid-template-columns: 195px 1fr;
+        }
+
+        @media #{$lg} {
+            align-items: center;
+        }
+
+        @media #{$sm} {
+            grid-template-columns: 1fr;
+        }
+
+
+        .title-thumb {
+            border-radius: 20px;
+            overflow: hidden;
+            display: inline-block;
+            margin-top: 13px;
+            max-width: 315px;
+
+            @media #{$xl} {
+                margin-top: 5px;
+            }
+        }
+    }
+
+    .meta-wrapper {
+        margin-top: 51px;
+        display: grid;
+        gap: 30px 60px;
+        grid-template-columns: 1fr 1fr 1fr 1fr;
+        margin-bottom: 95px;
+
+        @media #{$xxl} {
+            margin-top: 41px;
+            margin-bottom: 65px;
+        }
+
+        @media #{$lg} {
+            gap: 30px 40px;
+            margin-top: 31px;
+            margin-bottom: 45px;
+        }
+
+        @media #{$md} {
+            grid-template-columns: 1fr 1fr;
+        }
+    }
+
+    .meta-item {
+        border-top: 1px solid var(--border);
+        padding-top: 14px;
+
+        .title {
+            font-size: 18px;
+            font-weight: 400;
+            line-height: 25px;
+        }
+
+        .text {
+            font-size: 18px;
+            font-weight: 400;
+            line-height: 25px;
+            color: var(--primary);
+            margin-top: 4px;
+        }
+    }
+
+    .section-info {
+        margin-top: 59px;
+        margin-bottom: 93px;
+        display: grid;
+        gap: 20px 60px;
+        grid-template-columns: 1fr 825px;
+
+        @media #{$xxl} {
+            margin-top: 49px;
+            margin-bottom: 63px;
+        }
+
+        @media #{$xl} {
+            grid-template-columns: 1fr 650px;
+        }
+
+        @media #{$lg} {
+            grid-template-columns: 1fr 550px;
+            margin-top: 29px;
+            margin-bottom: 43px;
+        }
+
+        @media #{$md} {
+            grid-template-columns: 1fr;
+        }
+
+        .title {
+            font-size: 50px;
+            font-weight: 310;
+            line-height: 1;
+            letter-spacing: -0.07em;
+            max-width: 440px;
+
+            @media #{$xxl} {
+                font-size: 38px;
+                max-width: 340px;
+
+            }
+
+            @media #{$xs} {
+                font-size: 28px;
+            }
+        }
+
+        .content {
+            margin-top: 2px;
+        }
+
+        .text {
+            font-size: 20px;
+            font-weight: 400;
+            line-height: 28px;
+        }
+
+        .feature-list {
+            margin-top: 28px;
+
+            li {
+                font-size: 20px;
+                font-weight: 400;
+                line-height: 28px;
+                color: var(--primary);
+                position: relative;
+                display: flex;
+                align-items: center;
+
+                &:before {
+                    content: "+";
+                    margin-right: 6px;
+                }
+            }
+        }
+    }
+
+    .gallery-wrapper {
+        padding: 0 50px;
+        display: grid;
+        gap: 10px;
+        grid-template-columns: 1fr 1fr 1fr;
+
+        @media #{$lg} {
+            padding: 0 10px;
+
+        }
+
+        >* {
+            &:nth-child(1) {
+                grid-column: span 2;
+            }
+
+            &:nth-child(3) {
+                grid-column: span 3;
+            }
+        }
+
+        .image {
+            border-radius: 20px;
+
+            @media #{$sm} {
+                border-radius: 5px;
+            }
+        }
+    }
+
+    .details-info {
+
+        .title {
+            font-size: 30px;
+            font-weight: 310;
+            line-height: 27px;
+            letter-spacing: -0.08em;
+
+            @media #{$lg} {
+                font-size: 24px;
+            }
+        }
+
+        .text {
+            font-size: 20px;
+            font-weight: 400;
+            line-height: 28px;
+            margin-top: 16px;
+
+            @media #{$lg} {
+                font-size: 18px;
+            }
+        }
+
+    }
+
+    .section-details {
+        margin-top: 41px;
+        margin-bottom: 93px;
+        display: grid;
+        gap: 30px 60px;
+        grid-template-columns: 1fr 1fr;
+        max-width: 1120px;
+        margin-left: auto;
+
+        @media #{$xxl} {
+            margin-top: 41px;
+            margin-bottom: 63px;
+        }
+
+        @media #{$lg} {
+            margin-top: 31px;
+            margin-bottom: 43px;
+        }
+
+        @media #{$sm} {
+            grid-template-columns: 1fr;
+
+        }
+    }
+
+    .gallery-wrapper-2 {
+        padding: 0 50px;
+        display: grid;
+        gap: 10px;
+        grid-template-columns: 1fr;
+
+        @media #{$lg} {
+            padding: 0 10px;
+        }
+
+        .image {
+            border-radius: 20px;
+
+            @media #{$sm} {
+                border-radius: 5px;
+            }
+        }
+    }
+
+    .pagination {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        margin-bottom: 1px;
+
+        a {
+            border: 1px solid var(--border);
+            width: 170px;
+            height: 90px;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            border-radius: 90px;
+            color: var(--primary);
+
+            @media #{$xxl} {
+                width: 150px;
+                height: 70px;
+            }
+
+            @media #{$lg} {
+                width: 120px;
+                height: 50px;
+            }
+
+            &:hover {
+                background-color: var(--primary);
+                border-color: transparent;
+                color: var(--white);
+
+                @include dark {
+                    color: var(--black);
+                }
+
+                svg {
+                    * {
+                        fill: var(--white);
+
+                        @include dark {
+                            fill: var(--black);
+                        }
+                    }
+                }
+            }
+
+            svg {
+                * {
+                    fill: var(--primary);
+                }
+            }
+        }
+    }
+}

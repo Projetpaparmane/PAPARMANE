@@ -1,0 +1,274 @@
+/* cursor css */
+/*! normalize.css v7.0.0 | MIT License | github.com/necolas/normalize.css */
+
+.cb-cursor {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 150;
+    contain: layout style size;
+    pointer-events: none;
+    will-change: transform;
+    transition: opacity 0.3s, color 0.4s;
+}
+
+.cb-cursor:before {
+    content: "";
+    position: absolute;
+    top: -24px;
+    left: -24px;
+    width: 48px;
+    height: 48px;
+    background: transparent;
+    border-radius: 500px;
+    transform: scale(0);
+    transition: opacity 0.1s, transform 0.3s ease-in-out;
+}
+
+.cb-cursor-text {
+    position: absolute;
+    top: -18px;
+    left: -18px;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    line-height: 20px;
+    text-align: center;
+    letter-spacing: -0.01em;
+    opacity: 0;
+    transform: scale(0) rotate(10deg);
+    transition: opacity 0.4s, transform 0.3s;
+    color: white;
+}
+
+
+/* Exclusion and Blending Modes */
+@supports (mix-blend-mode: exclusion) {
+
+    .cb-cursor.-exclusion,
+    .cb-cursor.-opaque {
+        mix-blend-mode: exclusion;
+    }
+
+    .cb-cursor.-exclusion:before,
+    .cb-cursor.-opaque:before {
+        background: white;
+    }
+}
+
+.cb-cursor.-normal,
+.cb-cursor.-text {
+    mix-blend-mode: normal;
+}
+
+.cb-cursor.-normal:before,
+.cb-cursor.-text:before {
+    background: currentColor;
+}
+
+.cb-cursor.-inverse {
+    color: white;
+}
+
+/* Cursor Visibility and Transformations */
+.cb-cursor.-visible:before {
+    transform: scale(0.2);
+}
+
+.cb-cursor.-visible.-active:before {
+    transform: scale(0.23);
+    transition-duration: 0.2s;
+}
+
+.cb-cursor.-pointer:before {
+    transform: scale(0);
+}
+
+.cb-cursor.-text .cb-cursor-text {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.cb-cursor.-text.-active:before {
+    transform: scale(1.6);
+    transition-duration: 0.2s;
+}
+
+.cb-cursor.all-element:before {
+    transform: scale(1.6);
+    opacity: 0.2;
+    transition-duration: 0.2s;
+}
+
+.cb-cursor.-opaque:before {
+    transform: scale(1.32);
+}
+
+.cb-cursor.-text:before {
+    background: #000;
+    opacity: 1;
+    backdrop-filter: blur(10px);
+    transform: scale(2);
+}
+
+.cb-cursor.-opaque.-active:before {
+    transform: scale(1.2);
+}
+
+.cb-cursor.-lg:before {
+    transform: scale(2);
+}
+
+.cb-cursor.-hidden:before {
+    transform: scale(0);
+}
+
+/*----------------------------------------*/
+/*  Context-Specific Styles  */
+/*----------------------------------------*/
+.body-startup-agency {
+    @supports (mix-blend-mode: exclusion) {
+
+        .cb-cursor.-exclusion,
+        .cb-cursor {
+            mix-blend-mode: exclusion;
+            opacity: 1;
+        }
+
+        .cb-cursor.-exclusion:before,
+        .cb-cursor:before {
+            background: white;
+            opacity: 1;
+        }
+    }
+}
+
+
+.cb-cursor.-small {
+    mix-blend-mode: normal;
+    white-space: nowrap;
+
+    &::before {
+        background-color: #fff;
+        width: 80px;
+        height: 28px;
+        top: -14px;
+        left: -40px;
+    }
+
+    .cb-cursor-text {
+        color: black;
+    }
+}
+
+.cb-cursor.-big {
+    mix-blend-mode: normal;
+    white-space: nowrap;
+
+    &::before {
+        background-color: #fff;
+        width: 80px;
+        height: 80px;
+        top: -40px;
+        left: -40px;
+        mix-blend-mode: normal;
+    }
+
+    .cb-cursor-text {
+        color: black;
+    }
+}
+
+
+.cb-cursor.portfolio {
+    // .cb-cursor-text {
+    //     opacity: 1;
+    //     transform: scale(0.5) rotate(0deg);
+    // }
+
+    // &.-text .cb-cursor-text {
+    //     opacity: 1;
+    //     transform: scale(1);
+    // }
+
+    &:before {
+        display: none;
+    }
+}
+
+.cb-cursor-text.portfolio {
+    width: 420px;
+    left: -210px;
+
+    @media #{$xxl} {
+        width: 350px;
+        left: -175px;
+    }
+
+    @media #{$xl} {
+        width: 280px;
+        left: -140px;
+    }
+
+    .cb-cursor-text {
+        top: 0;
+        left: 0;
+        width: auto;
+        height: auto;
+        display: block;
+        text-align: start;
+
+    }
+
+    .hover-display {
+        width: 420px;
+
+        @media #{$xxl} {
+            width: 350px;
+        }
+
+        @media #{$xl} {
+            width: 280px;
+        }
+
+        .hover-thumb {
+            img {
+                width: 100%;
+            }
+        }
+
+        .hover-content {
+            display: grid;
+            gap: 10px 30px;
+            grid-template-columns: 1fr auto;
+            margin-top: 14px;
+            text-align: start;
+
+        }
+
+        .title {
+            font-family: var(--font_bdogrotesk);
+            font-weight: 400;
+            font-size: 18px;
+            line-height: 24px;
+            letter-spacing: -0.05em;
+            text-transform: uppercase;
+            color: var(--white);
+        }
+
+        .date {
+            font-family: var(--font_bdogrotesk);
+            font-weight: 400;
+            font-size: 18px;
+            line-height: 24px;
+            letter-spacing: -0.05em;
+            text-transform: uppercase;
+            display: inline-block;
+            color: var(--white);
+        }
+
+    }
+}

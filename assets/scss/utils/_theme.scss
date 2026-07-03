@@ -1,0 +1,204 @@
+/*----------------------------------------*/
+/* theme css  */
+/*----------------------------------------*/
+
+// for image transparency 
+// img[src$=".webp"] {
+//   filter: brightness(0.1);
+// }
+
+
+html {
+  --container-max-widths: 1320px;
+
+  @media #{$xl} {
+    --container-max-widths: 1140px;
+  }
+
+  @media #{$lg} {
+    --container-max-widths: 960px;
+  }
+
+  @media #{$md} {
+    --container-max-widths: 720px;
+  }
+
+  @media #{$sm} {
+    --container-max-widths: 540px;
+  }
+}
+
+body {
+  background-color: #F8F8F8;
+  color: var(--secondary);
+}
+
+.body-wrapper {
+  background-color: var(--white);
+
+  &.dark {
+    background-color: var(--black);
+  }
+}
+
+.img_anim_reveal {
+  visibility: hidden;
+  overflow: hidden;
+
+  img {
+    object-fit: cover;
+    transform-origin: left;
+  }
+}
+
+.anim-reveal {
+  overflow: hidden;
+}
+
+.anim-reveal-line {
+  overflow: hidden;
+}
+
+.color {
+  &-white {
+    color: var(--white);
+  }
+
+  &-black {
+    color: var(--black);
+  }
+
+  &-primary {
+    color: var(--primary);
+  }
+
+  &-secondary {
+    color: var(--secondary);
+  }
+}
+
+// BG Color
+.bg {
+
+  &-white {
+    background-color: var(--white);
+  }
+
+  &-black {
+    background-color: var(--black);
+  }
+
+  &-primary {
+    background-color: var(--primary);
+  }
+
+  &-secondary {
+    background-color: var(--secondary);
+  }
+
+  &-transparent {
+    background-color: transparent !important;
+  }
+
+  &-theme {
+    background-color: var(--theme) !important;
+  }
+}
+
+.zi {
+  &-1 {
+    z-index: 1;
+  }
+
+  &-2 {
+    z-index: 2;
+  }
+
+  &-0 {
+    z-index: 0;
+  }
+
+  &--1 {
+    z-index: -1;
+  }
+}
+
+// Text Border
+.text-underline {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 5px;
+  text-decoration-skip-ink: none;
+}
+
+.header__area-6 {
+  position: unset;
+}
+
+.vertically-center {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+// Text Indent
+.text-indent {
+  &-40 {
+    text-indent: 40px;
+  }
+
+  &-50 {
+    text-indent: 50px;
+  }
+}
+
+header {
+  margin-bottom: -1px;
+  z-index: 100;
+}
+
+section {
+  margin-bottom: -1px;
+}
+
+.mb--1 {
+  margin-bottom: -5px;
+}
+
+.dir-rtl {
+  direction: rtl;
+}
+
+.show-dark {
+  display: inline-block;
+}
+
+.show-light {
+  display: none;
+}
+
+.line-divider-sm {
+  height: 0.5px;
+  background-color: var(--black-9);
+}
+
+// wordpress reset style 
+.admin-bar header,
+.admin-bar .body-wrapper {
+  margin-top: 32px;
+}
+
+// swiper rtl support 
+.swiper,
+.swiper-container {
+  direction: ltr;
+}
+
+.border-e-0 {
+  border-inline-end: 0 !important;
+}
+
+.border-s-0 {
+  border-inline-start: 0 !important;
+}

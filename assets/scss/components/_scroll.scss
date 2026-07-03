@@ -1,0 +1,206 @@
+/* scroll css */
+.scroll {
+  &__down {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+
+    p {
+      font-weight: 500;
+      font-size: 14px;
+      line-height: 1.9;
+      text-transform: uppercase;
+      color: var(--white);
+    }
+
+    span {
+      width: 66px;
+      height: 106px;
+      border: 1px solid var(--black-6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 89px;
+
+      i {
+        color: var(--white);
+      }
+    }
+
+    &-wrapper {
+      height: 425px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      @media #{$xl} {
+        height: 380px;
+      }
+
+      @media #{$lg} {
+        height: 350px;
+      }
+
+      @media #{$sm} {
+        height: auto;
+        padding: 40px 0;
+      }
+    }
+  }
+
+
+  &-top {
+    width: 50px;
+    height: 50px;
+    position: fixed;
+    right: 15px;
+    bottom: 0px;
+    z-index: 9999;
+    background: var(--white);
+    border-radius: 100px;
+    mix-blend-mode: exclusion;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.5s;
+
+    &.showed {
+      opacity: 1;
+      visibility: visible;
+      bottom: 20px;
+    }
+  }
+}
+
+
+.go-top {
+  &-writer {
+    width: 105px;
+    font-size: 16px;
+    cursor: pointer;
+    text-align: left;
+    color: var(--white);
+    background-image: url(../imgs/writer/go-top.webp);
+    background-position: right center;
+    background-repeat: no-repeat;
+    right: 16%;
+    visibility: hidden;
+    opacity: 0;
+    z-index: 9;
+    transition: all 0.5s;
+
+    &:hover {
+      color: var(--primary);
+    }
+
+    &.showed {
+      opacity: 1;
+      visibility: visible;
+      bottom: 20px;
+    }
+
+    br {
+      @media #{$sm} {
+        display: block;
+      }
+    }
+  }
+
+}
+
+
+// progress-wrap
+.progress-wrap {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  height: 46px;
+  width: 46px;
+  cursor: pointer;
+  display: block;
+  border-radius: 50px;
+  z-index: 99;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-100px);
+  transition: all 300ms linear;
+}
+
+.progress-wrap.active-progress {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  mix-blend-mode: exclusion;
+  background-color: var(--black);
+
+}
+
+.progress-wrap::after {
+  position: absolute;
+  content: '\f062';
+  font: var(--fa-font-solid);
+  text-align: center;
+  line-height: 46px;
+  font-size: 20px;
+  color: var(--primary);
+  left: 0;
+  top: 0;
+  height: 46px;
+  width: 46px;
+  cursor: pointer;
+  display: block;
+  z-index: 1;
+  transition: all 200ms linear;
+  border-radius: 50px;
+
+  @include dark {
+    color: var(--black);
+  }
+}
+
+.progress-wrap svg path {
+  fill: var(--black-6);
+}
+
+.progress-wrap svg.progress-circle path {
+  fill: var(--white);
+  stroke: transparent;
+  stroke-width: 5;
+  box-sizing: border-box;
+  transition: all 200ms linear;
+}
+
+// Light Version
+.light {
+  .scroll__down {
+    p {
+      color: var(--black);
+    }
+
+    span {
+      border-color: var(--white-3);
+
+      i {
+        color: var(--black);
+      }
+    }
+  }
+
+  &.go-top-writer {
+    color: var(--black);
+    background-color: transparent;
+    background-image: url(../imgs/writer/go-top-light.webp);
+  }
+
+  &.progress-wrap {
+    margin: 0;
+    background-color: transparent;
+
+    svg path {
+      fill: var(--black);
+    }
+
+    &::after {
+      color: var(--white);
+    }
+  }
+}

@@ -1,0 +1,164 @@
+/* faq page css */
+.faq-area-faq-page {
+    .section-header {
+        border-top: 1px solid var(--border);
+        padding-top: 37px;
+
+        @media #{$md} {
+            padding-top: 7px;
+        }
+    }
+
+    .section-title-wrapper {
+        display: grid;
+        gap: 15px 60px;
+        grid-template-columns: 1fr 1235px;
+
+        @media #{$xxl} {
+            grid-template-columns: 1fr 1000px;
+        }
+
+        @media #{$xl} {
+            grid-template-columns: 1fr 850px;
+        }
+
+        @media #{$lg} {
+            grid-template-columns: 1fr 750px;
+        }
+
+        @media #{$md} {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .subtitle-wrapper {
+        margin-top: 8px;
+    }
+
+    .section-title {
+        max-width: 1005px;
+
+        @media #{$xxl} {
+            max-width: 805px;
+        }
+
+        @media #{$xl} {
+            max-width: 605px;
+        }
+    }
+
+    .accordion-wrapper {
+        max-width: 1235px;
+        margin-left: auto;
+        margin-top: 93px;
+        margin-bottom: 10px;
+
+        @media #{$xxl} {
+            margin-top: 63px;
+            max-width: 1000px;
+        }
+
+        @media #{$xl} {
+            margin-top: 43px;
+            max-width: 900px;
+        }
+
+        @media #{$lg} {
+            max-width: 750px;
+        }
+    }
+
+    .accordion {
+        border-top: 1px solid var(--border);
+        counter-reset: accordion;
+    }
+
+    .accordion-button {
+        font-size: 30px;
+        font-weight: 310;
+        line-height: 1.16;
+        letter-spacing: -0.07em;
+        color: var(--primary);
+        padding: 30px 0 33px;
+        border-radius: 0 !important;
+        background-color: transparent;
+        outline: 0;
+        box-shadow: none;
+
+        @media #{$xxl} {
+            padding: 20px 0 23px;
+            font-size: 24px;
+        }
+
+        @media #{$sm} {
+            font-size: 20px;
+        }
+
+        &::after {
+            content: "+";
+            font-family: var(--font_awesome);
+            background-image: none;
+            width: auto;
+            height: auto;
+        }
+
+        &:not(.collapsed) {
+            pointer-events: none;
+
+            &::after {
+                content: "-";
+            }
+        }
+    }
+
+    .accordion-item {
+        background-color: transparent;
+        border: none;
+        border-bottom: 1px solid var(--border);
+        position: relative;
+        padding-left: 130px;
+        transition: all 0.5s;
+
+        @media #{$md} {
+            padding-left: 80px;
+        }
+
+        @media #{$sm} {
+            padding-left: 50px;
+        }
+
+        &:before {
+            counter-increment: accordion;
+            content: counter(accordion, decimal-leading-zero);
+            font-family: var(--font_sequelsansromanbody);
+            font-size: 30px;
+            font-weight: 310;
+            line-height: 1.16;
+            letter-spacing: -0.07em;
+            position: absolute;
+            top: 30px;
+            left: 0;
+            transition: all 0.5s;
+            color: var(--primary);
+
+            @media #{$xxl} {
+                top: 20px;
+                font-size: 24px;
+            }
+
+            @media #{$sm} {
+                font-size: 20px;
+            }
+        }
+    }
+
+
+    .accordion-body {
+        font-size: 20px;
+        font-weight: 400;
+        line-height: 28px;
+        color: var(--secondary);
+        padding: 4px 0 43px;
+        border: none;
+    }
+}

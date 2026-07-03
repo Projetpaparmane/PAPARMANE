@@ -1,0 +1,254 @@
+/* sercices page css */
+.service-area-service-page {
+
+    .section-header {
+        border-top: 1px solid var(--border);
+        padding-top: 37px;
+
+        @media #{$md} {
+            padding-top: 7px;
+        }
+    }
+
+    .section-title-wrapper {
+        display: grid;
+        gap: 15px 60px;
+        grid-template-columns: 1fr 1235px;
+
+        @media #{$xxl} {
+            grid-template-columns: 1fr 1000px;
+        }
+
+        @media #{$xl} {
+            grid-template-columns: 1fr 850px;
+        }
+
+        @media #{$lg} {
+            grid-template-columns: 1fr 750px;
+        }
+
+        @media #{$md} {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .subtitle-wrapper {
+        margin-top: 8px;
+    }
+
+    .section-title {
+        max-width: 800px;
+
+        @media #{$xxl} {
+            max-width: 700px;
+        }
+
+        @media #{$xl} {
+            max-width: 500px;
+        }
+    }
+
+    .services-wrapper-box {
+        margin-top: 94px;
+
+        @media #{$xxl} {
+            margin-top: 64px;
+        }
+
+        @media #{$md} {
+            margin-top: 44px;
+        }
+    }
+
+    .service-content-wrapper {
+        background-color: transparent;
+
+        .service-content {
+            .text {
+
+                &.text-invert>div {
+                    background-image: linear-gradient(to right, rgba(17, 17, 17, 1) 50%, rgba(17, 17, 17, 0.3) 51%);
+
+                    @include dark {
+                        background-image: linear-gradient(to right, rgba(255, 255, 255, 1) 50%, rgba(255, 255, 255, 0.3) 51%);
+                    }
+                }
+            }
+        }
+    }
+
+    .services-wrapper-2 {
+        .service-box {
+            background-color: var(--white);
+            border-color: var(--border);
+
+            @include dark {
+                background-color: var(--black);
+            }
+
+            &:last-child {
+
+                border-color: var(--border);
+            }
+
+            &-wrapper {
+
+                background-color: var(--border);
+            }
+
+            .number {
+                color: var(--primary);
+            }
+
+            .title {
+                color: var(--primary);
+            }
+
+            .text {
+                color: var(--primary);
+            }
+        }
+    }
+
+    .capabilities-area-2 {
+        .capability-box {
+            .title {
+                font-family: var(--font_thunder);
+                font-size: 100px;
+                font-weight: 400;
+                line-height: 0.85;
+                text-transform: uppercase;
+            }
+        }
+    }
+}
+
+/* client area service-page style  */
+.client-area-service-page {
+    .section-title {
+        max-width: 1430px;
+
+        @media #{$xxl} {
+            max-width: 1130px;
+        }
+
+        span {
+            color: var(--primary);
+        }
+    }
+
+    .section-content {
+        margin-top: 20px;
+
+        .text-wrapper {
+            max-width: 505px;
+            margin-top: 133px;
+            margin-left: 545px;
+
+            @media #{$xxl} {
+                margin-top: 83px;
+            }
+
+            @media #{$xl} {
+                margin-top: 63px;
+                margin-left: 345px;
+            }
+
+            @media #{$md} {
+                margin-top: 43px;
+                margin-left: auto;
+            }
+
+            @media #{$sm} {
+                max-width: 100%;
+                margin-top: 23px;
+            }
+        }
+    }
+
+    .client-capsule-wrapper {
+        position: relative;
+        overflow: hidden;
+        pointer-events: none;
+        margin-top: -200px;
+        height: 633px;
+
+        @media #{$xxl} {
+            height: 533px;
+        }
+
+        @media #{$xl} {
+            height: 483px;
+        }
+
+        @media #{$md} {
+            height: 433px;
+        }
+
+        >* {
+            position: absolute;
+            display: inline-block;
+            margin-bottom: 0;
+            left: 0;
+            top: 0;
+            user-select: none;
+            pointer-events: auto;
+            transition: none;
+        }
+    }
+
+    .client-box {
+        width: 215px;
+        height: 100px;
+        padding: 10px 20px;
+        background-color: var(--primary);
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        border-radius: 100px;
+        transform: translate(-50%, -50%) rotate(0.00rad);
+
+        @media #{$xxl} {
+            width: 165px;
+            height: 70px;
+        }
+
+        @media #{$xl} {
+            width: 135px;
+            height: 50px;
+        }
+
+        @media #{$md} {
+            width: 105px;
+            height: 40px;
+        }
+
+        @media #{$sm} {
+            width: 85px;
+            height: 30px;
+        }
+
+        img {
+            pointer-events: none;
+            max-width: 100%;
+            max-height: 100%;
+        }
+    }
+
+    .line {
+        border-bottom: 1px solid var(--primary);
+    }
+
+    .lines-wrapper {
+        display: grid;
+        gap: 5px 0;
+
+        @media #{$xl} {
+            gap: 3px 0;
+        }
+
+        @media #{$sm} {
+            gap: 1px 0;
+        }
+    }
+}

@@ -1,0 +1,136 @@
+/* team details page css */
+.team-details-area {
+    .section-content-wrapper {
+        margin-top: 17px;
+        display: grid;
+        gap: 40px 60px;
+        grid-template-columns: 590px 600px;
+        justify-content: space-between;
+
+        @media #{$xl} {
+            grid-template-columns: 1fr 500px;
+        }
+
+        @media #{$lg} {
+            grid-template-columns: 1fr 430px;
+        }
+
+        @media #{$md} {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .team-thumb {
+        margin-top: 13px;
+        order: 2;
+
+        @media #{$md} {
+            order: unset;
+            max-width: 500px;
+        }
+
+        img {
+            width: 100%;
+        }
+    }
+
+    .section-subtitle {
+        font-family: var(--font_sequelsansromanbody);
+        font-size: 30px;
+        font-weight: 310;
+        line-height: 0.93;
+        letter-spacing: -0.07em;
+        color: var(--primary);
+        text-transform: unset;
+
+        @media #{$xl} {
+            font-size: 24px;
+        }
+
+        @media #{$md} {
+            font-size: 22px;
+        }
+    }
+
+    .subtitle-wrapper {
+        margin-top: 29px;
+
+        @media #{$xl} {
+            margin-top: 19px;
+        }
+    }
+
+    .section-content {
+
+        .text-wrapper {
+            margin-top: 51px;
+
+            @media #{$xl} {
+                margin-top: 41px;
+            }
+
+            @media #{$md} {
+                margin-top: 31px;
+            }
+        }
+
+        .text {
+            font-size: 20px;
+            font-weight: 400;
+            line-height: 28px;
+
+            &:not(:first-child) {
+                margin-top: 28px;
+            }
+        }
+    }
+
+    .social-links {
+        margin-top: 53px;
+        border-top: 1px dashed #878482;
+        display: grid;
+
+        @include dark {
+            border-color: #6F6D6C;
+        }
+
+        @media #{$xl} {
+            margin-top: 43px;
+        }
+
+        @media #{$md} {
+            margin-top: 33px;
+        }
+
+        a {
+            font-size: 20px;
+            font-weight: 400;
+            line-height: 28px;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            border-bottom: 1px dashed #878482;
+            padding: 11px 0;
+            transition: all 0.5s;
+
+            @include dark {
+                border-color: #6F6D6C;
+            }
+
+            &:hover {
+                background-color: #F7F7FA;
+                padding-left: 20px;
+
+                @include dark {
+                    background-color: #171717;
+                }
+            }
+
+            &:before {
+                content: "+";
+                margin-right: 6px;
+            }
+
+        }
+    }
+}

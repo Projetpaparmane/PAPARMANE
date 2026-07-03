@@ -1,0 +1,91 @@
+/*-----------------------------------------------------------------------------------
+
+  Theme Name: Redox - Creative Agency and Portfolio HTML Template
+  Author: ravextheme
+  Support: https://support.rrdevs.net/
+  Description: Redox - Creative Agency and Portfolio HTML Template
+  Version: 1.0.4
+
+-----------------------------------------------------------------------------------
+
+/************ TABLE OF CONTENTS ***************
+variable css
+typography css
+animation css
+global css
+theme css
+Preloader css
+scroll css
+button css
+button animation css
+menu css
+modal css
+cursor css
+digital agency page css
+design agency page css
+creative agency page css
+marketing agency page css
+startup agency page css
+portfolio agency page css
+portfolio page css
+parallax carousal page css
+portfolio showcase page css
+portfolio showcase 2 page css
+404 page css
+about page css
+blog details page css
+blog page css
+contact page css
+faq page css
+service details page css
+sercices page css
+team details page css
+work details page css
+work page css
+
+/*----------------------------------------*/
+
+
+/* variable css  */
+
+
+/*----------------------------------------*/
+
+// Colors
+:root {
+    --primary: #111111;
+    --secondary: #555555;
+    --border: rgba(17, 17, 17, 0.1);
+    --bg: #111111;
+    --theme: #FF6A3A;
+    --black: #111111;
+    --black-2: #999999;
+    --white: #FFFFFF;
+    --white-2: #999999;
+    --action: #FF6A3A;
+    .dark {
+        --primary: #ffffff;
+        --secondary: #999999;
+        --border: rgba(255, 255, 255, 0.1);
+        --bg: #171717;
+    }
+}
+
+// Responsive Variable
+$xxxl: 'only screen and (min-width: 1920px)';
+$xxl: 'only screen and (max-width: 1919px)';
+$xl: 'only screen and (max-width: 1399px)';
+$lg: 'only screen and (max-width: 1199px)';
+$md: 'only screen and (max-width: 991px)';
+$sm: 'only screen and (max-width: 767px)';
+$xs: '(max-width: 575px)';
+$xxs: '(max-width:450px)';
+// For Box Layout
+$bl: 'only screen and (min-width: 1600px)';
+// Responsive Variable for container
+$cxxl: '(width > 1919px)';
+$cxl: '(width > 1399px)';
+$clg: '(width > 1199px)';
+$cmd: '(width > 991px)';
+$csm: '(width > 767px)';
+$cxs: '(width > 575px)';

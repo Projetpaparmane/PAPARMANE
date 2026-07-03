@@ -21,7 +21,8 @@
       "Bash(curl -sL -A \"Mozilla/5.0\" -o /dev/null -w \"%{url_effective} \\(%{http_code}\\)\\\\n\" https://pacini.com/)",
       "Bash(curl -sL -A \"Mozilla/5.0\" https://pacini.com/)",
       "Bash(mkdir -p public/projects)",
-      "Bash(curl -sL --max-time 45 \"https://image.thum.io/get/width/1200/crop/1500/noanimate/https://pacini.com/\" -o public/projects/pacini.jpg)"
+      "Bash(curl -sL --max-time 45 \"https://image.thum.io/get/width/1200/crop/1500/noanimate/https://pacini.com/\" -o public/projects/pacini.jpg)",
+      "Bash(grep -vE '\\\\.html$')"
     ]
   }
 }

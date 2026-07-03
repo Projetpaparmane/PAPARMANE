@@ -1,0 +1,781 @@
+/* button css */
+
+.rr-btn-group {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  font-family: var(--font_dmsans);
+
+  &.btn-whte {
+    .b {
+      border: 1px solid white;
+      color: var(--white);
+    }
+
+    .c {
+      border: 1px solid white;
+      color: var(--white);
+    }
+  }
+
+}
+
+.rr-btn-group {
+
+  span {
+    letter-spacing: 0;
+  }
+
+  &:hover {
+
+    .b {
+      transform: rotate(-20deg);
+    }
+
+    .c {
+      transform: translate(-7px, 0px);
+    }
+  }
+
+}
+
+.rr-btn-group .b {
+  padding: 9px 25px;
+  font-weight: 500;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--black);
+  background-color: transparent;
+  border: 2px solid var(--black);
+  border-radius: 50px;
+  transition: all 0.3s;
+
+}
+
+.rr-btn-group .c {
+  padding: 9px 11px;
+  font-weight: 500;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--black);
+  background-color: transparent;
+  border: 2px solid var(--black);
+  border-radius: 50px;
+  transition: all 0.3s;
+
+  i {
+    rotate: -30deg;
+  }
+}
+
+
+.rr-btn {
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  z-index: 5;
+  padding: 25px 36px;
+  background-color: var(--primary);
+  color: var(--white);
+  border: 1px solid var(--primary);
+  border-radius: 100px;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 18px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  text-transform: capitalize;
+  letter-spacing: -0.02em;
+
+  @include dark {
+    color: var(--black);
+  }
+
+  @media #{$lg} {
+    padding: 18px 29px;
+
+  }
+
+  @media #{$xs} {
+    padding: 16px 20px;
+    font-size: 14px;
+  }
+
+  &:hover,
+  &:focus {
+
+    &::before {
+      height: 100%;
+    }
+
+    .btn-wrap {
+      .text-one {
+        transform: translateY(-150%);
+      }
+
+      .text-two {
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--black);
+
+        @include dark {
+          color: var(--white);
+        }
+
+      }
+    }
+  }
+
+  &:after {
+    display: block;
+    clear: both;
+    content: "";
+  }
+
+  &::before {
+    background-color: var(--white);
+    content: "";
+    width: 100%;
+    height: 0;
+    bottom: 0;
+    position: absolute;
+    transition: all 0.5s;
+
+    @include dark {
+      background-color: var(--black);
+    }
+  }
+
+  .btn-wrap {
+    z-index: 1;
+    float: left;
+    overflow: hidden;
+    position: relative;
+    display: inline-block;
+    border: none;
+
+    .text-one,
+    .text-two {
+      display: flex;
+      align-items: center;
+    }
+
+    .text-one {
+      position: relative;
+      display: block;
+      color: var(--white);
+      transition: all 0.5s;
+
+      @include dark {
+        color: var(--black);
+      }
+    }
+
+    .text-two {
+      position: absolute;
+      top: 100%;
+      display: block;
+      color: var(--white);
+      transition: all 0.5s;
+
+      @include dark {
+        color: var(--black);
+      }
+    }
+  }
+
+
+  &.btn-border {
+    border: 1px solid rgba(17, 17, 17, 0.15);
+    background-color: transparent;
+    color: var(--black);
+    padding: 25px 42px;
+
+    &:hover,
+    &:focus {
+      border-color: transparent;
+      color: white;
+
+      // &::before {
+      //   background-color: var(--black);
+      //   height: 100%;
+      // }
+
+      .text-two {
+        color: #F9F9F9;
+      }
+    }
+
+    // &::before {
+    //   background-color: var(--black);
+    // }
+
+    .btn-wrap {
+      .text-one {
+        color: var(--black);
+      }
+
+      .text-two {
+        color: var(--white);
+      }
+    }
+  }
+
+  &.btn-border-white {
+    border: 1px solid rgba(252, 247, 243, 0.10);
+    background-color: transparent;
+  }
+
+  &.btn-white {
+    border-radius: 20px;
+    padding: 25px 25px;
+    border-color: transparent;
+    background-color: var(--white);
+
+    &::before {
+      background-color: var(--primary);
+    }
+
+    .text-one,
+    .text-two {
+      gap: 119px;
+      display: flex;
+
+      @media #{$xl} {
+        gap: 100px;
+      }
+
+      @media #{$lg} {
+        gap: 50px;
+      }
+
+      @media #{$sm} {
+        gap: 20px;
+      }
+    }
+
+    .btn-wrap {
+      .text-one {
+        color: var(--primary);
+      }
+
+      .text-two {
+        color: var(--white);
+      }
+    }
+  }
+
+}
+
+.rr-btn-plus {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  z-index: 5;
+  padding: 20px 50px 20px 33px;
+  background-color: var(--white);
+  color: var(--black);
+  border-radius: 20px;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 1;
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  text-transform: uppercase;
+
+  @include dark {
+    background-color: var(--black);
+    color: var(--black);
+  }
+
+  @media #{$lg} {
+    padding: 10px 20px 10px 18px;
+
+  }
+
+  @media #{$xs} {
+    font-size: 14px;
+  }
+
+  &:hover,
+  &:focus {
+
+    .icon {
+      &:before {
+        transform: scale(30);
+      }
+    }
+
+    .btn-wrap {
+      .text-one {
+        transform: translateY(-150%);
+      }
+
+      .text-two {
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--black);
+
+        @include dark {
+          color: var(--black);
+        }
+      }
+    }
+  }
+
+
+
+  .icon {
+    width: 60px;
+    height: 60px;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    font-size: 48px;
+
+    &:before {
+      position: absolute;
+      content: "";
+      width: 100%;
+      height: 100%;
+      background-color: #FFD80C;
+      top: 0;
+      left: 0;
+      border-radius: 50%;
+      z-index: -1;
+      transition: all 0.7s;
+    }
+  }
+
+  .btn-wrap {
+    z-index: 1;
+    float: left;
+    overflow: hidden;
+    position: relative;
+    display: inline-block;
+    border: none;
+
+    .text-one,
+    .text-two {
+      display: flex;
+      align-items: center;
+    }
+
+    .text-one {
+      position: relative;
+      display: block;
+      color: var(--black);
+      transition: all 0.5s;
+
+      @include dark {
+        color: var(--white);
+      }
+    }
+
+    .text-two {
+      position: absolute;
+      top: 100%;
+      display: block;
+      color: var(--black);
+      transition: all 0.5s;
+
+      @include dark {
+        color: var(--black);
+      }
+    }
+  }
+
+
+
+}
+
+
+.rr-btn-underline {
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 36px;
+  letter-spacing: -0.02em;
+  color: var(--primary);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding-bottom: 0px;
+  white-space: nowrap;
+
+  &:hover {
+    &::before {
+      width: 0;
+    }
+
+    i {
+      rotate: 0deg;
+    }
+  }
+
+  &::before {
+    position: absolute;
+    content: "";
+    inset-inline-start: 0;
+    bottom: 0px;
+    width: 100%;
+    height: 2px;
+    background-color: currentColor;
+    transition: 0.3s;
+  }
+
+  i {
+    font-size: 17px;
+    font-weight: 400;
+    rotate: -50deg;
+    transition: all 0.3s;
+  }
+}
+
+
+// Button Animation KeyFrame
+@keyframes mask_animation {
+  from {
+    -webkit-mask-position: 0 0;
+    mask-position: 0 0;
+  }
+
+  to {
+    -webkit-mask-position: 100% 0;
+    mask-position: 100% 0;
+  }
+}
+
+@keyframes mask_animation_2 {
+  from {
+    -webkit-mask-position: 100% 0;
+    mask-position: 100% 0;
+  }
+
+  to {
+    -webkit-mask-position: 0 0;
+    mask-position: 0 0;
+  }
+}
+
+
+// 
+// Button Hover Animation
+// 
+.btn {
+  &-hover {
+
+    &-default {
+      transition: all 0.5s;
+
+      &:hover {
+        color: var(--black);
+        background-color: var(--white);
+      }
+    }
+
+    &-cross {
+      overflow: hidden;
+      position: relative;
+      transition: all 1s;
+
+      &::after {
+        position: absolute;
+        content: "";
+        width: 150%;
+        height: 0%;
+        left: 50%;
+        top: 50%;
+        background-color: var(--primary);
+        transform: translateX(-50%) translateY(-50%) rotate(0deg);
+        transition: all 0.75s;
+        opacity: 0.5;
+        z-index: -1;
+      }
+
+      &:hover {
+        border-color: var(--primary);
+        background-color: transparent;
+
+        &::after {
+          height: 120%;
+          opacity: 1;
+        }
+      }
+    }
+
+    &-divide {
+      overflow: hidden;
+      position: relative;
+      transition: all 1s;
+      z-index: 1;
+
+      &::after {
+        position: absolute;
+        content: "";
+        width: 150%;
+        height: 0%;
+        left: 50%;
+        top: 50%;
+        background-color: var(--primary);
+        transform: translateX(-50%) translateY(-50%) rotate(90deg);
+        transition: all 0.75s;
+        opacity: 0.5;
+        z-index: -1;
+      }
+
+      &:hover {
+        border-color: var(--primary);
+        background-color: transparent !important;
+        border-color: transparent;
+
+
+        &::after {
+          height: 400%;
+          opacity: 1;
+        }
+      }
+    }
+
+    &-cropping {
+      overflow: hidden;
+      position: relative;
+      transition: all 1s;
+
+      &::after {
+        position: absolute;
+        content: "";
+        width: 150%;
+        height: 0%;
+        left: 50%;
+        top: 50%;
+        background-color: var(--primary);
+        transform: translateX(-50%) translateY(-50%) rotate(25deg);
+        transition: all 0.75s;
+        opacity: 0.5;
+        z-index: -1;
+      }
+
+      &:hover {
+        border-color: var(--primary);
+        background-color: transparent;
+
+        &::after {
+          height: 400%;
+          opacity: 1;
+        }
+      }
+    }
+
+    &-mask {
+      gap: 10px;
+      display: inline-flex;
+      align-items: center;
+      padding: 15px 30px;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.5s;
+      border-radius: 5px;
+      color: var(--white);
+      font-weight: 400;
+      font-size: 16px;
+      border: 1px solid var(--white);
+      z-index: 1;
+
+      &::after {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--black);
+        position: absolute;
+        content: attr(data-text);
+        cursor: pointer;
+        width: 100%;
+        height: 100%;
+        left: 0;
+        top: 0;
+        background-color: var(--white);
+        mask: url("https://raw.githubusercontent.com/robin-dela/css-mask-animation/master/img/nature-sprite.webp");
+        mask-size: 2300% 100%;
+        animation: mask_animation_2 0.7s steps(22) forwards;
+      }
+
+      &:hover {
+        color: var(--white);
+
+        &::after {
+          animation: mask_animation 0.7s steps(22) forwards;
+        }
+      }
+
+
+    }
+  }
+
+  &-rollover {
+    &-top {
+      position: relative;
+      transition: all 0.4s cubic-bezier(0.215, 0.61, 0.355, 1) 0s;
+
+      &:before {
+        position: absolute;
+        left: 0px;
+        bottom: 0px;
+        height: 0px;
+        width: 100%;
+        z-index: -1;
+        content: '';
+        background-color: var(--primary);
+        transition: all 0.4s cubic-bezier(0.215, 0.61, 0.355, 1) 0s;
+      }
+
+      &:hover {
+        border-color: var(--primary);
+        background-color: transparent;
+
+        &::before {
+          top: 0%;
+          bottom: auto;
+          height: 100%;
+        }
+      }
+    }
+
+    &-left {
+      position: relative;
+      transition: all 0.4s cubic-bezier(0.215, 0.61, 0.355, 1) 0s;
+
+      &::before {
+        position: absolute;
+        top: 0px;
+        right: 0px;
+        height: 100%;
+        width: 0px;
+        z-index: -1;
+        content: '';
+        background-color: var(--primary);
+        transition: all 0.4s cubic-bezier(0.42, 0, 0.58, 1) 0s;
+      }
+
+      &:hover {
+        border-color: var(--primary);
+        background-color: transparent;
+
+        &::before {
+          left: 0%;
+          right: auto;
+          width: 100%;
+        }
+      }
+    }
+
+    &-cross {
+      overflow: hidden;
+      position: relative;
+      transition: all 0.5s;
+
+      &::before {
+        position: absolute;
+        content: "";
+        width: 100%;
+        height: 100%;
+        bottom: 100%;
+        left: 100%;
+        opacity: 0;
+        border-bottom: 3px solid var(--primary);
+        border-left: 3px solid var(--primary);
+        transition: all 0.75s;
+      }
+
+      &::after {
+        position: absolute;
+        content: "";
+        width: 100%;
+        height: 100%;
+        top: 100%;
+        right: 100%;
+        opacity: 0;
+        border-top: 3px solid var(--primary);
+        border-right: 3px solid var(--primary);
+        transition: all 0.75s;
+      }
+
+      &:hover {
+        border-color: transparent;
+        color: var(--primary);
+
+        &::before {
+          bottom: 0;
+          left: 0;
+          opacity: 1;
+          width: 100%;
+          height: 100%;
+        }
+
+        &::after {
+          top: 0;
+          right: 0;
+          opacity: 1;
+          width: 100%;
+          height: 100%;
+        }
+      }
+    }
+  }
+
+  &-parallal-border {
+    overflow: hidden;
+    position: relative;
+    transition: all 0.5s;
+
+    &::before {
+      position: absolute;
+      content: "";
+      width: 0%;
+      height: 0%;
+      bottom: 0;
+      left: 0;
+      opacity: 0;
+      border-bottom: 3px solid var(--primary);
+      border-left: 3px solid var(--primary);
+      border-radius: 5px;
+      transition: all 0.75s;
+    }
+
+    &::after {
+      position: absolute;
+      content: "";
+      width: 0%;
+      height: 0%;
+      top: 0;
+      right: 0;
+      opacity: 0;
+      border-top: 3px solid var(--primary);
+      border-right: 3px solid var(--primary);
+      border-radius: 5px;
+      transition: all 0.75s;
+    }
+
+    &:hover {
+      border-color: transparent;
+      color: var(--primary);
+
+      &::before {
+        opacity: 1;
+        width: 100%;
+        height: 100%;
+      }
+
+      &::after {
+        opacity: 1;
+        width: 100%;
+        height: 100%;
+      }
+    }
+  }
+}

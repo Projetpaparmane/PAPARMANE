@@ -1,0 +1,285 @@
+/*----------------------------------------*/
+/* typography css  */
+/*----------------------------------------*/
+
+
+// ----------------------------
+// Font Family
+// ---------------------------
+
+/* dm sans  */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
+
+/* instrument sans  */
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap');
+
+
+/* Thunder  */
+@font-face {
+  font-family: "Thunder";
+  src: url('../fonts/Thunder-BoldLC.ttf');
+  font-weight: 700;
+}
+
+@font-face {
+  font-family: "Thunder";
+  src: url('../fonts/Thunder-SemiBoldLC.ttf');
+  font-weight: 600;
+}
+
+@font-face {
+  font-family: "Thunder";
+  src: url('../fonts/Thunder-LC.ttf');
+  font-weight: 400;
+}
+
+@font-face {
+  font-family: "Thunder";
+  src: url('../fonts/Thunder-MediumLC.ttf');
+  font-weight: 500;
+}
+
+/* Sequel Sans  */
+@font-face {
+  font-family: "Sequel Sans Roman Body";
+  src: url('../fonts/Sequel Sans Roman Body.otf');
+  font-weight: 310;
+}
+
+@font-face {
+  font-family: "Sequel Sans Medium Body";
+  src: url('../fonts/Sequel Sans Medium Body.otf');
+  font-weight: 315;
+}
+
+/* times now  */
+@font-face {
+  font-family: "TimesNow-SemiLightItalic";
+  src: url('../fonts/TimesNow-SemiLightItalic.ttf');
+  font-weight: 400;
+}
+
+/* bdo grotesk  */
+@font-face {
+  font-family: "BDOGrotesk-Regular";
+  src: url('../fonts/BDOGrotesk-Regular.ttf');
+  font-weight: 400;
+}
+
+@font-face {
+  font-family: "BDOGrotesk-Regular";
+  src: url('../fonts/BDOGrotesk-Medium.ttf');
+  font-weight: 500;
+}
+
+@font-face {
+  font-family: "BDOGrotesk-Regular";
+  src: url('../fonts/BDOGrotesk-DemiBold.ttf');
+  font-weight: 600;
+}
+
+/* tartufffo trial */
+@font-face {
+  font-family: "Tartuffo_Trial";
+  src: url('../fonts/Tartuffo_Trial-Thin.otf');
+  font-weight: 100;
+}
+
+@font-face {
+  font-family: "Tartuffo_Trial";
+  src: url('../fonts/Tartuffo_Trial-LightItalic.otf');
+  font-weight: 300;
+}
+
+@font-face {
+  font-family: "Tartuffo_Trial";
+  src: url('../fonts/Tartuffo_Trial-Light.otf');
+  font-weight: 300;
+}
+
+
+@font-face {
+  font-family: "tartuffo-font-family-family";
+  src: url('../fonts/Tartuffo_Trial-MediumItalic.otf');
+  font-weight: 500;
+}
+
+
+:root {
+  --font_dmsans: "DM Sans", sans-serif;
+  --font_instrumentsans: "Instrument Sans", sans-serif;
+  --font_thunder: "Thunder";
+  --font_sequelsansromanbody: "Sequel Sans Roman Body";
+  --font_sequelsansmediumbody: "Sequel Sans Medium Body";
+  --font_timesnow: "TimesNow-SemiLightItalic";
+  --font_bdogrotesk: "BDOGrotesk-Regular";
+  --font_tartuffo: "tartuffo-font-family";
+  --font_tartuffotrial: "Tartuffo_Trial";
+  --font_awesome: 'Font Awesome 6 Free';
+}
+
+// Font Family Classes
+.font {
+  &-heading {
+    &-instrumentsans-medium {
+      @include heading (var(--font_instrumentsans));
+    }
+
+    &-sequelsans-romanbody {
+      @include heading (var(--font_sequelsansromanbody));
+    }
+
+    &-thunder-regular {
+      @include heading (var(--font_thunder));
+    }
+
+    &-bdogrotesk-regular {
+      @include heading (var(--font_bdogrotesk));
+    }
+
+    &-tartuffotrial-thin {
+      @include heading (var(--font_tartuffotrial));
+    }
+
+  }
+}
+
+// Defalut Style
+* {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font_dmsans);
+  line-height: 1;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  padding: 0;
+  margin: 0;
+  color: var(--primary);
+  line-height: 1.22;
+  font-family: var(--font_instrumentsans);
+  font-weight: 500;
+}
+
+ul,
+ol {
+  padding: 0;
+  margin: 0;
+}
+
+li {
+  list-style: none;
+}
+
+a {
+  text-decoration: none;
+  transition: all 0.3s;
+  color: inherit;
+
+  &:hover {
+    color: var(--primary);
+  }
+
+}
+
+button {
+  background-color: transparent;
+  border: 0;
+}
+
+p {
+  padding: 0;
+  margin: 0;
+  font-weight: 400;
+  font-size: 22px;
+  line-height: 30px;
+  color: var(--secondary);
+
+  @media #{$xl} {
+    font-size: 20px;
+    line-height: 28px;
+  }
+
+}
+
+strong {
+  font-weight: 500;
+}
+
+video,
+iframe,
+img {
+  margin: 0;
+  padding: 0;
+}
+
+img {
+  max-width: 100%;
+}
+
+.medium {
+  font-weight: 600;
+}
+
+.bold {
+  font-weight: 700;
+}
+
+// No Gutter
+@media #{$sm} {
+  .g-0 {
+    padding-right: 15px;
+    padding-left: 15px;
+  }
+
+  .row.g-0 {
+    padding-right: 0;
+    padding-left: 0;
+  }
+
+  br {
+    display: none;
+  }
+}
+
+main {
+  display: inline-block;
+  width: 100%;
+  overflow: hidden;
+}
+
+h1 {
+  font-size: 48px;
+}
+
+h2 {
+  font-size: 36px;
+}
+
+h3 {
+  font-size: 32px;
+}
+
+h4 {
+  font-size: 24px;
+}
+
+h5 {
+  font-size: 20px;
+}
+
+h6 {
+  font-size: 18px;
+}

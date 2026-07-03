@@ -1,0 +1,97 @@
+/* parallax carousal page css */
+.body-parallax-carosole {
+
+    .header-area-8 {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        right: 0;
+    }
+}
+
+.parallax-slider-wrapper {
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    overflow: hidden;
+    margin-left: 10px;
+    position: relative;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.parallax-slider-inner {
+    gap: 10px;
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    padding-top: 80px;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.parallax-slider-item {
+    width: 500px;
+    height: 100%;
+    overflow: hidden;
+    position: relative;
+    background-size: cover;
+
+    img {
+        height: 80%;
+        min-width: 750px;
+        object-fit: cover;
+        margin-left: -50px;
+        background-size: cover;
+        background-position: center;
+        cursor: none;
+    }
+
+    .content {
+        margin-top: 24px;
+
+        @media #{$lg} {
+            margin-top: 14px;
+        }
+    }
+
+    .title {
+        font-size: 20px;
+        font-weight: 400;
+        line-height: 26px;
+        letter-spacing: -0.05em;
+
+        @media #{$lg} {
+            font-size: 18px;
+        }
+    }
+
+    .tag {
+        display: block;
+        font-size: 20px;
+        font-weight: 400;
+        line-height: 26px;
+        color: var(--primary);
+        letter-spacing: -0.05em;
+        font-family: var(--font_bdogrotesk);
+
+        @media #{$lg} {
+            font-size: 18px;
+        }
+    }
+
+    .date {
+        display: block;
+        font-size: 20px;
+        font-weight: 400;
+        line-height: 26px;
+        color: var(--primary);
+        letter-spacing: -0.05em;
+        font-family: var(--font_bdogrotesk);
+
+        @media #{$lg} {
+            font-size: 18px;
+        }
+    }
+}

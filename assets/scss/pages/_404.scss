@@ -1,0 +1,91 @@
+/* 404 page css */
+.error-area {
+    &-inner {
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+    }
+
+    .section-subtitle {
+        font-family: var(--font_sequelsansmediumbody);
+        font-size: 300px;
+        font-weight: 315;
+        line-height: 0.7;
+        letter-spacing: -0.07em;
+
+        @media #{$xxl} {
+            font-size: 240px;
+        }
+
+        @media #{$xl} {
+            font-size: 180px;
+        }
+
+        @media #{$lg} {
+            font-size: 140px;
+        }
+
+        @media #{$md} {
+            font-size: 120px;
+        }
+    }
+
+    .section-title {
+        max-width: 740px;
+
+        @media #{$xxl} {
+            max-width: 640px;
+        }
+
+        @media #{$xl} {
+            max-width: 540px;
+        }
+
+        @media #{$lg} {
+            max-width: 440px;
+        }
+
+        @media #{$md} {
+            max-width: 340px;
+        }
+    }
+
+    .section-content {
+        align-self: center;
+
+        .title-wrapper {
+            margin-top: 37px;
+
+            @media #{$xxl} {
+                margin-top: 27px;
+
+            }
+
+            @media #{$lg} {
+                margin-top: 17px;
+
+            }
+        }
+
+        .btn-wrapper {
+            margin-top: 64px;
+
+            @media #{$xxl} {
+                margin-top: 44px;
+
+            }
+
+            @media #{$lg} {
+                margin-top: 34px;
+
+            }
+
+            @media #{$md} {
+                margin-top: 24px;
+
+            }
+        }
+    }
+}

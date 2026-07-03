@@ -1,24 +1,9 @@
-# build output
-dist/
-.output/
-
-# dependencies
-node_modules/
-
-# astro
-.astro/
-
-# env
-.env
-.env.production
-.env.*.local
-
-# netlify
-.netlify/
-
 # logs
 npm-debug.log*
 *.log
+
+# netlify
+.netlify/
 
 # macOS
 .DS_Store

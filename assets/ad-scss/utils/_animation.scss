@@ -1,0 +1,134 @@
+/* animation css */
+
+.t_parallax_image {
+  overflow: hidden;
+}
+
+// Bubble
+@keyframes t-Bubble {
+  0% {
+    scale: 1;
+  }
+
+  50% {
+    scale: 1.5;
+  }
+
+  100% {
+    scale: 1;
+  }
+}
+
+
+// Zoom
+@keyframes t-Zoom {
+  0% {
+    scale: 1;
+  }
+
+  50% {
+    scale: 0.5;
+  }
+
+  100% {
+    scale: 1;
+  }
+}
+
+// Zoom 2
+@keyframes t-Zoom_2 {
+  0% {
+    scale: 1;
+  }
+
+  50% {
+    scale: 0.9;
+  }
+
+  100% {
+    scale: 1;
+  }
+}
+
+
+// Slide 
+@keyframes t-SlideBottom {
+  0% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(50px);
+  }
+
+  100% {
+    transform: translateY(0);
+  }
+}
+
+
+// 
+@keyframes t-reveal {
+  to {
+    opacity: 1;
+    filter: blur(0px);
+  }
+}
+
+// Fade Up
+@keyframes t-fadeUp {
+  0% {
+    opacity: 0;
+    -webkit-transform: translateY(50px);
+    -ms-transform: translateY(50px);
+    transform: translateY(50px);
+  }
+
+  100% {
+    opacity: 1;
+    -webkit-transform: translateY(0);
+    -ms-transform: translateY(0);
+    transform: translateY(0);
+  }
+}
+
+
+
+@keyframes t-spinner {
+  to {
+    transform: rotateZ(360deg);
+  }
+}
+
+@keyframes t-characters {
+
+  0%,
+  75%,
+  100% {
+    opacity: 0;
+    transform: rotateY(-90deg);
+  }
+
+  25%,
+  50% {
+    opacity: 1;
+    transform: rotateY(0deg);
+  }
+}
+
+@keyframes t-sheen {
+  50% {
+    transform: translateY(-20px);
+    color: var(--primary);
+  }
+}
+
+@keyframes t-slide {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-100%);
+  }
+}

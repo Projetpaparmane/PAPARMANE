@@ -1,0 +1,97 @@
+// heading  
+@mixin heading($font_family) {
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: $font_family;
+  }
+}
+
+// dark 
+@mixin dark {
+  .dark & {
+    @content;
+  }
+}
+
+// bg primary 
+@mixin bg-primary {
+  .rr-bg-primary & {
+    @content;
+  }
+}
+
+// Transition multiple
+@mixin rs-transition-mul($property) {
+  -webkit-transition: $property;
+  -moz-transition: $property;
+  -ms-transition: $property;
+  -o-transition: $property;
+  transition: $property ;
+}
+
+// Transform
+@mixin transform($transforms) {
+  -webkit-transform: $transforms;
+  -moz-transform: $transforms;
+  -ms-transform: $transforms;
+  -o-transform: $transforms;
+  transform: $transforms;
+}
+
+// Flexbox display
+@mixin flexbox() {
+  display: -moz-box;
+  display: -ms-flexbox;
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: flex;
+}
+
+@mixin inline-flex() {
+  display: -webkit-inline-box;
+  display: -moz-inline-box;
+  display: -ms-inline-flexbox;
+  display: -webkit-inline-flex;
+  display: inline-flexbox;
+  display: inline-flex;
+}
+
+
+// Menu Animation
+// @mixin menu_anim($shadow_color) {
+//   .menu-text {
+//     display: flex;
+//     overflow: hidden;
+//     text-shadow: 0 16px 0 $shadow_color;
+
+//     span {
+//       display: block;
+//       backface-visibility: hidden;
+//       font-style: normal;
+//       transition: transform .4s ease;
+//       transform: translateY(var(--m)) translateZ(0);
+//       $i: 1;
+
+//       @while $i < 50 {
+//         &:nth-child(#{$i}) {
+//           transition-delay: $i / 20 + s;
+//         }
+
+//         $i: $i + 1;
+//       }
+//     }
+//   }
+
+//   &:hover {
+//     --y: -4px;
+
+//     span {
+//       --m: calc(16px * -1);
+//     }
+//   }
+// }
