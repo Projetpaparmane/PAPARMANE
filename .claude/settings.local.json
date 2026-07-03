@@ -25,7 +25,8 @@
       "Bash(grep -vE '\\\\.html$')",
       "Bash(curl -sL https://paparmane.netlify.app/?cb=__TRACKED_VAR__)",
       "Bash(curl -sL -o /dev/null -w \"%{http_code}\\\\n\" \"https://paparmane.netlify.app/assets/imgs/pacini.jpg\")",
-      "Bash(curl -sL -o /dev/null -w \"%{http_code}\\\\n\" \"https://paparmane.netlify.app/assets/css/paparmane.css\")"
+      "Bash(curl -sL -o /dev/null -w \"%{http_code}\\\\n\" \"https://paparmane.netlify.app/assets/css/paparmane.css\")",
+      "Bash(perl -CSD -0777 -pi -e ' *)"
     ]
   }
 }

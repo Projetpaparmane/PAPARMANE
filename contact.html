@@ -75,7 +75,7 @@
           </a>
         </div>
         <div class="offset-widget-box">
-          <h2 class="title">Contact US</h2>
+          <h2 class="title">Contact</h2>
           <div class="contact-meta">
             <div class="contact-item">
               <span class="icon"><i class="fa-solid fa-location-dot"></i></span>
@@ -222,9 +222,7 @@
                     <span class="section-subtitle">Contact</span>
                   </div>
                   <div class="title-wrapper">
-                    <h2 class="section-title font-sequelsans-romanbody">Let’s drop us a line
-                      and get the project
-                      started.</h2>
+                    <h2 class="section-title font-sequelsans-romanbody">Écrivez-nous et démarrons votre projet ensemble.</h2>
                   </div>
                 </div>
               </div>
@@ -232,14 +230,12 @@
                 <div class="section-content">
                   <div class="contact-mail">
                     <p class="title">Contactez-nous</p>
-                    <p class="text">We’re excited to hear from you
-                      and let’s start something special
-                      together <br>
+                    <p class="text">Ravis de vous lire — et de lancer ensemble quelque chose de spécial. <br>
                       <a href="mailTo:bonjour@paparmane.com">bonjour@paparmane.com</a>
                     </p>
                   </div>
                   <div class="contact-social">
-                    <p class="title">Follow</p>
+                    <p class="title">Suivez-nous</p>
                     <div class="social-links">
                       <a href="#">Facebook</a>
                       <a href="#">Twitter</a>
@@ -251,19 +247,21 @@
                   </div>
                 </div>
                 <div class="contact-wrap">
-                  <form id="contact__form" method="POST" action="./mail.php">
+                  <form name="contact" method="POST" data-netlify="true" netlify-honeypot="bot-field">
+                    <input type="hidden" name="form-name" value="contact">
+                    <p hidden><label>Ne pas remplir : <input name="bot-field"></label></p>
                     <div class="contact-formwrap">
                       <div class="contact-formfield">
-                        <input type="text" name="name" id="name" placeholder="Name*">
+                        <input type="text" name="name" id="name" placeholder="Nom*" required>
                       </div>
                       <div class="contact-formfield">
-                        <input type="text" name="email" id="email" placeholder="Email*">
+                        <input type="email" name="email" id="email" placeholder="Email*" required>
                       </div>
                       <div class="contact-formfield">
-                        <input type="text" name="phone" id="phone" placeholder="Phone*">
+                        <input type="text" name="phone" id="phone" placeholder="Téléphone*">
                       </div>
                       <div class="contact-formfield">
-                        <input type="text" name="company" id="company" placeholder="Company">
+                        <input type="text" name="company" id="company" placeholder="Entreprise">
                       </div>
                       <div class="contact-formfield">
                         <select name="Budget" id="Budget">
@@ -272,11 +270,11 @@
                           <option value="2">10,000 - 15,000</option>
                           <option value="3">15,000 - 20,000</option>
                           <option value="4">20,000 - 25,000</option>
-                          <option value="5">25,000 - Above</option>
+                          <option value="5">25 000 et +</option>
                         </select>
                       </div>
                       <div class="contact-formfield">
-                        <input type="text" name="solution" id="solution" placeholder="Solution*">
+                        <input type="text" name="solution" id="solution" placeholder="Votre besoin*">
                       </div>
                       <div class="contact-formfield message">
                         <input type="text" name="message" id="message" placeholder="Message*">
