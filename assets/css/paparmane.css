@@ -44,3 +44,20 @@
 .award-wrapper {
   display: none !important;
 }
+
+/* Plus de couleur d'accent dans les titres et sous-titres */
+.section-subtitle {
+  color: #e64015 !important;
+}
+/* petit point/marqueur devant les sous-titres */
+.section-subtitle::before,
+.subtitle-wrapper .section-subtitle::before {
+  background: #e64015 !important;
+  color: #e64015 !important;
+}
+/* mots mis en avant à l'intérieur des grands titres */
+.section-title span,
+.page-title span,
+.big-text {
+  color: #e64015 !important;
+}
