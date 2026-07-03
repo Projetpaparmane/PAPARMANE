@@ -34,15 +34,19 @@
 /* Le grand nom décoratif "Paparmane" (9 lettres) débordait à la taille
    prévue pour "Redox" (5 lettres). On le réduit pour qu'il tienne. */
 .big-text {
-  font-size: 9vw !important;
+  /* "Paparmane" (9 lettres) calé sur toute la largeur du conteneur,
+     plafonné sur grand écran pour ne pas déborder. */
+  font-size: min(27vw, 480px) !important;
   line-height: 0.9 !important;
   white-space: nowrap;
 }
 
 /* Badge rond décoratif = image avec texte anglais ("Award winning agency
-   since 2010"). On le masque puisqu'on ne veut pas d'anglais. */
+   since 2010"). On le rend invisible MAIS on le garde dans la grille du hero
+   (visibility, pas display:none) — sinon le titre glisse dans sa colonne de
+   130px et s'empile verticalement. */
 .award-wrapper {
-  display: none !important;
+  visibility: hidden !important;
 }
 
 /* Plus de couleur d'accent dans les titres et sous-titres */
@@ -55,9 +59,8 @@
   background: #e64015 !important;
   color: #e64015 !important;
 }
-/* gros titres de section entiers en orange (version audacieuse) */
-.section-title,
-.section-title a,
+/* accent orange sur les mots-clés des titres + le grand mot décoratif
+   (les gros titres de section restent en blanc — plus lisible) */
 .section-title span,
 .page-title span,
 .big-text {
