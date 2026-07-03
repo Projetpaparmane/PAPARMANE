@@ -28,7 +28,8 @@
       "Bash(curl -sL -o /dev/null -w \"%{http_code}\\\\n\" \"https://paparmane.netlify.app/assets/css/paparmane.css\")",
       "Bash(perl -CSD -0777 -pi -e ' *)",
       "Bash(grep -inE 'section-subtitle\">[^<]+|section-title[^>]*>[^<]+|page-title[^>]*>[^<]+|class=\"text\">[^<]+|big-text\">[^<]+|<li>[^<]{3,}</li>|class=\"title\">[^<]{3,}' about.html)",
-      "Bash(grep -inE 'section-subtitle\">[^<]+|section-title[^>]*>[^<]+|page-title[^>]*>[^<]+|class=\"text\">[^<]{3,}|class=\"title\"[^>]*>[^<]{3,}|<h[23][^>]*>[^<]{3,}' services.html)"
+      "Bash(grep -inE 'section-subtitle\">[^<]+|section-title[^>]*>[^<]+|page-title[^>]*>[^<]+|class=\"text\">[^<]{3,}|class=\"title\"[^>]*>[^<]{3,}|<h[23][^>]*>[^<]{3,}' services.html)",
+      "Bash(grep -inE 'page-title[^>]*>[^<]+|section-subtitle\">[^<]+|section-title[^>]*>[^<]+|class=\"tag\">[^<]+|class=\"title\"[^>]*>[^<]{2,}|class=\"text\">[^<]{3,}' portfolio.html)"
     ]
   }
 }
