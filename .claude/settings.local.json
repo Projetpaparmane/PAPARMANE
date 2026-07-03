@@ -26,7 +26,8 @@
       "Bash(curl -sL https://paparmane.netlify.app/?cb=__TRACKED_VAR__)",
       "Bash(curl -sL -o /dev/null -w \"%{http_code}\\\\n\" \"https://paparmane.netlify.app/assets/imgs/pacini.jpg\")",
       "Bash(curl -sL -o /dev/null -w \"%{http_code}\\\\n\" \"https://paparmane.netlify.app/assets/css/paparmane.css\")",
-      "Bash(perl -CSD -0777 -pi -e ' *)"
+      "Bash(perl -CSD -0777 -pi -e ' *)",
+      "Bash(grep -inE 'section-subtitle\">[^<]+|section-title[^>]*>[^<]+|page-title[^>]*>[^<]+|class=\"text\">[^<]+|big-text\">[^<]+|<li>[^<]{3,}</li>|class=\"title\">[^<]{3,}' about.html)"
     ]
   }
 }
