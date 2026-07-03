@@ -38,3 +38,9 @@
   line-height: 0.9 !important;
   white-space: nowrap;
 }
+
+/* Badge rond décoratif = image avec texte anglais ("Award winning agency
+   since 2010"). On le masque puisqu'on ne veut pas d'anglais. */
+.award-wrapper {
+  display: none !important;
+}
