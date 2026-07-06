@@ -1,41 +1,40 @@
 # PAPARMANE
 
-Site vitrine d'agence créative / portfolio — design original inspiré de l'esthétique « Redox ».
-Construit avec [Astro](https://astro.build) et animé avec [GSAP](https://gsap.com).
+Site vitrine de l'agence **Paparmane** — HTML statique, basé sur le template « Redox ».
+Aucune étape de build : le contenu de la racine est publié tel quel.
 
 ## Stack
 
-- **Astro 5** — génération de site statique, zéro JS par défaut
-- **GSAP + ScrollTrigger** — animations au scroll
-- **CSS pur** — thème sombre, design tokens via variables CSS
+- **HTML statique** (template Redox, licence régulière) — aucun build
+- **CSS + JS** du template dans `assets/`
+- Formulaire de contact via **Netlify Forms**
 - Déployé sur **Netlify**
 
-## Développement
+## Pages du site
+
+| Page | Fichier |
+|------|---------|
+| Accueil | `index.html` |
+| À propos | `about.html` |
+| Services | `services.html` · détail : `service-details.html` |
+| Portfolio | `portfolio.html` · détail : `portfolio-details.html` |
+| Blog | `blog.html` · détail : `blog-details.html` |
+| Équipe | `team.html` · détail : `team-details.html` |
+| FAQ | `faq.html` |
+| Contact | `contact.html` |
+| Erreur 404 | `404.html` |
+
+Les assets partagés (CSS, JS, images, polices) sont dans `assets/`.
+
+## Développement local
+
+Le site est 100 % statique. Pour le prévisualiser en local :
 
 ```bash
-npm install       # installe les dépendances
-npm run dev       # serveur de dev sur http://localhost:4321
-npm run build     # build de production dans dist/
-npm run preview   # prévisualise le build
-```
-
-## Structure
-
-```
-src/
-  layouts/Layout.astro       # shell HTML, fonts, import du script
-  components/                # Header, Hero, Stats, About, Services, Work, Quote, Contact, Footer
-  pages/index.astro          # page d'accueil (assemble les composants)
-  scripts/main.js            # preloader, curseur, reveals, compteurs, marquee, tilt
-  styles/global.css          # thème + tous les styles
-public/favicon.svg
+python3 -m http.server 8000   # puis ouvrir http://localhost:8000
 ```
 
 ## Déploiement
 
-Le repo est connecté à Netlify. Chaque push sur `main` déclenche un build automatique
-(`npm run build` → publie `dist/`). Voir `netlify.toml`.
-
----
-
-Design & contenu = placeholders à personnaliser (textes, projets, coordonnées).
+Le repo est connecté à Netlify. Chaque push déclenche une publication automatique
+de la racine du repo (voir `netlify.toml`). Les formulaires sont gérés par Netlify Forms.
