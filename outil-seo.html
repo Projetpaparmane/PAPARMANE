@@ -50,6 +50,12 @@
   .btn:disabled{opacity:.45;cursor:wait}
   .btn.ghost{background:transparent;color:var(--accent-hi);border:1.5px solid var(--accent)}
   .hint{margin-top:10px;font-size:12px;color:var(--ink-faint)}
+  .advanced{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+  .advanced summary{cursor:pointer;color:var(--accent-hi);font-size:12px;font-weight:750}
+  .adv-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+  @media(max-width:620px){.adv-grid{grid-template-columns:1fr}}
+  .field label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-faint);font-weight:700;margin-bottom:5px}
+  .field input,.field textarea{width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:9px;color:var(--ink);font:13px var(--sans);padding:10px 12px;resize:vertical}
 
   /* Progression */
   #progress{display:none;margin-top:22px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px 24px;box-shadow:var(--shadow)}
@@ -155,6 +161,12 @@
   .kw-cloud{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 18px}
   .kw{display:inline-flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 11px;box-shadow:var(--shadow);font-size:12px}
   .kw b{font-weight:650}.kw small{font-family:var(--mono);color:var(--ink-faint)}
+  .delta{display:inline-flex;align-items:center;padding:3px 9px;border-radius:999px;font:700 11px var(--mono);margin-left:8px}
+  .delta.up{background:var(--good-soft);color:var(--good)}.delta.down{background:var(--crit-soft);color:var(--crit)}.delta.same{background:var(--surface-3);color:var(--ink-faint)}
+  .matrix{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+  @media(max-width:620px){.matrix{grid-template-columns:1fr}}
+  .matrix-item{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:13px 15px;display:grid;grid-template-columns:1fr auto;gap:5px 10px}
+  .matrix-item b{font-size:13px}.matrix-item small{color:var(--ink-faint);grid-column:1/-1}
 
   .pgroup{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:13px 16px;margin-bottom:10px}
   .pgroup summary{cursor:pointer;font-weight:650;font-size:13.5px;display:flex;align-items:center;justify-content:space-between;gap:10px;list-style:none}
@@ -235,6 +247,13 @@
       <input id="siteUrl" type="url" placeholder="www.site-du-client.com" onkeydown="if(event.key==='Enter')runAudit()">
       <button class="btn" id="goBtn" onclick="runAudit()">Lancer l'audit</button>
     </div>
+    <details class="advanced">
+      <summary>Options avancées — client et mots-clés cibles</summary>
+      <div class="adv-grid">
+        <div class="field"><label for="clientName">Nom du client</label><input id="clientName" type="text" placeholder="Entreprise ABC"></div>
+        <div class="field"><label for="targetKeywords">Mots-clés visés</label><textarea id="targetKeywords" rows="3" placeholder="service principal&#10;service + ville&#10;question fréquente"></textarea></div>
+      </div>
+    </details>
     <div class="hint">Audit complet du sitemap — jusqu'à 1 000 pages par analyse · aucune donnée envoyée à un service tiers · le site audité voit passer « PaparmaneSEO » dans ses journaux.</div>
   </section>
 
@@ -300,6 +319,8 @@ async function runAudit(){
   $("#progress").style.display="block"; $("#plog").innerHTML=""; setBar(2);
 
   try{
+    const clientName=$("#clientName")?.value.trim()||"";
+    const targetKeywords=[...new Set(($("#targetKeywords")?.value||"").split(/[\n,;]/).map(x=>x.trim()).filter(Boolean))].slice(0,50);
     log("Découverte du site (robots.txt, sitemap, llms.txt)…");
     const disc = await api({mode:"discover", site:raw});
     const origin = disc.origin;
@@ -376,8 +397,13 @@ async function runAudit(){
     setBar(96);
     log("Compilation du rapport…");
 
-    const model = buildModel(origin, disc, pages, linkResults, llmsLinkResults);
+    const model = buildModel(origin, disc, pages, linkResults, llmsLinkResults, {clientName,targetKeywords});
+    let history=[];
+    try{ history=JSON.parse(localStorage.getItem("pap_audits_"+new URL(origin).hostname)||"[]"); if(!Array.isArray(history)) history=[]; }catch{ history=[]; }
+    model.previous=history[0]||null;
     renderReport(model);
+    const snapshot={date:new Date().toISOString(),global:model.global,scores:model.scores,counts:model.counts,pages:model.pages.length};
+    localStorage.setItem("pap_audits_"+new URL(origin).hostname,JSON.stringify([snapshot,...history].slice(0,12)));
     setBar(100);
     $("#progress").style.display="none";
     $("#report").style.display="block";
@@ -390,13 +416,14 @@ async function runAudit(){
 }
 
 // --- Construction du modèle : scores + problèmes ---
-function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults){
+function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, options={}){
   const pages = pagesAll.filter(p=>!p.dead);
   const deadPages = pagesAll.filter(p=>p.dead);
   const n = Math.max(1,pages.length);
   const isWP = pages.some(p=>p.isWordPress);
   const S = short; const sh = u=>short(u,origin);
   const issues=[]; const wins=[];
+  const norm=s=>String(s||"").toLocaleLowerCase("fr-CA").normalize("NFKD").replace(/[\u0300-\u036f]/g,"");
 
   // ---- Mots-clés observés (analyse interne, sans volumes externes) ----
   const keywordTotals=new Map();
@@ -409,6 +436,23 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults){
   for(const p of pages) if(p.focusKeyword) (focusGroups[p.focusKeyword]??=[]).push(p);
   const cannibalization=Object.entries(focusGroups).filter(([,group])=>group.length>1);
   const weakAlignment=pages.filter(p=>p.focusKeyword&&(!p.keywordAlignment?.title||!p.keywordAlignment?.h1));
+  const targetMap=(options.targetKeywords||[]).map(keyword=>{
+    const k=norm(keyword);
+    const ranked=pages.map(p=>{
+      let score=0;
+      if(norm(p.title).includes(k)) score+=40;
+      if(norm((p.h1||[]).join(" ")).includes(k)) score+=40;
+      if(norm(p.desc).includes(k)) score+=20;
+      score+=(p.keywords||[]).filter(x=>norm(x.term).includes(k)||k.includes(norm(x.term))).reduce((a,x)=>a+Math.min(20,x.count*2),0);
+      return {page:p,score};
+    }).sort((a,b)=>b.score-a.score);
+    return {keyword,best:ranked[0]?.page||null,score:ranked[0]?.score||0,covered:(ranked[0]?.score||0)>=20};
+  });
+  const targetGaps=targetMap.filter(x=>!x.covered);
+  if(targetGaps.length) issues.push({sev:"warn",cat:"keywords",title:targetGaps.length+" mot(s)-clé(s) stratégiques n'ont aucune page cible claire",
+    body:"Ces expressions ont été fournies comme objectifs, mais aucune page ne les annonce assez clairement. C'est un écart stratégique : le site souhaite être trouvé sur ces sujets sans posséder de destination évidente pour Google.",
+    where:targetGaps.map(x=>"<b>« "+esc(x.keyword)+" »</b> — aucune correspondance forte"),
+    steps:["Valider l'intention derrière chaque expression : information, comparaison, service ou achat.","Créer une nouvelle page si aucun contenu ne répond à cette intention; sinon renforcer la meilleure page existante.","Utiliser l'expression dans le titre, le H1, l'introduction et quelques sous-titres naturels.","Ajouter des liens internes vers cette page depuis les contenus connexes."],effort:"1-4 h / sujet",gain:"élevé"});
   if(cannibalization.length) issues.push({sev:"warn",cat:"keywords",title:cannibalization.length+" sujet(s) semblent ciblés par plusieurs pages",
     body:"Plusieurs pages insistent sur la même expression dominante. Elles peuvent se concurrencer dans Google au lieu de renforcer une page principale. C'est une alerte de cannibalisation basée sur le contenu observé — à confirmer avec les requêtes de Google Search Console.",
     where:cannibalization.slice(0,12).flatMap(([kw,group])=>["<b>« "+esc(kw)+" »</b> : "+group.map(p=>"<code>"+esc(sh(p.url))+"</code>").join(", ")]),
@@ -685,7 +729,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults){
     {name:"Contenu facile à citer",score:Math.max(20,Math.round(100-thinPages.length/Math.max(1,n)*100)),detail:thinPages.length+" page(s) trop courtes"},
     {name:"Fiche llms.txt",score:disc.llms?.exists?85:20,detail:disc.llms?.exists?"fichier présent":"fichier absent (standard émergent, facultatif)"},
   ];
-  return {origin, disc, pages, deadPages, issues, wins, scores, global, imgPages, uniqFiles, isWP, aiReadiness, siteKeywords, cannibalization,
+  return {origin, disc, pages, deadPages, issues, wins, scores, global, imgPages, uniqFiles, isWP, aiReadiness, siteKeywords, cannibalization, targetMap, clientName:options.clientName||"",
           counts:{crit:issues.filter(i=>i.sev==="crit").length,warn:issues.filter(i=>i.sev==="warn").length,info:issues.filter(i=>i.sev==="info").length,wins:wins.length},
           linksChecked: linkResults.length};
 }
@@ -701,6 +745,8 @@ function renderReport(m){
                 : ["Corrections urgentes","var(--crit-soft)","var(--crit)"];
   const dash = 389.6, off = dash*(1-m.global/100);
   const barColor = v=>v>=80?"var(--good)":v>=55?"var(--warn)":"var(--crit)";
+  const delta=m.previous?m.global-m.previous.global:null;
+  const deltaHtml=delta===null?"":`<span class="delta ${delta>0?"up":delta<0?"down":"same"}">${delta>0?"+":""}${delta} depuis le dernier audit</span>`;
 
   const catRows = [
     ["Fondations techniques","HTTPS, mobile, plan de site","fondations"],
@@ -729,6 +775,10 @@ function renderReport(m){
         <div class="effort"><span class="chip">⏱ Effort : <b>${i.effort||"—"}</b></span><span class="chip">🎯 Gain : <b>${i.gain||"—"}</b></span></div>
       </div>
     </article>`;
+
+  const effortRank=e=>/min|5 min|10 min|15 min|20 min|30 min/i.test(e||"")?1:/1 h|2 h|3 h|90 min/i.test(e||"")?2:3;
+  const impactRank=i=>i.sev==="crit"?3:i.sev==="warn"?2:1;
+  const priorityIssues=[...m.issues].sort((a,b)=>(impactRank(b)*4-effortRank(b.effort))-(impactRank(a)*4-effortRank(a.effort))).slice(0,8);
 
   const sevSection = (sev,titre,intro)=>{
     const list = m.issues.filter(i=>i.sev===sev);
@@ -781,12 +831,13 @@ function renderReport(m){
   planRows.push(["Continu","Publier du contenu régulier (blogue) lié aux offres.","Croissance durable"]);
 
   $("#report").innerHTML = `
-    <h2 class="doc-title">Audit SEO &amp; visibilité IA<br>${esc(host)}</h2>
+    <h2 class="doc-title">Audit SEO &amp; visibilité IA<br>${esc(m.clientName||host)}</h2>
     <div class="doc-sub">
       <span><a href="${esc(m.origin)}" target="_blank">${esc(host)}</a></span><span class="sep">•</span>
       <span class="tnum">${m.pages.length} pages analysées</span><span class="sep">•</span>
       <span class="tnum">${m.linksChecked} liens vérifiés</span><span class="sep">•</span>
       <span class="tnum">${today}</span>
+      ${deltaHtml}
     </div>
 
     <section class="hero">
@@ -819,6 +870,14 @@ function renderReport(m){
 
     <div class="cats">${catRows}</div>
 
+    ${m.previous?`<div class="sec-h"><h3>Évolution depuis le dernier audit</h3><div class="rule"></div></div>
+    <p class="sec-intro">Comparaison avec l'analyse du ${new Date(m.previous.date).toLocaleDateString("fr-CA")}. L'historique des 12 derniers audits est conservé uniquement dans ce navigateur.</p>
+    <div class="kw-cloud">${Object.entries(m.scores).map(([key,value])=>{const old=m.previous.scores?.[key];const d=typeof old==="number"?value-old:null;return `<span class="kw"><b>${esc(key)}</b><small>${d===null?"nouveau":(d>0?"+":"")+d+" points"}</small></span>`}).join("")}</div>`:""}
+
+    <div class="sec-h"><h3>Priorités à meilleur rendement</h3><div class="rule"></div></div>
+    <p class="sec-intro">Les interventions qui combinent le plus fort impact potentiel avec l'effort estimé le plus raisonnable.</p>
+    <div class="matrix">${priorityIssues.map(i=>`<div class="matrix-item"><b>${esc(i.title)}</b><span class="tag ${i.sev==="crit"?"no":i.sev==="warn"?"mid":"ok"}">${i.sev==="crit"?"Impact fort":i.sev==="warn"?"Impact moyen":"Opportunité"}</span><small>Effort : ${esc(i.effort||"à estimer")} · Gain : ${esc(i.gain||"à estimer")}</small></div>`).join("")}</div>
+
     ${sevSection("crit","Problèmes critiques","Ces points coûtent des visiteurs dès aujourd'hui — corrigeables rapidement, sans refonte.")}
     ${sevSection("warn","Problèmes importants","Des gains rapides et concrets.")}
     ${sevSection("info","Opportunités","Pas des erreurs — des leviers pour aller plus loin.")}
@@ -834,6 +893,12 @@ function renderReport(m){
         <td class="c"><span class="dot ${p.keywordAlignment?.desc?"ok":"mid"}"></span></td></tr>`).join("")}</tbody>
     </table></div>
     <div class="legend"><span><span class="dot ok"></span> Expression présente</span><span><span class="dot no"></span> Absente du titre ou H1</span><span><span class="dot mid"></span> Description à renforcer</span></div>
+
+    ${m.targetMap.length?`<div class="sec-h"><h3>Carte des mots-clés stratégiques</h3><span class="cnt">${m.targetMap.length}</span><div class="rule"></div></div>
+    <p class="sec-intro">Objectifs fournis avant l'audit et page qui semble actuellement la mieux placée pour chacun.</p>
+    <div class="tbl-wrap"><table><thead><tr><th>Mot-clé visé</th><th>Meilleure page actuelle</th><th class="c">Correspondance</th><th>Décision</th></tr></thead><tbody>
+      ${m.targetMap.map(x=>`<tr><td><b>${esc(x.keyword)}</b></td><td class="pg">${x.best?esc(sh(x.best.url)):"—"}</td><td class="c"><span class="tag ${x.score>=60?"ok":x.covered?"mid":"no"}">${Math.min(100,x.score)}%</span></td><td>${x.score>=60?"Conserver et renforcer":x.covered?"Clarifier la cible":"Créer ou refondre une page"}</td></tr>`).join("")}
+    </tbody></table></div>`:""}
 
     <div class="sec-h"><h3>Visibilité auprès des IA</h3><div class="rule"></div></div>
     <p class="sec-intro"><b>Indice de préparation technique, pas une mesure de mentions réelles.</b> Il indique si ChatGPT, Claude, Gemini et Perplexity peuvent trouver, comprendre et citer correctement l'entreprise.</p>
