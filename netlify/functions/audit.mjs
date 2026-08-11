@@ -11,17 +11,19 @@ const FETCH_TIMEOUT = 9000;
 const MAX_PAGES = 30;
 const MAX_VERIFY = 15;
 
-// --- Robots d'IA connus : [agent, rôle, ce que bloque coûte] ---
+// --- Robots d'IA connus : [agent, rôle, conséquence d'un blocage] ---
 const AI_BOTS = [
-  ["GPTBot",             "ChatGPT (OpenAI) — entraînement",        "absent des connaissances de ChatGPT"],
+  ["GPTBot",             "OpenAI — entraînement",                  "contenu exclu d'un éventuel entraînement OpenAI"],
   ["OAI-SearchBot",      "ChatGPT Search — citations en direct",   "jamais cité par ChatGPT Search"],
   ["ChatGPT-User",       "ChatGPT — navigation à la demande",      "ChatGPT ne peut pas visiter le site"],
-  ["ClaudeBot",          "Claude (Anthropic) — robot actuel",      "absent des connaissances de Claude"],
+  ["OAI-AdsBot",         "OpenAI — validation publicitaire",       "pages non admissibles aux validations publicitaires OpenAI"],
+  ["ClaudeBot",          "Anthropic — entraînement",               "contenu exclu d'un éventuel entraînement Anthropic"],
+  ["Claude-SearchBot",   "Claude — recherche et citations",        "Claude Search ne peut pas explorer le site"],
   ["Claude-Web",         "Claude — navigation",                    "Claude ne peut pas visiter le site"],
   ["anthropic-ai",       "Anthropic — ancien robot (déprécié)",    "aucun (robot inactif)"],
   ["PerplexityBot",      "Perplexity AI — indexation",             "absent de Perplexity"],
   ["Perplexity-User",    "Perplexity — navigation",                "Perplexity ne peut pas visiter le site"],
-  ["Google-Extended",    "Google Gemini / AI Overviews",           "exclu des réponses IA de Google"],
+  ["Google-Extended",    "Gemini — entraînement et grounding",     "contenu non utilisé pour Gemini; aucun effet sur Google Search"],
   ["Applebot-Extended",  "Apple Intelligence",                     "absent d'Apple Intelligence / Siri"],
   ["CCBot",              "Common Crawl — nourrit beaucoup d'IA",   "absent de nombreux modèles d'IA"],
   ["Bytespider",         "TikTok / Doubao",                        "absent des IA de ByteDance"],
@@ -41,12 +43,19 @@ function isSafeUrl(u) {
   } catch { return false; }
 }
 
-async function grab(url, { asText = true } = {}) {
+async function grab(url, { asText = true, cacheBust = false } = {}) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT);
   try {
-    const res = await fetch(url, {
-      headers: { "User-Agent": UA, "Accept": "text/html,application/xhtml+xml,text/plain,*/*" },
+    const requested = new URL(url);
+    if (cacheBust) requested.searchParams.set("_paparmane_audit", Date.now().toString());
+    const res = await fetch(requested, {
+      headers: {
+        "User-Agent": UA,
+        "Accept": "text/html,application/xhtml+xml,text/plain,*/*",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache",
+      },
       redirect: "follow",
       signal: ctrl.signal,
     });
@@ -250,7 +259,8 @@ export default async (req) => {
     if (mode === "page") {
       const url = q.get("url") || "";
       if (!isSafeUrl(url)) return json({ error: "Adresse invalide." }, 400);
-      const r = await grab(url);
+      // Évite les anciennes balises servies par les caches WordPress/CDN.
+      const r = await grab(url, { cacheBust: true });
       if (!r.ok) return json({ url, dead: true, status: 0, error: r.error });
       if (r.status >= 400) return json({ url, dead: true, status: r.status });
       return json(analyzePage(url, r.body, r.finalUrl));

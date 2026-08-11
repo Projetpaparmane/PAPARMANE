@@ -517,16 +517,18 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults){
 
   // ---- Visibilité IA ----
   const blocked = disc.aiBots.filter(b=>b.state==="blocked");
-  const majorBlocked = blocked.filter(b=>["Google-Extended","ClaudeBot","PerplexityBot","Applebot-Extended","CCBot","OAI-SearchBot","meta-externalagent"].includes(b.agent));
+  // Les robots d'entraînement relèvent d'un choix éditorial. Seuls les
+  // robots de recherche/citation bloqués réduisent directement la visibilité.
+  const searchAgents = ["OAI-SearchBot","ChatGPT-User","Claude-SearchBot","Claude-Web","PerplexityBot","Perplexity-User"];
+  const majorBlocked = blocked.filter(b=>searchAgents.includes(b.agent));
   const gptStrat = blocked.some(b=>b.agent==="GPTBot") && disc.aiBots.some(b=>b.agent==="OAI-SearchBot"&&b.state==="allowed");
-  const claudeIncoherent = blocked.some(b=>b.agent==="ClaudeBot") && disc.aiBots.some(b=>b.agent==="anthropic-ai"&&b.state==="allowed");
   if(majorBlocked.length){
     issues.push({sev:"warn",cat:"ia",title:majorBlocked.length+" assistant(s) IA majeurs ne peuvent pas lire le site",
-      body:"De plus en plus de voyageurs et de clients demandent des recommandations à ChatGPT, Google (mode IA), Claude ou Perplexity. Un robot bloqué = le site n'existe pas dans ces réponses."
+      body:"De plus en plus de voyageurs demandent des recommandations à ChatGPT, Claude ou Perplexity. Les robots de recherche et de citation doivent pouvoir explorer le site pour résumer et lier ses pages."
         +(gptStrat?" <br><br><b>Nuance :</b> bloquer GPTBot (entraînement) tout en autorisant OAI-SearchBot (citations) est une stratégie volontaire défendable — « ne t'entraîne pas sur moi, mais cite-moi ».":"")
-        +(claudeIncoherent?" <br><br><b>Incohérence détectée :</b> l'ancien robot d'Anthropic (<code>anthropic-ai</code>, inactif) est autorisé, mais le robot actuel (<code>ClaudeBot</code>) est bloqué — probablement une liste copiée d'un vieux modèle, pas un choix.":""),
+        ,
       where: majorBlocked.map(b=>"<b>"+esc(b.agent)+"</b> ("+esc(b.role)+") — conséquence : "+esc(b.cost)),
-      steps:["Décider avec le client d'une <b>politique IA</b> : visibilité maximale, ou protection du contenu ?","Pour la visibilité : retirer les blocs <code>Disallow: /</code> de ces robots dans <code>robots.txt</code>.","Minimum recommandé : débloquer <code>Google-Extended</code> (réponses IA de Google) et les robots de <b>citation</b> (OAI-SearchBot, PerplexityBot), qui amènent des visiteurs.","Fichier : <code>"+esc(origin)+"/robots.txt</code>"+(isWP?" (souvent géré par l'extension SEO : Yoast → Outils → Éditeur de fichiers)":"")],
+      steps:["Décider avec le client d'une <b>politique IA</b> : visibilité dans les réponses, entraînement des modèles, ou les deux.","Pour la visibilité : autoriser au minimum les robots de <b>recherche et citation</b> listés ci-dessus.","On peut bloquer GPTBot ou Google-Extended tout en restant visible dans Google Search et ChatGPT Search.","Fichier : <code>"+esc(origin)+"/robots.txt</code>"+(isWP?" (souvent géré par une extension SEO ou de gouvernance des robots)":"")],
       effort:"20 min", gain:"élevé — canal en pleine croissance"});
   } else {
     wins.push(["Robots d'IA autorisés","le site peut être lu et cité par ChatGPT, Claude, Perplexity et Google IA."]);
