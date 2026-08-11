@@ -146,6 +146,12 @@
   .tag.mid{background:var(--warn-soft);color:var(--warn)}
   .legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px;font-size:11.5px;color:var(--ink-faint)}
   .legend span{display:flex;align-items:center;gap:5px}
+  .ai-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:18px}
+  @media(max-width:620px){.ai-grid{grid-template-columns:1fr}}
+  .ai-card{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:15px 16px;box-shadow:var(--shadow)}
+  .ai-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;font-size:13px;font-weight:700}
+  .ai-card-score{font-family:var(--mono);font-size:15px;color:var(--ink)}
+  .ai-card p{font-size:12px;color:var(--ink-faint);margin:8px 0 0}
 
   .pgroup{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:13px 16px;margin-bottom:10px}
   .pgroup summary{cursor:pointer;font-weight:650;font-size:13.5px;display:flex;align-items:center;justify-content:space-between;gap:10px;list-style:none}
@@ -526,6 +532,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults){
   const richFound = [...new Set(pages.flatMap(p=>p.schemaTypes.filter(t=>!GENERIC_SCHEMA.has(t))))];
   const pagesGeneric = pages.filter(p=>p.schemaTypes.length && !p.schemaTypes.some(t=>!GENERIC_SCHEMA.has(t)));
   const pagesNoSchema = pages.filter(p=>!p.schemaTypes.length);
+  const pagesSchemaInvalid = pages.filter(p=>p.schema?.invalidBlocks||p.schema?.problems?.length);
   if(pagesNoSchema.length===pages.length){
     issues.push({sev:"warn",cat:"schema",title:"Aucune donnée structurée sur le site",
       body:"Les données structurées (schéma) sont la « carte d'identité » que Google et les IA lisent pour comprendre l'entreprise : type, adresse, offres, avis. Sans elles, pas de résultats enrichis (étoiles, prix, FAQ dépliée…).",
@@ -539,6 +546,13 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults){
       steps:["Identifier le type précis (ex. <code>LocalBusiness</code>, <code>LodgingBusiness</code>, <code>Product</code>, <code>Article</code>…).",isWP?"Le régler dans l'extension SEO (Réglages → type de site/page) ou via Schema Pro.":"Enrichir le bloc JSON-LD de chaque page clé.","Valider avec <b>Google Rich Results Test</b>."],
       effort:"2-3 h", gain:"élevé à moyen terme"});
   }
+  if(pagesSchemaInvalid.length){
+    issues.push({sev:"crit",cat:"schema",title:pagesSchemaInvalid.length+" page(s) contiennent des données structurées invalides ou incomplètes",
+      body:"Afficher du JSON-LD ne suffit pas : si sa syntaxe est cassée ou si les champs essentiels manquent, Google et les assistants IA peuvent ignorer entièrement le bloc. Le site donne alors l'impression d'être balisé, sans obtenir le bénéfice attendu.",
+      where:pagesSchemaInvalid.slice(0,20).flatMap(p=>(p.schema.problems||[]).slice(0,4).map(x=>"<code>"+esc(sh(p.url))+"</code> — "+esc(x))),
+      steps:["Ouvrir chaque page indiquée et repérer le bloc <code>application/ld+json</code>.","Corriger d'abord les erreurs de syntaxe, puis ajouter uniquement les propriétés vérifiables indiquées — ne jamais inventer d'avis, de prix ou d'adresse.",isWP?"Dans Yoast/Rank Math ou l'extension Schema, choisir le type réel de la page et compléter les champs demandés.":"Relier les entités avec des <code>@id</code> stables et conserver des URL absolues.","Tester chaque modèle de page avec <b>Schema Markup Validator</b> et <b>Google Rich Results Test</b>."],
+      effort:"30-90 min / modèle",gain:"élevé — compréhension Google et IA"});
+  }
   if(richFound.length) wins.push(["Données structurées riches", richFound.slice(0,4).join(", ")+" — Google comprend l'offre."]);
 
   // ---- Visibilité IA ----
@@ -547,6 +561,8 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults){
   // robots de recherche/citation bloqués réduisent directement la visibilité.
   const searchAgents = ["OAI-SearchBot","ChatGPT-User","Claude-SearchBot","Claude-Web","PerplexityBot","Perplexity-User"];
   const majorBlocked = blocked.filter(b=>searchAgents.includes(b.agent));
+  const thinPages = pages.filter(p=>(p.words||0)<180);
+  const identityReady = richFound.some(t=>["LocalBusiness","LodgingBusiness","Organization","Corporation","Store","ProfessionalService","Hotel","Restaurant"].includes(t));
   const gptStrat = blocked.some(b=>b.agent==="GPTBot") && disc.aiBots.some(b=>b.agent==="OAI-SearchBot"&&b.state==="allowed");
   if(majorBlocked.length){
     issues.push({sev:"warn",cat:"ia",title:majorBlocked.length+" assistant(s) IA majeurs ne peuvent pas lire le site",
@@ -592,6 +608,21 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults){
     }
   }
 
+  if(!identityReady){
+    issues.push({sev:"warn",cat:"ia",title:"Les IA ne reçoivent pas une identité d'entreprise assez précise",
+      body:"Le site peut être accessible tout en restant difficile à recommander. Sans entité claire — nom officiel, activité, région desservie, coordonnées et profils sociaux — une IA hésite à relier les pages à la même entreprise et à formuler une recommandation fiable.",
+      where:["Aucun schéma d'entreprise précis détecté parmi : <code>LocalBusiness</code>, <code>LodgingBusiness</code>, <code>Store</code>, <code>ProfessionalService</code>…"],
+      steps:["Décrire l'entreprise sur l'accueil avec des faits simples : qui, quoi, où, pour qui et différence principale.","Ajouter un JSON-LD correspondant au vrai type d'entreprise avec nom, URL, logo, téléphone, adresse ou zone desservie et <code>sameAs</code>.","Utiliser exactement le même nom et les mêmes coordonnées sur Google Business Profile et les principaux répertoires."],
+      effort:"2-3 h",gain:"élevé — compréhension et confiance des IA"});
+  }
+  if(thinPages.length){
+    issues.push({sev:"info",cat:"ia",title:thinPages.length+" page(s) donnent trop peu de matière factuelle aux IA",
+      body:"Une page très courte peut être jolie pour un humain, mais elle offre peu de phrases citables. Pour recommander une entreprise, les moteurs de réponse cherchent des faits explicites : service, lieu, clientèle, conditions, prix ou processus et preuves.",
+      where:thinPages.slice(0,15).map(p=>"<code>"+esc(sh(p.url))+"</code> — environ "+(p.words||0)+" mots utiles"),
+      steps:["Ajouter un résumé direct de l'offre dans les 150 premiers mots.","Créer des sections avec des titres formulés comme les questions réelles des clients.","Ajouter des détails vérifiables, une FAQ réellement visible et des preuves : réalisations, certifications, témoignages attribués ou données originales.","Éviter le remplissage : chaque paragraphe doit répondre à une question ou établir un fait."],
+      effort:"1-2 h / page",gain:"moyen à élevé"});
+  }
+
   // ---- Gains (wins) ----
   if(pages.every(p=>p.https)) wins.push(["Site sécurisé (HTTPS)","exigé par Google."]);
   if(noViewport.length===0) wins.push(["Adapté au mobile","balise viewport présente partout."]);
@@ -614,8 +645,8 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults){
     structure: Math.round(100*ratio(h1Zero.length+h1Multi.length,n)),
     images: contentTotal? Math.round(100*(1-contentBad/contentTotal)) : 100,
     social: Math.round(100*ratio(noOg.length,n)),
-    schema: pagesNoSchema.length===pages.length?15:(richFound.length?90:45),
-    ia: Math.max(0,Math.round(100 - majorBlocked.length*11 - (disc.llms?.exists? (llmsLinkResults.some(r=>r.status>=400||r.finalUrl.replace(/\/$/,"")===origin&&r.url.replace(/\/$/,"")!==origin)?18:0) : 22))),
+    schema: Math.max(0, pagesNoSchema.length===pages.length?10:Math.round((richFound.length?88:48)-100*pagesSchemaInvalid.length/Math.max(1,n)*.55)),
+    ia: Math.max(0,Math.round(100 - majorBlocked.length*11 - (!identityReady?18:0) - Math.min(20,thinPages.length/Math.max(1,n)*25) - (disc.llms?.exists? (llmsLinkResults.some(r=>r.status>=400||r.finalUrl.replace(/\/$/,"")===origin&&r.url.replace(/\/$/,"")!==origin)?18:0) : 12))),
     liens: Math.round(100*ratio(dead.length+deadPages.length*2, Math.max(1,linkResults.length+pagesAll.length)))
   };
   scores.fondations = Math.max(0,Math.min(100,scores.fondations));
@@ -624,7 +655,13 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults){
 
   const order={crit:0,warn:1,info:2};
   issues.sort((a,b)=>order[a.sev]-order[b.sev]);
-  return {origin, disc, pages, deadPages, issues, wins, scores, global, imgPages, uniqFiles, isWP,
+  const aiReadiness = [
+    {name:"Accès des robots de citation",score:Math.max(0,100-majorBlocked.length*17),detail:majorBlocked.length?majorBlocked.length+" robot(s) important(s) bloqué(s)":"ChatGPT, Claude et Perplexity peuvent explorer le site"},
+    {name:"Identité de l'entreprise",score:identityReady?100:35,detail:identityReady?"entité d'entreprise précise détectée":"identité seulement générique ou absente"},
+    {name:"Contenu facile à citer",score:Math.max(20,Math.round(100-thinPages.length/Math.max(1,n)*100)),detail:thinPages.length+" page(s) trop courtes"},
+    {name:"Fiche llms.txt",score:disc.llms?.exists?85:20,detail:disc.llms?.exists?"fichier présent":"fichier absent (standard émergent, facultatif)"},
+  ];
+  return {origin, disc, pages, deadPages, issues, wins, scores, global, imgPages, uniqFiles, isWP, aiReadiness,
           counts:{crit:issues.filter(i=>i.sev==="crit").length,warn:issues.filter(i=>i.sev==="warn").length,info:issues.filter(i=>i.sev==="info").length,wins:wins.length},
           linksChecked: linkResults.length};
 }
@@ -680,11 +717,14 @@ function renderReport(m){
     const tOk = p.title&&p.titleLen<=60&&p.titleLen>=25, dOk=p.desc&&p.descLen<=165;
     const h1Ok = p.h1Count===1;
     const badImgs = (p.images||[]).filter(im=>im.cls==="content"&&(im.alt===null||im.alt==="")).length;
+    const schemaBad = p.schema?.invalidBlocks||p.schema?.problems?.length;
+    const schemaLabel = schemaBad?"Erreur":p.schemaTypes?.length?p.schemaTypes.filter(t=>!GENERIC_SCHEMA.has(t)).slice(0,2).join(", ")||"Générique":"Absent";
     const dotFor = ok=>ok?"ok":"no";
     return `<tr><td class="pg">${esc(sh(p.url))}</td>
       <td class="c"><span class="dot ${p.title?(tOk?"ok":"mid"):"no"}"></span>${p.title?(tOk?"":" "+p.titleLen):" —"}</td>
       <td class="c"><span class="dot ${p.desc?(dOk?"ok":"mid"):"no"}"></span>${p.desc?(dOk?"":" "+p.descLen):" —"}</td>
       <td class="c"><span class="dot ${dotFor(h1Ok)}"></span> ${p.h1Count}</td>
+      <td class="c"><span class="tag ${schemaBad?"no":p.schemaTypes?.length?"ok":"mid"}">${esc(schemaLabel)}</span></td>
       <td class="c">${badImgs?`<span class="tag ${badImgs>5?"no":"mid"}">${badImgs}</span>`:`<span class="tag ok">0</span>`}</td>
       <td class="c tnum">${p.words||"—"}</td>
       <td class="c tnum">${p.sizeKB||"—"} Ko</td></tr>`;
@@ -758,7 +798,12 @@ function renderReport(m){
     ${sevSection("info","Opportunités","Pas des erreurs — des leviers pour aller plus loin.")}
 
     <div class="sec-h"><h3>Visibilité auprès des IA</h3><div class="rule"></div></div>
-    <p class="sec-intro">Qui a le droit de lire le site ? Ce que chaque robot alimente — ChatGPT, Claude, Gemini, Perplexity…</p>
+    <p class="sec-intro"><b>Indice de préparation technique, pas une mesure de mentions réelles.</b> Il indique si ChatGPT, Claude, Gemini et Perplexity peuvent trouver, comprendre et citer correctement l'entreprise.</p>
+    <div class="ai-grid">${m.aiReadiness.map(a=>`<div class="ai-card">
+      <div class="ai-card-head"><span>${esc(a.name)}</span><span class="ai-card-score">${a.score}/100</span></div>
+      <div class="track"><div class="fill" style="width:${a.score}%;background:${barColor(a.score)}"></div></div>
+      <p>${esc(a.detail)}</p></div>`).join("")}</div>
+    <p class="sec-intro">Le tableau ci-dessous montre précisément quels robots ont le droit de lire le site et à quel usage ils servent.</p>
     <div class="tbl-wrap"><table>
       <thead><tr><th>Robot</th><th>Ce qu'il alimente</th><th class="c">État</th></tr></thead>
       <tbody>${m.disc.aiBots.map(botRow).join("")}</tbody>
@@ -767,7 +812,7 @@ function renderReport(m){
 
     <div class="sec-h"><h3>Détail page par page</h3><span class="cnt">${m.pages.length}</span><div class="rule"></div></div>
     <div class="tbl-wrap"><table>
-      <thead><tr><th>Page</th><th class="c">Titre</th><th class="c">Desc.</th><th class="c">H1</th><th class="c">Photos ✗</th><th class="c">Mots</th><th class="c">Poids</th></tr></thead>
+      <thead><tr><th>Page</th><th class="c">Titre</th><th class="c">Desc.</th><th class="c">H1</th><th class="c">Schéma</th><th class="c">Photos ✗</th><th class="c">Mots</th><th class="c">Poids</th></tr></thead>
       <tbody>${m.pages.map(pgRow).join("")}</tbody>
     </table></div>
     <div class="legend"><span><span class="dot ok"></span> Conforme</span><span><span class="dot mid"></span> À ajuster (le chiffre = longueur)</span><span><span class="dot no"></span> Manquant / à corriger</span><span>« Photos ✗ » = photos de contenu sans description</span></div>

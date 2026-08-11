@@ -76,6 +76,34 @@ const decode = (s) => s
 function one(re, s) { const m = s.match(re); return m ? decode(m[1].trim()) : null; }
 function all(re, s) { return [...s.matchAll(re)].map(m => m[1]); }
 
+function inspectStructuredData(blocks) {
+  const types = new Set(), problems = [];
+  let validBlocks = 0, invalidBlocks = 0;
+  const required = {
+    Organization: ["name", "url"], LocalBusiness: ["name", "address"],
+    LodgingBusiness: ["name", "address"], Product: ["name", "offers"],
+    Article: ["headline", "author", "datePublished"], BlogPosting: ["headline", "author", "datePublished"],
+    FAQPage: ["mainEntity"], Event: ["name", "startDate", "location"],
+    Service: ["name", "provider"], BreadcrumbList: ["itemListElement"],
+  };
+  const visit = (node) => {
+    if (Array.isArray(node)) return node.forEach(visit);
+    if (!node || typeof node !== "object") return;
+    if (node["@graph"]) visit(node["@graph"]);
+    const rawTypes = Array.isArray(node["@type"]) ? node["@type"] : node["@type"] ? [node["@type"]] : [];
+    rawTypes.forEach(type => {
+      types.add(type);
+      const missing = (required[type] || []).filter(k => node[k] == null || node[k] === "" || (Array.isArray(node[k]) && !node[k].length));
+      if (missing.length) problems.push(`${type} : champ(s) manquant(s) — ${missing.join(", ")}`);
+    });
+  };
+  blocks.forEach((block, i) => {
+    try { const parsed = JSON.parse(block.trim()); validBlocks++; visit(parsed); }
+    catch { invalidBlocks++; problems.push(`Bloc JSON-LD ${i + 1} invalide (erreur de syntaxe)`); }
+  });
+  return { types: [...types].sort(), validBlocks, invalidBlocks, problems: [...new Set(problems)] };
+}
+
 // --- Classement d'une image : technique / décorative / contenu ---
 function classifyImg(srcRaw) {
   const src = (srcRaw || "").toLowerCase();
@@ -109,7 +137,8 @@ function analyzePage(url, html, finalUrl) {
   });
 
   const ld = all(/<script[^>]*application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi, html);
-  const schemaTypes = [...new Set(ld.flatMap(b => all(/"@type"\s*:\s*"([^"]+)"/g, b)))].sort();
+  const schema = inspectStructuredData(ld);
+  const schemaTypes = schema.types;
 
   const og = {
     title: /property=["']og:title["']/i.test(head),
@@ -140,7 +169,7 @@ function analyzePage(url, html, finalUrl) {
     viewport: /name=["']viewport["']/i.test(head),
     lang: one(/<html[^>]*\blang=["']([^"']+)/i, head),
     h1, h1Count: h1.length, h2Count: h2.length,
-    images, og, schemaTypes,
+    images, og, schemaTypes, schema,
     isWordPress: /wp-content|wp-json/i.test(html),
     words: bodyText ? bodyText.split(" ").length : 0,
     sizeKB: Math.round(html.length / 1024),
