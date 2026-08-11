@@ -2,6 +2,11 @@
 [build]
   publish = "."
 
+# Serveur local : site statique + fonctions (outil SEO) sans détection de framework.
+[dev]
+  framework = "#static"
+  publish = "."
+
 # Le CSS change souvent : toujours revalider (pas de cache figé).
 [[headers]]
   for = "/assets/css/*"
