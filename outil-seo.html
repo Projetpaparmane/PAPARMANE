@@ -300,14 +300,25 @@ const esc = s => String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">"
 const short = (u,origin) => { const p = u.replace(origin,""); return p===""?"/ (accueil)":p; };
 const GENERIC_SCHEMA = new Set(["WebPage","WebSite","Organization","BreadcrumbList","ListItem","ImageObject","ReadAction","SearchAction","EntryPoint","PropertyValueSpecification","Person","Answer","Question","CollectionPage"]);
 const RICH_HINTS = ["FAQPage","LocalBusiness","LodgingBusiness","Product","Article","BlogPosting","Event","Recipe","Review","AggregateRating","Service","HowTo","Offer","Campground","Restaurant","Store","Hotel"];
+// Types associés à une fonctionnalité documentée dans la galerie Google actuelle.
+// Un balisage valide rend une page admissible, sans garantir son affichage enrichi.
+const GOOGLE_RICH_SCHEMA = new Set(["Article","BlogPosting","BreadcrumbList","Dataset","DiscussionForumPosting","Event","JobPosting","LocalBusiness","Organization","Product","Recipe","Review","AggregateRating","SoftwareApplication","VideoObject","VacationRental","ProfilePage","QAPage"]);
 
 function log(msg, cls){ const d=document.createElement("div"); if(cls)d.className=cls; d.textContent=msg; const p=$("#plog"); p.appendChild(d); p.scrollTop=p.scrollHeight; }
 function setBar(pct){ $("#pbarFill").style.width = Math.min(100,Math.round(pct))+"%"; }
 async function api(params, body){
   const opt = body ? {method:"POST",body:JSON.stringify(body),headers:{"Content-Type":"application/json"}} : {};
-  const r = await fetch(API+"?"+new URLSearchParams(params), opt);
-  if(!r.ok){ const e = await r.json().catch(()=>({})); throw new Error(e.error||("Erreur "+r.status)); }
-  return r.json();
+  let last;
+  for(let attempt=0;attempt<2;attempt++){
+    try{
+      const r=await fetch(API+"?"+new URLSearchParams(params),opt);
+      if(r.ok) return r.json();
+      const e=await r.json().catch(()=>({})); last=new Error(e.error||("Erreur "+r.status));
+      if(r.status<500) throw last;
+    }catch(e){last=e;}
+    if(attempt===0) await new Promise(r=>setTimeout(r,450));
+  }
+  throw last||new Error("Erreur réseau");
 }
 
 // --- Orchestration ---
@@ -344,7 +355,7 @@ async function runAudit(){
         }
       }
       await Promise.all(Array.from({length:Math.min(4,pending.length)},()=>sitemapWorker()));
-      disc.pages=[...foundPages];
+      disc.pages=[...foundPages].sort((a,b)=>a.localeCompare(b));
       disc.truncated=foundPages.size>=MAX_AUDIT_PAGES && pending.length>0;
     }
     log("✓ "+origin+" — "+(disc.sitemapFound? disc.pages.length+" pages trouvées dans le sitemap":"pas de sitemap, exploration depuis l'accueil"), "okl");
@@ -352,6 +363,7 @@ async function runAudit(){
     setBar(8);
 
     // Crawl (avec repli exploration si pas de sitemap)
+    disc.pages=[...disc.pages].sort((a,b)=>a.localeCompare(b));
     const queue=[...disc.pages]; const seen=new Set(queue); const pages=[];
     const CAP = MAX_AUDIT_PAGES;
     let done=0;
@@ -367,16 +379,17 @@ async function runAudit(){
             log("✓ "+short(u,origin)+" — "+p.images.length+" img, "+p.words+" mots", "okl");
             if(!disc.sitemapFound) for(const l of p.links||[]) if(!seen.has(l)&&seen.size<CAP){seen.add(l);queue.push(l);}
           }
-        }catch(e){ done++; log("✗ "+short(u,origin)+" : "+e.message, "critl"); }
+        }catch(e){ done++; pages.push({url:u,finalUrl:u,dead:true,status:0,transient:true}); log("✗ "+short(u,origin)+" : "+e.message, "critl"); }
         setBar(8 + 62*(done/Math.max(seen.size,disc.pages.length)));
       }
     }
     await Promise.all(Array.from({length:CRAWL_WORKERS},()=>worker()));
 
     // Vérification des liens internes
+    pages.sort((a,b)=>(a.url||"").localeCompare(b.url||""));
     const crawled = new Set(pages.map(p=>(p.finalUrl||p.url).replace(/\/$/,"")));
     const linkTargets = [...new Set(pages.flatMap(p=>p.links||[]))]
-      .filter(l=>!crawled.has(l.replace(/\/$/,""))).slice(0,45);
+      .filter(l=>!crawled.has(l.replace(/\/$/,""))).sort((a,b)=>a.localeCompare(b)).slice(0,45);
     log("Vérification de "+linkTargets.length+" liens internes…");
     const linkResults=[];
     for(let i=0;i<linkTargets.length;i+=15){
@@ -400,9 +413,9 @@ async function runAudit(){
     const model = buildModel(origin, disc, pages, linkResults, llmsLinkResults, {clientName,targetKeywords});
     let history=[];
     try{ history=JSON.parse(localStorage.getItem("pap_audits_"+new URL(origin).hostname)||"[]"); if(!Array.isArray(history)) history=[]; }catch{ history=[]; }
-    model.previous=history[0]||null;
+    model.previous=history.find(h=>h.scoreVersion===model.auditMeta.scoreVersion&&h.confidence==="élevée")||null;
     renderReport(model);
-    const snapshot={date:new Date().toISOString(),global:model.global,scores:model.scores,counts:model.counts,pages:model.pages.length};
+    const snapshot={date:new Date().toISOString(),global:model.global,scores:model.scores,counts:model.counts,pages:model.pages.length,scoreVersion:model.auditMeta.scoreVersion,confidence:model.auditMeta.confidence};
     localStorage.setItem("pap_audits_"+new URL(origin).hostname,JSON.stringify([snapshot,...history].slice(0,12)));
     setBar(100);
     $("#progress").style.display="none";
@@ -600,15 +613,22 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   const pagesGeneric = pages.filter(p=>p.schemaTypes.length && !p.schemaTypes.some(t=>!GENERIC_SCHEMA.has(t)));
   const pagesNoSchema = pages.filter(p=>!p.schemaTypes.length);
   const pagesSchemaInvalid = pages.filter(p=>p.schema?.invalidBlocks||p.schema?.problems?.length);
+  const schemaInventory=[...new Set(pages.flatMap(p=>p.schemaTypes))].map(type=>({type,pages:pages.filter(p=>p.schemaTypes.includes(type)).length})).sort((a,b)=>b.pages-a.pages||a.type.localeCompare(b.type));
+  const expectedMissing=pages.flatMap(p=>(p.expectedSchema||[]).filter(x=>!p.schemaTypes.includes(x.type)).map(x=>({page:p,type:x.type,reason:x.reason})));
+  const expectedMissingPages=new Set(expectedMissing.map(x=>x.page.url)).size;
+  const businessTypes=new Set(["Organization","Corporation","LocalBusiness","LodgingBusiness","Store","ProfessionalService","Hotel","Restaurant"]);
+  const businessEntities=pages.flatMap(p=>(p.schema?.entities||[]).filter(e=>(e.types||[]).some(t=>businessTypes.has(t))).map(e=>({...e,page:p.url})));
+  const entityNames=[...new Set(businessEntities.map(e=>e.name).filter(Boolean))];
+  const entityIds=[...new Set(businessEntities.map(e=>e.id).filter(Boolean))];
   if(pagesNoSchema.length===pages.length){
     issues.push({sev:"warn",cat:"schema",title:"Aucune donnée structurée sur le site",
-      body:"Les données structurées (schéma) sont la « carte d'identité » que Google et les IA lisent pour comprendre l'entreprise : type, adresse, offres, avis. Sans elles, pas de résultats enrichis (étoiles, prix, FAQ dépliée…).",
+      body:"Les données structurées (schéma) sont la « carte d'identité » que Google et les IA lisent pour comprendre l'entreprise : type, adresse, offres et contenu. Selon le type de page, un balisage exact peut rendre le résultat admissible à une présentation enrichie — sans jamais en garantir l'affichage.",
       where:["Aucune balise <code>application/ld+json</code> détectée sur les "+pages.length+" pages."],
       steps:[isWP?"Activer les données structurées dans l'extension SEO, ou installer une extension dédiée (Schema Pro, Rank Math).":"Ajouter un bloc JSON-LD décrivant l'entreprise (type, nom, adresse, téléphone) sur chaque page.","Valider avec l'outil gratuit <b>Google Rich Results Test</b>."],
       effort:"2-3 h", gain:"élevé à moyen terme"});
   } else if(pagesGeneric.length && !richFound.length){
     issues.push({sev:"info",cat:"schema",title:"Données structurées présentes, mais génériques",
-      body:"Le site se déclare comme « Organisation / Site web » — c'est correct, mais ça ne dit pas <b>ce que fait</b> l'entreprise. En précisant le type exact (commerce local, hébergement, restaurant, article…), Google peut afficher des résultats enrichis : étoiles d'avis, prix, FAQ dépliée.",
+      body:"Le site se déclare comme « Organisation / Site web » — c'est correct, mais ça ne dit pas <b>ce que fait</b> l'entreprise. Le type le plus précis aide Google et les IA à comprendre l'offre. Seuls certains types documentés par Google donnent accès à une fonctionnalité enrichie, et l'affichage n'est jamais garanti.",
       where:["Types actuels : <code>"+esc([...new Set(pages.flatMap(p=>p.schemaTypes))].slice(0,8).join(", "))+"</code>","Pages concernées : "+pagesGeneric.length+"/"+pages.length],
       steps:["Identifier le type précis (ex. <code>LocalBusiness</code>, <code>LodgingBusiness</code>, <code>Product</code>, <code>Article</code>…).",isWP?"Le régler dans l'extension SEO (Réglages → type de site/page) ou via Schema Pro.":"Enrichir le bloc JSON-LD de chaque page clé.","Valider avec <b>Google Rich Results Test</b>."],
       effort:"2-3 h", gain:"élevé à moyen terme"});
@@ -620,6 +640,19 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
       steps:["Ouvrir chaque page indiquée et repérer le bloc <code>application/ld+json</code>.","Corriger d'abord les erreurs de syntaxe, puis ajouter uniquement les propriétés vérifiables indiquées — ne jamais inventer d'avis, de prix ou d'adresse.",isWP?"Dans Yoast/Rank Math ou l'extension Schema, choisir le type réel de la page et compléter les champs demandés.":"Relier les entités avec des <code>@id</code> stables et conserver des URL absolues.","Tester chaque modèle de page avec <b>Schema Markup Validator</b> et <b>Google Rich Results Test</b>."],
       effort:"30-90 min / modèle",gain:"élevé — compréhension Google et IA"});
   }
+  if(expectedMissing.length){
+    issues.push({sev:"warn",cat:"schema",title:expectedMissingPages+" page(s) semblent avoir besoin d'un type de schéma plus précis",
+      body:"Le contenu visible indique un type de page clair, mais le JSON-LD correspondant n'a pas été détecté. Cette recommandation est fondée sur le contenu et l'URL; elle doit être confirmée avant implantation.",
+      where:expectedMissing.slice(0,20).map(x=>"<code>"+esc(sh(x.page.url))+"</code> — ajouter ou confirmer <b>"+esc(x.type)+"</b> ("+esc(x.reason)+")"),
+      steps:["Confirmer que la page représente réellement le type suggéré.","Ajouter un seul bloc cohérent, ou enrichir le graphe existant en réutilisant les mêmes <code>@id</code>.","Remplir uniquement les propriétés visibles et vérifiables sur la page.","Valider la syntaxe avec Schema.org Validator, puis l'admissibilité avec Google Rich Results Test."],
+      effort:"30-60 min / modèle",gain:"élevé pour les pages admissibles"});
+  }
+  if(entityNames.length>1&&entityIds.length>1){
+    issues.push({sev:"info",cat:"schema",title:"Plusieurs identités d'entreprise structurées sont à vérifier",
+      body:"Une entreprise devrait conserver le même nom officiel et le même identifiant <code>@id</code> sur toutes les pages. Des variantes créent plusieurs entités au lieu de renforcer une seule identité comprise par Google et les IA.",
+      where:[...(entityNames.length>1?["Noms détectés : "+entityNames.map(x=>"<code>"+esc(x)+"</code>").join(", ")]:[]),...(entityIds.length>1?["Identifiants détectés : "+entityIds.slice(0,8).map(x=>"<code>"+esc(x)+"</code>").join(", ")]:[])],
+      steps:["Choisir le nom officiel et un <code>@id</code> canonique, par exemple <code>https://site.ca/#organization</code>.","Réutiliser cet identifiant dans WebSite, WebPage, Article, Service et les autres entités.","Harmoniser aussi le logo, le téléphone, l'adresse et les profils <code>sameAs</code>."],effort:"1-2 h",gain:"élevé — consolidation de l'entité"});
+  }
   if(richFound.length) wins.push(["Données structurées riches", richFound.slice(0,4).join(", ")+" — Google comprend l'offre."]);
 
   // ---- Visibilité IA ----
@@ -629,7 +662,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   const searchAgents = ["OAI-SearchBot","ChatGPT-User","Claude-SearchBot","Claude-Web","PerplexityBot","Perplexity-User"];
   const majorBlocked = blocked.filter(b=>searchAgents.includes(b.agent));
   const thinPages = pages.filter(p=>(p.words||0)<180);
-  const identityReady = richFound.some(t=>["LocalBusiness","LodgingBusiness","Organization","Corporation","Store","ProfessionalService","Hotel","Restaurant"].includes(t));
+  const identityReady = pages.some(p=>p.schemaTypes.some(t=>businessTypes.has(t)));
   const gptStrat = blocked.some(b=>b.agent==="GPTBot") && disc.aiBots.some(b=>b.agent==="OAI-SearchBot"&&b.state==="allowed");
   if(majorBlocked.length){
     issues.push({sev:"warn",cat:"ia",title:majorBlocked.length+" assistant(s) IA majeurs ne peuvent pas lire le site",
@@ -713,9 +746,14 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
     images: contentTotal? Math.round(100*(1-contentBad/contentTotal)) : 100,
     social: Math.round(100*ratio(noOg.length,n)),
     keywords: Math.max(0,Math.round(100-weakAlignment.length/Math.max(1,n)*55-Math.min(35,cannibalization.length*7))),
-    schema: Math.max(0, pagesNoSchema.length===pages.length?10:Math.round((richFound.length?88:48)-100*pagesSchemaInvalid.length/Math.max(1,n)*.55)),
+    schema: Math.max(0,Math.min(100,Math.round(100*(
+      .25*ratio(pagesNoSchema.length,n)+
+      .35*ratio(pagesSchemaInvalid.length,n)+
+      .25*(expectedMissing.length?ratio(expectedMissingPages,n):1)+
+      .15*(identityReady?1:0)
+    )))),
     ia: Math.max(0,Math.round(100 - majorBlocked.length*11 - (!identityReady?18:0) - Math.min(20,thinPages.length/Math.max(1,n)*25) - (disc.llms?.exists? (llmsLinkResults.some(r=>r.status>=400||r.finalUrl.replace(/\/$/,"")===origin&&r.url.replace(/\/$/,"")!==origin)?18:0) : 12))),
-    liens: Math.round(100*ratio(dead.length+deadPages.length*2, Math.max(1,linkResults.length+pagesAll.length)))
+    liens: Math.round(100*ratio(dead.length+deadPages.filter(p=>!p.transient).length*2, Math.max(1,linkResults.length+pagesAll.length)))
   };
   scores.fondations = Math.max(0,Math.min(100,scores.fondations));
   const W={fondations:.13,balises:.17,structure:.08,images:.12,social:.04,schema:.1,ia:.14,keywords:.12,liens:.1};
@@ -729,7 +767,13 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
     {name:"Contenu facile à citer",score:Math.max(20,Math.round(100-thinPages.length/Math.max(1,n)*100)),detail:thinPages.length+" page(s) trop courtes"},
     {name:"Fiche llms.txt",score:disc.llms?.exists?85:20,detail:disc.llms?.exists?"fichier présent":"fichier absent (standard émergent, facultatif)"},
   ];
-  return {origin, disc, pages, deadPages, issues, wins, scores, global, imgPages, uniqFiles, isWP, aiReadiness, siteKeywords, cannibalization, targetMap, clientName:options.clientName||"",
+  const transientPages=deadPages.filter(p=>p.transient);
+  if(transientPages.length) issues.unshift({sev:"warn",cat:"fondations",title:"Score provisoire : "+transientPages.length+" page(s) n'ont pas pu être relues après deux tentatives",
+    body:"Le score reste affiché pour permettre le diagnostic, mais sa comparaison avec un autre audit est suspendue. Une panne réseau ou une protection anti-robot ne doit pas être interprétée comme une baisse SEO.",
+    where:transientPages.slice(0,20).map(p=>"<code>"+esc(sh(p.url))+"</code> — réponse réseau indisponible"),
+    steps:["Relancer l'audit quelques minutes plus tard.","Si les mêmes pages échouent encore, vérifier le pare-feu, le CDN ou la protection anti-robot.","Ne comparer les scores que lorsque la confiance est indiquée comme élevée."],effort:"5 min",gain:"fiabilité de la mesure"});
+  const auditMeta={scoreVersion:"2.1",requested:pagesAll.length,successful:pages.length,transient:transientPages.length,confidence:transientPages.length?"provisoire":"élevée"};
+  return {origin, disc, pages, deadPages, issues, wins, scores, global, imgPages, uniqFiles, isWP, aiReadiness, siteKeywords, cannibalization, targetMap, clientName:options.clientName||"",schemaAudit:{inventory:schemaInventory,expectedMissing,entityNames,entityIds},auditMeta,
           counts:{crit:issues.filter(i=>i.sev==="crit").length,warn:issues.filter(i=>i.sev==="warn").length,info:issues.filter(i=>i.sev==="info").length,wins:wins.length},
           linksChecked: linkResults.length};
 }
@@ -747,6 +791,9 @@ function renderReport(m){
   const barColor = v=>v>=80?"var(--good)":v>=55?"var(--warn)":"var(--crit)";
   const delta=m.previous?m.global-m.previous.global:null;
   const deltaHtml=delta===null?"":`<span class="delta ${delta>0?"up":delta<0?"down":"same"}">${delta>0?"+":""}${delta} depuis le dernier audit</span>`;
+  const schemaCovered=m.pages.filter(p=>p.schemaTypes?.length).length;
+  const schemaValid=m.pages.filter(p=>p.schemaTypes?.length&&!p.schema?.invalidBlocks&&!p.schema?.problems?.length).length;
+  const schemaUse=type=>GOOGLE_RICH_SCHEMA.has(type)?"Fonction Google documentée":"Compréhension Schema.org";
 
   const catRows = [
     ["Fondations techniques","HTTPS, mobile, plan de site","fondations"],
@@ -837,6 +884,7 @@ function renderReport(m){
       <span class="tnum">${m.pages.length} pages analysées</span><span class="sep">•</span>
       <span class="tnum">${m.linksChecked} liens vérifiés</span><span class="sep">•</span>
       <span class="tnum">${today}</span>
+      <span class="tag ${m.auditMeta.confidence==="élevée"?"ok":"mid"}">Score v${esc(m.auditMeta.scoreVersion)} · confiance ${esc(m.auditMeta.confidence)}</span>
       ${deltaHtml}
     </div>
 
@@ -900,6 +948,18 @@ function renderReport(m){
       ${m.targetMap.map(x=>`<tr><td><b>${esc(x.keyword)}</b></td><td class="pg">${x.best?esc(sh(x.best.url)):"—"}</td><td class="c"><span class="tag ${x.score>=60?"ok":x.covered?"mid":"no"}">${Math.min(100,x.score)}%</span></td><td>${x.score>=60?"Conserver et renforcer":x.covered?"Clarifier la cible":"Créer ou refondre une page"}</td></tr>`).join("")}
     </tbody></table></div>`:""}
 
+    <div class="sec-h"><h3>Schema Studio — données structurées</h3><div class="rule"></div></div>
+    <p class="sec-intro">Inventaire technique du JSON-LD. « Valide » signifie que le bloc est lisible et possède les propriétés essentielles vérifiées par Paparmane; l'admissibilité finale à un résultat enrichi doit ensuite être confirmée avec l'outil Google.</p>
+    <div class="ai-grid">
+      <div class="ai-card"><div class="ai-card-head"><span>Pages balisées</span><span class="ai-card-score">${schemaCovered}/${m.pages.length}</span></div><div class="track"><div class="fill" style="width:${100*schemaCovered/Math.max(1,m.pages.length)}%;background:${barColor(100*schemaCovered/Math.max(1,m.pages.length))}"></div></div><p>Présence d'au moins un type Schema.org.</p></div>
+      <div class="ai-card"><div class="ai-card-head"><span>Pages sans erreur détectée</span><span class="ai-card-score">${schemaValid}/${m.pages.length}</span></div><div class="track"><div class="fill" style="width:${100*schemaValid/Math.max(1,m.pages.length)}%;background:${barColor(100*schemaValid/Math.max(1,m.pages.length))}"></div></div><p>Syntaxe, champs essentiels, propriétés vides et URL contrôlés.</p></div>
+      <div class="ai-card"><div class="ai-card-head"><span>Types détectés</span><span class="ai-card-score">${m.schemaAudit.inventory.length}</span></div><p>${m.schemaAudit.inventory.slice(0,8).map(x=>esc(x.type)+" ("+x.pages+") — "+schemaUse(x.type)).join(" · ")||"Aucun type détecté"}</p></div>
+      <div class="ai-card"><div class="ai-card-head"><span>Types suggérés manquants</span><span class="ai-card-score">${m.schemaAudit.expectedMissing.length}</span></div><p>Suggestions basées sur le contenu; toujours confirmer le type réel avant implantation.</p></div>
+    </div>
+    <div class="tbl-wrap"><table><thead><tr><th>Page</th><th>Types présents</th><th>Type(s) suggéré(s)</th><th class="c">État</th></tr></thead><tbody>
+      ${m.pages.map(p=>{const missing=(p.expectedSchema||[]).filter(x=>!p.schemaTypes.includes(x.type));const bad=p.schema?.invalidBlocks||p.schema?.problems?.length;return `<tr><td class="pg">${esc(sh(p.url))}</td><td>${p.schemaTypes.length?p.schemaTypes.map(t=>esc(t)+` <small>(${schemaUse(t)})</small>`).join(", "):"—"}</td><td>${missing.length?missing.map(x=>`<b>${esc(x.type)}</b> <small>(${schemaUse(x.type)})</small>`).join(", "):"—"}</td><td class="c"><span class="tag ${bad?"no":missing.length?"mid":p.schemaTypes.length?"ok":"mid"}">${bad?"Erreur":missing.length?"À enrichir":p.schemaTypes.length?"Valide":"Absent"}</span></td></tr>`}).join("")}
+    </tbody></table></div>
+
     <div class="sec-h"><h3>Visibilité auprès des IA</h3><div class="rule"></div></div>
     <p class="sec-intro"><b>Indice de préparation technique, pas une mesure de mentions réelles.</b> Il indique si ChatGPT, Claude, Gemini et Perplexity peuvent trouver, comprendre et citer correctement l'entreprise.</p>
     <div class="ai-grid">${m.aiReadiness.map(a=>`<div class="ai-card">
@@ -932,9 +992,9 @@ function renderReport(m){
     <div class="sec-h"><h3>Plan d'action recommandé</h3><div class="rule"></div></div>
     <div class="plan">${planRows.map(([ph,what,gain])=>`<div class="prow"><div class="ph">${ph}</div><div class="what">${what}</div><div class="gain">${gain}</div></div>`).join("")}</div>
 
-    <div class="note"><b>Méthodologie.</b> Rapport produit par le moteur d'analyse Paparmane :
+    <div class="note"><b>Méthodologie — score v${esc(m.auditMeta.scoreVersion)}, confiance ${esc(m.auditMeta.confidence)}.</b> Rapport produit par le moteur d'analyse Paparmane :
       ${m.pages.length} pages crawlées, ${m.pages.reduce((a,p)=>a+(p.images||[]).length,0)} images inspectées,
-      ${m.linksChecked} liens vérifiés, robots.txt et llms.txt analysés. Les mots-clés sont extraits du contenu du site; aucun volume, coût par clic ou niveau de concurrence n'est inventé. Aucune donnée tierce payante.</div>
+      ${m.linksChecked} liens vérifiés, robots.txt et llms.txt analysés. Les URL et les liens sont triés avant échantillonnage pour rendre deux audits comparables; les erreurs réseau sont relancées une fois. Les mots-clés sont extraits du contenu du site; aucun volume, coût par clic ou niveau de concurrence n'est inventé. Aucune donnée tierce payante.</div>
 
     <div class="toolbar">
       <button class="btn ghost" onclick="window.print()">Imprimer / PDF client</button>

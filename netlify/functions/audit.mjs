@@ -77,7 +77,7 @@ function one(re, s) { const m = s.match(re); return m ? decode(m[1].trim()) : nu
 function all(re, s) { return [...s.matchAll(re)].map(m => m[1]); }
 
 function inspectStructuredData(blocks) {
-  const types = new Set(), problems = [];
+  const types = new Set(), problems = [], entities = [];
   let validBlocks = 0, invalidBlocks = 0;
   const required = {
     Organization: ["name", "url"], LocalBusiness: ["name", "address"],
@@ -91,17 +91,47 @@ function inspectStructuredData(blocks) {
     if (!node || typeof node !== "object") return;
     if (node["@graph"]) visit(node["@graph"]);
     const rawTypes = Array.isArray(node["@type"]) ? node["@type"] : node["@type"] ? [node["@type"]] : [];
+    if (rawTypes.length) entities.push({ types: rawTypes, id: node["@id"] || null, name: node.name || node.headline || null, url: node.url || null });
     rawTypes.forEach(type => {
       types.add(type);
       const missing = (required[type] || []).filter(k => node[k] == null || node[k] === "" || (Array.isArray(node[k]) && !node[k].length));
       if (missing.length) problems.push(`${type} : champ(s) manquant(s) — ${missing.join(", ")}`);
     });
+    for (const [key, value] of Object.entries(node)) {
+      if (value === "") problems.push(`${rawTypes[0] || "Objet"} : propriété vide — ${key}`);
+      if (/^(url|image|logo|sameAs)$/i.test(key)) {
+        const values = Array.isArray(value) ? value : [value];
+        values.filter(v => typeof v === "string").forEach(v => {
+          try { if (!/^https?:$/.test(new URL(v).protocol)) throw new Error(); }
+          catch { problems.push(`${rawTypes[0] || "Objet"} : URL non absolue ou invalide — ${key}`); }
+        });
+      }
+    }
   };
   blocks.forEach((block, i) => {
-    try { const parsed = JSON.parse(block.trim()); validBlocks++; visit(parsed); }
+    try {
+      const parsed = JSON.parse(block.trim()); validBlocks++;
+      if (!parsed["@context"] && !parsed["@graph"]) problems.push(`Bloc JSON-LD ${i + 1} : @context manquant`);
+      visit(parsed);
+    }
     catch { invalidBlocks++; problems.push(`Bloc JSON-LD ${i + 1} invalide (erreur de syntaxe)`); }
   });
-  return { types: [...types].sort(), validBlocks, invalidBlocks, problems: [...new Set(problems)] };
+  return { types: [...types].sort(), validBlocks, invalidBlocks, problems: [...new Set(problems)], entities };
+}
+
+function inferExpectedSchema(url, title, h1, bodyText) {
+  const hay = `${url} ${title || ""} ${(h1 || []).join(" ")} ${bodyText.slice(0, 2500)}`.toLocaleLowerCase("fr-CA");
+  const expected = [];
+  const add = (type, reason) => { if (!expected.some(x => x.type === type)) expected.push({ type, reason }); };
+  const path = new URL(url).pathname.replace(/\/$/, "") || "/";
+  if (path === "/") add("Organization", "page d'accueil : identité officielle de l'entreprise");
+  if (/hebergement|hébergement|gite|gîte|yourte|hotel|hôtel|auberge|chalet|camping/.test(hay)) add("LodgingBusiness", "contenu d'hébergement détecté");
+  if (/\/blog|\/actualit|\/article|blogue|datepublished/.test(hay)) add("Article", "article ou actualité détecté");
+  if (/\/produit|\/product|\/boutique|ajouter au panier|add to cart/.test(hay)) add("Product", "page produit ou boutique détectée");
+  if (/\/service|nos services|service offert/.test(hay)) add("Service", "page de service détectée");
+  if (/faq|foire aux questions|questions fréquentes/.test(hay)) add("FAQPage", "section de questions-réponses détectée");
+  if (/\/evenement|\/event|événement|billetterie/.test(hay)) add("Event", "événement détecté");
+  return expected;
 }
 
 const STOPWORDS = new Set((`a afin ai ainsi alors au aucun aussi autre aux avec avoir bon car ce ces cette comme dans de des du elle en encore est et eu fait font il ils je la le les leur lui ma mais me mes moi mon ne nos notre nous on ont ou où par pas pour pourquoi quand que quel quelle quelles quels qui sa sans se ses si son sont sous sur ta te tes toi ton tous tout toute toutes très tu un une vos votre vous y the and for from that this with are was were have has into not your you our their its but can`).split(/\s+/));
@@ -191,7 +221,7 @@ function analyzePage(url, html, finalUrl) {
     viewport: /name=["']viewport["']/i.test(head),
     lang: one(/<html[^>]*\blang=["']([^"']+)/i, head),
     h1, h1Count: h1.length, h2Count: h2.length,
-    images, og, schemaTypes, schema,
+    images, og, schemaTypes, schema, expectedSchema: inferExpectedSchema(finalUrl, title, h1, bodyText),
     isWordPress: /wp-content|wp-json/i.test(html),
     words: bodyText ? bodyText.split(" ").length : 0,
     keywords: keywords.top, focusKeyword,
