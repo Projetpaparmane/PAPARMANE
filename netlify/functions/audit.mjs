@@ -104,6 +104,25 @@ function inspectStructuredData(blocks) {
   return { types: [...types].sort(), validBlocks, invalidBlocks, problems: [...new Set(problems)] };
 }
 
+const STOPWORDS = new Set((`a afin ai ainsi alors au aucun aussi autre aux avec avoir bon car ce ces cette comme dans de des du elle en encore est et eu fait font il ils je la le les leur lui ma mais me mes moi mon ne nos notre nous on ont ou où par pas pour pourquoi quand que quel quelle quelles quels qui sa sans se ses si son sont sous sur ta te tes toi ton tous tout toute toutes très tu un une vos votre vous y the and for from that this with are was were have has into not your you our their its but can`).split(/\s+/));
+
+function extractKeywords(text) {
+  const tokens = (text.toLocaleLowerCase("fr-CA").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").match(/[a-z][a-z'-]{2,}/g) || [])
+    .map(w => w.replace(/^['-]+|['-]+$/g, ""))
+    .filter(w => w.length > 2 && !STOPWORDS.has(w) && !/^\d+$/.test(w));
+  const uni = new Map(), bi = new Map();
+  tokens.forEach(w => uni.set(w, (uni.get(w) || 0) + 1));
+  for (let i = 0; i < tokens.length - 1; i++) {
+    const phrase = tokens[i] + " " + tokens[i + 1];
+    bi.set(phrase, (bi.get(phrase) || 0) + 1);
+  }
+  const ranked = [
+    ...[...bi].filter(([, count]) => count >= 2).map(([term, count]) => ({ term, count, score: count * 2.2, kind: "expression" })),
+    ...[...uni].filter(([, count]) => count >= 2).map(([term, count]) => ({ term, count, score: count, kind: "mot" })),
+  ].sort((a, b) => b.score - a.score || b.count - a.count).slice(0, 12);
+  return { top: ranked, tokenCount: tokens.length };
+}
+
 // --- Classement d'une image : technique / décorative / contenu ---
 function classifyImg(srcRaw) {
   const src = (srcRaw || "").toLowerCase();
@@ -159,6 +178,9 @@ function analyzePage(url, html, finalUrl) {
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<nav[\s\S]*?<\/nav>/gi, " ")
     .replace(/<footer[\s\S]*?<\/footer>/gi, " "));
+  const keywords = extractKeywords(bodyText);
+  const focusKeyword = keywords.top[0]?.term || null;
+  const inField = field => focusKeyword ? (field || "").toLocaleLowerCase("fr-CA").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").includes(focusKeyword) : false;
 
   return {
     url, finalUrl, redirected: finalUrl.replace(/\/$/, "") !== url.replace(/\/$/, ""),
@@ -172,6 +194,8 @@ function analyzePage(url, html, finalUrl) {
     images, og, schemaTypes, schema,
     isWordPress: /wp-content|wp-json/i.test(html),
     words: bodyText ? bodyText.split(" ").length : 0,
+    keywords: keywords.top, focusKeyword,
+    keywordAlignment: { title: inField(title), h1: inField(h1.join(" ")), desc: inField(desc) },
     sizeKB: Math.round(html.length / 1024),
     links,
   };

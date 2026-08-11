@@ -152,6 +152,9 @@
   .ai-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;font-size:13px;font-weight:700}
   .ai-card-score{font-family:var(--mono);font-size:15px;color:var(--ink)}
   .ai-card p{font-size:12px;color:var(--ink-faint);margin:8px 0 0}
+  .kw-cloud{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 18px}
+  .kw{display:inline-flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 11px;box-shadow:var(--shadow);font-size:12px}
+  .kw b{font-weight:650}.kw small{font-family:var(--mono);color:var(--ink-faint)}
 
   .pgroup{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:13px 16px;margin-bottom:10px}
   .pgroup summary{cursor:pointer;font-weight:650;font-size:13.5px;display:flex;align-items:center;justify-content:space-between;gap:10px;list-style:none}
@@ -394,6 +397,26 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults){
   const isWP = pages.some(p=>p.isWordPress);
   const S = short; const sh = u=>short(u,origin);
   const issues=[]; const wins=[];
+
+  // ---- Mots-clés observés (analyse interne, sans volumes externes) ----
+  const keywordTotals=new Map();
+  for(const p of pages) for(const k of p.keywords||[]){
+    const cur=keywordTotals.get(k.term)||{term:k.term,count:0,pages:0,kind:k.kind};
+    cur.count+=k.count; cur.pages++; keywordTotals.set(k.term,cur);
+  }
+  const siteKeywords=[...keywordTotals.values()].sort((a,b)=>b.count-a.count).slice(0,25);
+  const focusGroups={};
+  for(const p of pages) if(p.focusKeyword) (focusGroups[p.focusKeyword]??=[]).push(p);
+  const cannibalization=Object.entries(focusGroups).filter(([,group])=>group.length>1);
+  const weakAlignment=pages.filter(p=>p.focusKeyword&&(!p.keywordAlignment?.title||!p.keywordAlignment?.h1));
+  if(cannibalization.length) issues.push({sev:"warn",cat:"keywords",title:cannibalization.length+" sujet(s) semblent ciblés par plusieurs pages",
+    body:"Plusieurs pages insistent sur la même expression dominante. Elles peuvent se concurrencer dans Google au lieu de renforcer une page principale. C'est une alerte de cannibalisation basée sur le contenu observé — à confirmer avec les requêtes de Google Search Console.",
+    where:cannibalization.slice(0,12).flatMap(([kw,group])=>["<b>« "+esc(kw)+" »</b> : "+group.map(p=>"<code>"+esc(sh(p.url))+"</code>").join(", ")]),
+    steps:["Choisir une page principale par intention de recherche.","Différencier les autres pages avec un besoin précis, un lieu, un public ou une étape du parcours client.","Créer des liens internes descriptifs vers la page principale.","Si deux pages répondent vraiment à la même intention, les fusionner et rediriger l'ancienne URL."],effort:"30-90 min / groupe",gain:"élevé"});
+  if(weakAlignment.length) issues.push({sev:"info",cat:"keywords",title:weakAlignment.length+" page(s) n'annoncent pas clairement leur sujet dominant",
+    body:"Le contenu parle surtout d'un sujet, mais ce sujet n'apparaît pas à la fois dans le titre SEO et le H1. Google et le client doivent pouvoir comprendre la promesse de la page immédiatement.",
+    where:weakAlignment.slice(0,15).map(p=>"<code>"+esc(sh(p.url))+"</code> — expression observée : <b>« "+esc(p.focusKeyword)+" »</b> · titre "+(p.keywordAlignment.title?"✓":"✗")+" · H1 "+(p.keywordAlignment.h1?"✓":"✗")),
+    steps:["Confirmer dans Google Search Console la requête réellement visée.","Placer l'expression principale naturellement dans le titre SEO et dans l'unique H1.","Employer des variantes et sous-questions dans les H2; éviter de répéter mécaniquement le même mot."],effort:"10 min / page",gain:"moyen"});
 
   // Emplacement du champ selon le CMS
   const champTitre = isWP ? "champ <b>Titre SEO</b> du bloc Yoast/RankMath, sous l'éditeur de la page" : "balise <code>&lt;title&gt;</code> dans le <code>&lt;head&gt;</code> de la page";
@@ -645,12 +668,13 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults){
     structure: Math.round(100*ratio(h1Zero.length+h1Multi.length,n)),
     images: contentTotal? Math.round(100*(1-contentBad/contentTotal)) : 100,
     social: Math.round(100*ratio(noOg.length,n)),
+    keywords: Math.max(0,Math.round(100-weakAlignment.length/Math.max(1,n)*55-Math.min(35,cannibalization.length*7))),
     schema: Math.max(0, pagesNoSchema.length===pages.length?10:Math.round((richFound.length?88:48)-100*pagesSchemaInvalid.length/Math.max(1,n)*.55)),
     ia: Math.max(0,Math.round(100 - majorBlocked.length*11 - (!identityReady?18:0) - Math.min(20,thinPages.length/Math.max(1,n)*25) - (disc.llms?.exists? (llmsLinkResults.some(r=>r.status>=400||r.finalUrl.replace(/\/$/,"")===origin&&r.url.replace(/\/$/,"")!==origin)?18:0) : 12))),
     liens: Math.round(100*ratio(dead.length+deadPages.length*2, Math.max(1,linkResults.length+pagesAll.length)))
   };
   scores.fondations = Math.max(0,Math.min(100,scores.fondations));
-  const W={fondations:.15,balises:.2,structure:.1,images:.15,social:.05,schema:.1,ia:.15,liens:.1};
+  const W={fondations:.13,balises:.17,structure:.08,images:.12,social:.04,schema:.1,ia:.14,keywords:.12,liens:.1};
   const global = Math.round(Object.entries(W).reduce((a,[k,w])=>a+scores[k]*w,0)/Object.values(W).reduce((a,b)=>a+b,0));
 
   const order={crit:0,warn:1,info:2};
@@ -661,7 +685,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults){
     {name:"Contenu facile à citer",score:Math.max(20,Math.round(100-thinPages.length/Math.max(1,n)*100)),detail:thinPages.length+" page(s) trop courtes"},
     {name:"Fiche llms.txt",score:disc.llms?.exists?85:20,detail:disc.llms?.exists?"fichier présent":"fichier absent (standard émergent, facultatif)"},
   ];
-  return {origin, disc, pages, deadPages, issues, wins, scores, global, imgPages, uniqFiles, isWP, aiReadiness,
+  return {origin, disc, pages, deadPages, issues, wins, scores, global, imgPages, uniqFiles, isWP, aiReadiness, siteKeywords, cannibalization,
           counts:{crit:issues.filter(i=>i.sev==="crit").length,warn:issues.filter(i=>i.sev==="warn").length,info:issues.filter(i=>i.sev==="info").length,wins:wins.length},
           linksChecked: linkResults.length};
 }
@@ -684,6 +708,7 @@ function renderReport(m){
     ["Structure des titres","hiérarchie H1/H2","structure"],
     ["Images","descriptions pour Google","images"],
     ["Partage social","aperçu Facebook & co","social"],
+    ["Mots-clés","sujets, alignement, concurrence","keywords"],
     ["Données structurées","fiches enrichies Google","schema"],
     ["Visibilité IA","ChatGPT, Claude, Gemini…","ia"],
     ["Santé des liens","liens brisés, redirections","liens"],
@@ -752,6 +777,7 @@ function renderReport(m){
   if(m.counts.warn) planRows.push(["Semaine 2","Traiter les points importants : descriptions, titres, longueurs.","+ taux de clic"]);
   if(m.issues.some(i=>i.cat==="schema")) planRows.push(["Mois 1","Enrichir les données structurées (type d'entreprise précis).","Résultats enrichis"]);
   if(m.issues.some(i=>i.cat==="ia")) planRows.push(["Mois 1","Régler la politique IA : robots débloqués + llms.txt à jour.","Visibilité IA"]);
+  if(m.issues.some(i=>i.cat==="keywords")) planRows.push(["Mois 1","Clarifier un sujet principal par page et résoudre les chevauchements.","Positionnement Google"]);
   planRows.push(["Continu","Publier du contenu régulier (blogue) lié aux offres.","Croissance durable"]);
 
   $("#report").innerHTML = `
@@ -797,6 +823,18 @@ function renderReport(m){
     ${sevSection("warn","Problèmes importants","Des gains rapides et concrets.")}
     ${sevSection("info","Opportunités","Pas des erreurs — des leviers pour aller plus loin.")}
 
+    <div class="sec-h"><h3>Analyse des mots-clés observés</h3><span class="cnt">${m.siteKeywords.length}</span><div class="rule"></div></div>
+    <p class="sec-intro">Expressions les plus présentes dans le contenu utile du site. Le chiffre représente le nombre d'occurrences observées pendant le crawl — <b>pas un volume de recherche Google</b>.</p>
+    <div class="kw-cloud">${m.siteKeywords.length?m.siteKeywords.map(k=>`<span class="kw"><b>${esc(k.term)}</b><small>${k.count}× · ${k.pages} p.</small></span>`).join(""):`<span class="sec-intro">Pas assez de contenu textuel pour dégager des sujets fiables.</span>`}</div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Page</th><th>Expression dominante observée</th><th class="c">Titre</th><th class="c">H1</th><th class="c">Description</th></tr></thead>
+      <tbody>${m.pages.map(p=>`<tr><td class="pg">${esc(sh(p.url))}</td><td>${p.focusKeyword?`<b>${esc(p.focusKeyword)}</b>`:"—"}</td>
+        <td class="c"><span class="dot ${p.keywordAlignment?.title?"ok":"no"}"></span></td>
+        <td class="c"><span class="dot ${p.keywordAlignment?.h1?"ok":"no"}"></span></td>
+        <td class="c"><span class="dot ${p.keywordAlignment?.desc?"ok":"mid"}"></span></td></tr>`).join("")}</tbody>
+    </table></div>
+    <div class="legend"><span><span class="dot ok"></span> Expression présente</span><span><span class="dot no"></span> Absente du titre ou H1</span><span><span class="dot mid"></span> Description à renforcer</span></div>
+
     <div class="sec-h"><h3>Visibilité auprès des IA</h3><div class="rule"></div></div>
     <p class="sec-intro"><b>Indice de préparation technique, pas une mesure de mentions réelles.</b> Il indique si ChatGPT, Claude, Gemini et Perplexity peuvent trouver, comprendre et citer correctement l'entreprise.</p>
     <div class="ai-grid">${m.aiReadiness.map(a=>`<div class="ai-card">
@@ -831,7 +869,7 @@ function renderReport(m){
 
     <div class="note"><b>Méthodologie.</b> Rapport produit par le moteur d'analyse Paparmane :
       ${m.pages.length} pages crawlées, ${m.pages.reduce((a,p)=>a+(p.images||[]).length,0)} images inspectées,
-      ${m.linksChecked} liens vérifiés, robots.txt et llms.txt analysés. Aucune donnée tierce payante.</div>
+      ${m.linksChecked} liens vérifiés, robots.txt et llms.txt analysés. Les mots-clés sont extraits du contenu du site; aucun volume, coût par clic ou niveau de concurrence n'est inventé. Aucune donnée tierce payante.</div>
 
     <div class="toolbar">
       <button class="btn ghost" onclick="window.print()">Imprimer / PDF client</button>
