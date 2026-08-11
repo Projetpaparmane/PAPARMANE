@@ -226,7 +226,7 @@
       <input id="siteUrl" type="url" placeholder="www.site-du-client.com" onkeydown="if(event.key==='Enter')runAudit()">
       <button class="btn" id="goBtn" onclick="runAudit()">Lancer l'audit</button>
     </div>
-    <div class="hint">Jusqu'à 30 pages analysées · aucune donnée envoyée à un service tiers · le site audité voit passer « PaparmaneSEO » dans ses journaux.</div>
+    <div class="hint">Audit complet du sitemap — jusqu'à 1 000 pages par analyse · aucune donnée envoyée à un service tiers · le site audité voit passer « PaparmaneSEO » dans ses journaux.</div>
   </section>
 
   <section id="progress">
@@ -265,6 +265,8 @@ document.getElementById("gateCode").addEventListener("keydown",e=>{if(e.key==="E
 
 // --- Utilitaires ---
 const API = "/api/audit";
+const MAX_AUDIT_PAGES = 1000;
+const CRAWL_WORKERS = 5;
 const $ = s => document.querySelector(s);
 const esc = s => String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const short = (u,origin) => { const p = u.replace(origin,""); return p===""?"/ (accueil)":p; };
@@ -292,12 +294,36 @@ async function runAudit(){
     log("Découverte du site (robots.txt, sitemap, llms.txt)…");
     const disc = await api({mode:"discover", site:raw});
     const origin = disc.origin;
-    log("✓ "+origin+" — "+(disc.sitemapFound? disc.pages.length+" pages au sitemap":"pas de sitemap, exploration depuis l'accueil"), "okl");
+    // Un index de sitemap peut référencer plusieurs sous-sitemaps. On les lit
+    // séparément pour éviter les délais d'expiration des fonctions Netlify.
+    if(disc.sitemapFound && disc.sitemapQueue?.length){
+      log("Lecture de "+disc.sitemapQueue.length+" sous-sitemap(s)…");
+      const pending=[...disc.sitemapQueue], sitemapSeen=new Set(pending), foundPages=new Set(disc.pages);
+      let smDone=0;
+      async function sitemapWorker(){
+        while(pending.length && foundPages.size<MAX_AUDIT_PAGES){
+          const sm=pending.shift(); if(!sm) break;
+          try{
+            const parsed=await api({mode:"sitemap",url:sm,origin});
+            for(const u of parsed.pages||[]) if(foundPages.size<MAX_AUDIT_PAGES) foundPages.add(u);
+            for(const child of parsed.sitemaps||[]) if(!sitemapSeen.has(child)){
+              sitemapSeen.add(child); pending.push(child);
+            }
+          }catch(e){ log("⚠ Sitemap ignoré : "+sm+" ("+e.message+")", "warnl"); }
+          smDone++; setBar(3+5*(smDone/Math.max(smDone+pending.length,1)));
+        }
+      }
+      await Promise.all(Array.from({length:Math.min(4,pending.length)},()=>sitemapWorker()));
+      disc.pages=[...foundPages];
+      disc.truncated=foundPages.size>=MAX_AUDIT_PAGES && pending.length>0;
+    }
+    log("✓ "+origin+" — "+(disc.sitemapFound? disc.pages.length+" pages trouvées dans le sitemap":"pas de sitemap, exploration depuis l'accueil"), "okl");
+    if(disc.truncated) log("⚠ Plafond de sécurité atteint : "+MAX_AUDIT_PAGES+" pages seront analysées.", "warnl");
     setBar(8);
 
     // Crawl (avec repli exploration si pas de sitemap)
     const queue=[...disc.pages]; const seen=new Set(queue); const pages=[];
-    const CAP = disc.sitemapFound ? 30 : 15;
+    const CAP = MAX_AUDIT_PAGES;
     let done=0;
     async function worker(){
       while(queue.length && pages.length<CAP){
@@ -315,7 +341,7 @@ async function runAudit(){
         setBar(8 + 62*(done/Math.max(seen.size,disc.pages.length)));
       }
     }
-    await Promise.all([worker(),worker(),worker()]);
+    await Promise.all(Array.from({length:CRAWL_WORKERS},()=>worker()));
 
     // Vérification des liens internes
     const crawled = new Set(pages.map(p=>(p.finalUrl||p.url).replace(/\/$/,"")));

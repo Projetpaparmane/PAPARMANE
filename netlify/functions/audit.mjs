@@ -8,7 +8,9 @@
 
 const UA = "Mozilla/5.0 (compatible; PaparmaneSEO/1.0; +https://paparmane.netlify.app)";
 const FETCH_TIMEOUT = 9000;
-const MAX_PAGES = 30;
+// Garde-fou anti-abus seulement : le moteur n'échantillonne plus les 30
+// premières pages. Les sitemaps sont parcourus côté client, un fichier à la fois.
+const MAX_SITEMAP_URLS = 1000;
 const MAX_VERIFY = 15;
 
 // --- Robots d'IA connus : [agent, rôle, conséquence d'un blocage] ---
@@ -174,6 +176,31 @@ function parseRobots(txt) {
   return rules;
 }
 
+async function readSitemap(url, origin) {
+  if (!isSafeUrl(url)) return { pages: [], sitemaps: [], found: false };
+  const r = await grab(url);
+  if (!r.ok || r.status !== 200 || !/<(urlset|sitemapindex)/i.test(r.body)) {
+    return { pages: [], sitemaps: [], found: false };
+  }
+  const locs = all(/<loc>\s*([^<]+?)\s*<\/loc>/gi, r.body).map(decode);
+  if (/<sitemapindex/i.test(r.body)) {
+    return {
+      pages: [],
+      sitemaps: [...new Set(locs.filter(isSafeUrl))].slice(0, MAX_SITEMAP_URLS),
+      found: true,
+    };
+  }
+  return {
+    pages: [...new Set(locs.filter(l => {
+      try {
+        return new URL(l).origin === origin && !/\.(jpg|jpeg|png|webp|gif|pdf|xml)$/i.test(new URL(l).pathname);
+      } catch { return false; }
+    }))].slice(0, MAX_SITEMAP_URLS),
+    sitemaps: [],
+    found: true,
+  };
+}
+
 async function discover(site) {
   const origin = new URL(site).origin;
   const out = { origin, pages: [], robots: null, aiBots: [], llms: null, sitemapFound: false };
@@ -192,27 +219,18 @@ async function discover(site) {
   const declared = all(/sitemap:\s*(\S+)/gi, robotsTxt);
   const candidates = declared.length ? [...new Set(declared)] : [origin + "/sitemap_index.xml", origin + "/sitemap.xml"];
   const pages = new Set();
-  for (const sm of candidates.slice(0, 2)) {
-    const r = await grab(sm);
-    if (!r.ok || r.status !== 200 || !/<(urlset|sitemapindex)/i.test(r.body)) continue;
+  const sitemapQueue = [];
+  for (const sm of candidates.slice(0, 10)) {
+    const parsed = await readSitemap(sm, origin);
+    if (!parsed.found) continue;
     out.sitemapFound = true;
-    let locs = all(/<loc>\s*([^<]+?)\s*<\/loc>/gi, r.body);
-    if (/<sitemapindex/i.test(r.body)) {
-      const kids = locs.slice(0, 3);
-      locs = [];
-      for (const kid of kids) {
-        const k = await grab(kid);
-        if (k.ok && k.status === 200) locs.push(...all(/<loc>\s*([^<]+?)\s*<\/loc>/gi, k.body));
-      }
-    }
-    for (const l of locs) {
-      if (l.startsWith(origin) && !/\.(jpg|jpeg|png|webp|gif|pdf|xml)$/i.test(l)) pages.add(l);
-      if (pages.size >= MAX_PAGES) break;
-    }
-    if (pages.size) break;
+    parsed.pages.forEach(l => pages.add(l));
+    sitemapQueue.push(...parsed.sitemaps);
+    break;
   }
   if (!pages.size) pages.add(origin + "/"); // repli : on partira de l'accueil (BFS côté client)
   out.pages = [...pages];
+  out.sitemapQueue = [...new Set(sitemapQueue)];
 
   // 3. llms.txt
   const lm = await grab(origin + "/llms.txt");
@@ -254,6 +272,14 @@ export default async (req) => {
       if (!/^https?:\/\//i.test(site)) site = "https://" + site;
       if (!isSafeUrl(site)) return json({ error: "Adresse invalide." }, 400);
       return json(await discover(site));
+    }
+
+    if (mode === "sitemap") {
+      const url = q.get("url") || "";
+      const origin = q.get("origin") || "";
+      if (!isSafeUrl(url) || !isSafeUrl(origin)) return json({ error: "Adresse de sitemap invalide." }, 400);
+      const normalizedOrigin = new URL(origin).origin;
+      return json(await readSitemap(url, normalizedOrigin));
     }
 
     if (mode === "page") {
