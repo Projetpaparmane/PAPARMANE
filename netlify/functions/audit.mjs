@@ -340,12 +340,45 @@ async function verify(urls) {
   return results;
 }
 
+// ---------- INTELLIGENCE TRAFIC (DataForSEO, identifiants serveur seulement) ----------
+async function trafficEstimate(site, location = "Canada", language = "fr") {
+  const login = process.env.DATAFORSEO_LOGIN;
+  const password = process.env.DATAFORSEO_PASSWORD;
+  if (!login || !password) return { configured: false, source: "DataForSEO" };
+  const target = new URL(site).hostname.replace(/^www\./, "");
+  const authorization = "Basic " + btoa(`${login}:${password}`);
+  const res = await fetch("https://api.dataforseo.com/v3/dataforseo_labs/google/bulk_traffic_estimation/live", {
+    method: "POST",
+    headers: { "Authorization": authorization, "Content-Type": "application/json" },
+    body: JSON.stringify([{
+      targets: [target], location_name: location, language_code: language,
+      item_types: ["organic", "paid", "featured_snippet", "local_pack"],
+    }]),
+  });
+  const payload = await res.json().catch(() => ({}));
+  if (!res.ok || payload.status_code !== 20000) {
+    return { configured: true, available: false, source: "DataForSEO", error: payload.status_message || `Erreur ${res.status}` };
+  }
+  const item = payload.tasks?.[0]?.result?.[0]?.items?.[0] || payload.tasks?.[0]?.result?.[0] || null;
+  if (!item) return { configured: true, available: false, source: "DataForSEO", error: "Aucune estimation disponible" };
+  const organic = item.metrics?.organic || item.organic || {};
+  const paid = item.metrics?.paid || item.paid || {};
+  return {
+    configured: true, available: true, source: "DataForSEO", target, location, language,
+    organic: Math.round(organic.etv ?? organic.estimated_traffic_volume ?? item.organic_etv ?? 0),
+    paid: Math.round(paid.etv ?? paid.estimated_traffic_volume ?? item.paid_etv ?? 0),
+    organicKeywords: organic.count ?? item.organic_count ?? null,
+    paidKeywords: paid.count ?? item.paid_count ?? null,
+    estimated: true, providerCostUsd: payload.cost ?? payload.tasks?.[0]?.cost ?? null,
+  };
+}
+
 // ---------- Point d'entrée ----------
 export default async (req) => {
   const cors = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Headers": "Content-Type, X-Paparmane-Key",
   };
   const json = (data, status = 200) => new Response(JSON.stringify(data), {
     status, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", ...cors },
@@ -356,6 +389,13 @@ export default async (req) => {
   try {
     const q = new URL(req.url).searchParams;
     const mode = q.get("mode");
+    const accessKey = process.env.PAPARMANE_ACCESS_KEY;
+
+    if (mode === "auth") {
+      const supplied = req.headers.get("x-paparmane-key") || "";
+      // Compatibilité temporaire tant que le secret serveur n'est pas configuré.
+      return json({ ok: accessKey ? supplied === accessKey : supplied === "paparmane", configured: !!accessKey });
+    }
 
     if (mode === "discover") {
       let site = (q.get("site") || "").trim();
@@ -370,6 +410,16 @@ export default async (req) => {
       if (!isSafeUrl(url) || !isSafeUrl(origin)) return json({ error: "Adresse de sitemap invalide." }, 400);
       const normalizedOrigin = new URL(origin).origin;
       return json(await readSitemap(url, normalizedOrigin));
+    }
+
+    if (mode === "traffic") {
+      if (!accessKey || req.headers.get("x-paparmane-key") !== accessKey) {
+        return json({ error: "Intelligence trafic non autorisée ou protection serveur non configurée." }, 401);
+      }
+      let site = (q.get("site") || "").trim();
+      if (!/^https?:\/\//i.test(site)) site = "https://" + site;
+      if (!isSafeUrl(site)) return json({ error: "Adresse invalide." }, 400);
+      return json(await trafficEstimate(site, q.get("location") || "Canada", q.get("language") || "fr"));
     }
 
     if (mode === "page") {
@@ -388,7 +438,7 @@ export default async (req) => {
       return json({ results: await verify(urls) });
     }
 
-    return json({ error: "Mode inconnu. Utiliser mode=discover|page|verify." }, 400);
+    return json({ error: "Mode inconnu. Utiliser mode=auth|discover|sitemap|page|verify|traffic." }, 400);
   } catch (e) {
     return json({ error: String(e.message || e) }, 500);
   }

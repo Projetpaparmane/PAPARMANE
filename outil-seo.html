@@ -298,13 +298,18 @@
 
 // --- Porte d'entrée (dissuasion simple, pas un coffre-fort : le vrai
 //     contrôle d'accès viendra plus tard si besoin) ---
-const ACCESS_CODE = "paparmane";
-function checkGate(){
+async function checkGate(){
   const v = document.getElementById("gateCode").value.trim().toLowerCase();
-  if(v === ACCESS_CODE){ sessionStorage.setItem("pap_gate","1"); document.getElementById("gate").style.display="none"; }
-  else document.getElementById("gateErr").textContent = "Code incorrect.";
+  if(!v) return;
+  document.getElementById("gateErr").textContent = "Vérification…";
+  try{
+    const r=await fetch(API+"?mode=auth",{headers:{"X-Paparmane-Key":v}});
+    const data=await r.json();
+    if(data.ok){sessionStorage.setItem("pap_gate","1");sessionStorage.setItem("pap_gate_key",v);document.getElementById("gate").style.display="none";document.getElementById("gateErr").textContent="";}
+    else document.getElementById("gateErr").textContent="Code incorrect.";
+  }catch{document.getElementById("gateErr").textContent="Impossible de vérifier le code.";}
 }
-if(sessionStorage.getItem("pap_gate")==="1") document.getElementById("gate").style.display="none";
+if(sessionStorage.getItem("pap_gate")==="1"&&sessionStorage.getItem("pap_gate_key")) document.getElementById("gate").style.display="none";
 document.getElementById("gateCode").addEventListener("keydown",e=>{if(e.key==="Enter")checkGate();});
 
 // --- Utilitaires ---
@@ -327,7 +332,8 @@ const GOOGLE_RICH_SCHEMA = new Set(["Article","BlogPosting","BreadcrumbList","Da
 function log(msg, cls){ const d=document.createElement("div"); if(cls)d.className=cls; d.textContent=msg; const p=$("#plog"); p.appendChild(d); p.scrollTop=p.scrollHeight; }
 function setBar(pct){ $("#pbarFill").style.width = Math.min(100,Math.round(pct))+"%"; }
 async function api(params, body){
-  const opt = body ? {method:"POST",body:JSON.stringify(body),headers:{"Content-Type":"application/json"}} : {};
+  const headers={"X-Paparmane-Key":sessionStorage.getItem("pap_gate_key")||""};
+  const opt = body ? {method:"POST",body:JSON.stringify(body),headers:{...headers,"Content-Type":"application/json"}} : {headers};
   let last;
   for(let attempt=0;attempt<2;attempt++){
     try{
@@ -358,6 +364,10 @@ async function runAudit(){
     log("Découverte du site (robots.txt, sitemap, llms.txt)…");
     const disc = await api({mode:"discover", site:raw});
     const origin = disc.origin;
+    const trafficCacheKey="pap_traffic_"+new URL(origin).hostname+"_canada_fr";
+    let cachedTraffic=null;
+    try{const saved=JSON.parse(localStorage.getItem(trafficCacheKey)||"null");if(saved&&Date.now()-saved.cachedAt<86400000)cachedTraffic=saved.data;}catch{}
+    const trafficPromise=cachedTraffic?Promise.resolve({...cachedTraffic,cached:true}):api({mode:"traffic",site:origin,location:"Canada",language:"fr"}).then(data=>{if(data.available)localStorage.setItem(trafficCacheKey,JSON.stringify({cachedAt:Date.now(),data}));return data;}).catch(e=>({configured:false,error:e.message}));
     // Un index de sitemap peut référencer plusieurs sous-sitemaps. On les lit
     // séparément pour éviter les délais d'expiration des fonctions Netlify.
     if(disc.sitemapFound && disc.sitemapQueue?.length){
@@ -431,6 +441,8 @@ async function runAudit(){
       }
     }
     setBar(96);
+    log("Chargement de l'intelligence trafic…");
+    disc.traffic=await trafficPromise;
     log("Compilation du rapport…");
 
     const model = buildModel(origin, disc, pages, linkResults, llmsLinkResults, {clientName,targetKeywords});
@@ -826,12 +838,13 @@ function renderReport(m){
     ["Santé SEO",m.global+"/100","Score global Paparmane v"+m.auditMeta.scoreVersion,"mesuré",scoreClass(m.global)],
     ["Pages analysées",m.pages.length,m.auditMeta.successful+" réussies · "+m.auditMeta.transient+" provisoires","crawl complet",m.auditMeta.transient?"warn":"good"],
     ["Problèmes prioritaires",m.counts.crit,m.counts.warn+" importants · "+m.counts.info+" opportunités","audit interne",m.counts.crit?"bad":m.counts.warn?"warn":"good"],
-    ["Mots-clés observés",observedKeywordCount,m.cannibalization.length+" chevauchement(s) potentiel(s)","contenu analysé",scoreClass(m.scores.keywords)],
+    ["Mots-clés organiques",m.disc.traffic?.available&&m.disc.traffic.organicKeywords!=null?m.disc.traffic.organicKeywords.toLocaleString("fr-CA"):observedKeywordCount,m.disc.traffic?.available?"classements Google estimés · Canada":m.cannibalization.length+" chevauchement(s) potentiel(s)",m.disc.traffic?.available?"estimation DataForSEO":"contenu observé",scoreClass(m.scores.keywords)],
     ["Mots-clés stratégiques",m.targetMap.length?targetCovered+"/"+m.targetMap.length:"—",m.targetMap.length?(m.targetMap.length-targetCovered)+" sans cible claire":"aucune liste fournie",m.targetMap.length?"fourni par le client":"non configuré",m.targetMap.length&&targetCovered===m.targetMap.length?"good":m.targetMap.length?"warn":""],
     ["Données structurées",m.scores.schema+"/100",schemaCovered+" page(s) balisée(s) · "+m.schemaAudit.expectedMissing.length+" suggestion(s)","Schema Studio",scoreClass(m.scores.schema)],
     ["Préparation IA",m.scores.ia+"/100",aiBlocked+" robot(s) explicitement bloqué(s)","technique — pas des mentions",scoreClass(m.scores.ia)],
     ["Liens",m.scores.liens+"/100",m.linksChecked+" vérifiés · "+brokenCount+" groupe(s) critique(s)","échantillon déterministe",scoreClass(m.scores.liens)],
-    ["Trafic organique","—","Connecter Google Search Console pour clics et impressions","non connecté",""],
+    ["Trafic organique",m.disc.traffic?.available?m.disc.traffic.organic.toLocaleString("fr-CA"):"—",m.disc.traffic?.available?"visites mensuelles organiques estimées · Canada":m.disc.traffic?.configured?"Estimation indisponible pour ce domaine":"Ajouter les identifiants DataForSEO dans Netlify",m.disc.traffic?.available?"estimation DataForSEO":"source non configurée",m.disc.traffic?.available?"good":""],
+    ["Trafic payant",m.disc.traffic?.available?m.disc.traffic.paid.toLocaleString("fr-CA"):"—",m.disc.traffic?.available?"visites mensuelles payantes estimées · Canada":m.disc.traffic?.configured?"Estimation indisponible":"Ajouter les identifiants DataForSEO dans Netlify",m.disc.traffic?.available?"estimation DataForSEO":"source non configurée",m.disc.traffic?.available&&m.disc.traffic.paid>0?"warn":""],
     ["Backlinks","—","Nécessite une base de liens externe","non mesuré",""],
     ["Mentions IA réelles","—","Nécessite des tests de prompts sur chaque plateforme","non mesuré",""],
     ["Évolution",delta===null?"—":(delta>0?"+":"")+delta,delta===null?"Un deuxième audit fiable activera la comparaison":"points depuis le dernier audit","historique local",delta>0?"good":delta<0?"bad":""],
