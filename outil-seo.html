@@ -292,7 +292,11 @@ if(sessionStorage.getItem("pap_gate")==="1") document.getElementById("gate").sty
 document.getElementById("gateCode").addEventListener("keydown",e=>{if(e.key==="Enter")checkGate();});
 
 // --- Utilitaires ---
-const API = "/api/audit";
+// En ligne, on utilise la fonction du même domaine. Si le fichier HTML est
+// ouvert directement (file://), on appelle explicitement l'API publiée.
+const API = location.protocol === "file:"
+  ? "https://paparmane.netlify.app/api/audit"
+  : "/api/audit";
 const MAX_AUDIT_PAGES = 1000;
 const CRAWL_WORKERS = 5;
 const $ = s => document.querySelector(s);
@@ -318,7 +322,10 @@ async function api(params, body){
     }catch(e){last=e;}
     if(attempt===0) await new Promise(r=>setTimeout(r,450));
   }
-  throw last||new Error("Erreur réseau");
+  const detail=location.protocol==="file:"
+    ? "Impossible de joindre l’API Paparmane en ligne. Vérifie la connexion Internet ou ouvre https://paparmane.netlify.app/outil-seo.html."
+    : "Impossible de joindre l’API d’audit. Réessaie dans quelques instants.";
+  throw new Error(detail+(last?.message?" ("+last.message+")":""));
 }
 
 // --- Orchestration ---

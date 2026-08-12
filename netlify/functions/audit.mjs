@@ -342,9 +342,16 @@ async function verify(urls) {
 
 // ---------- Point d'entrée ----------
 export default async (req) => {
+  const cors = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
   const json = (data, status = 200) => new Response(JSON.stringify(data), {
-    status, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" },
+    status, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", ...cors },
   });
+
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
 
   try {
     const q = new URL(req.url).searchParams;
