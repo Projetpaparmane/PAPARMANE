@@ -344,7 +344,13 @@ async function verify(urls) {
 async function trafficEstimate(site, location = "Canada", language = "fr") {
   const login = process.env.DATAFORSEO_LOGIN;
   const password = process.env.DATAFORSEO_PASSWORD;
-  if (!login || !password) return { configured: false, source: "DataForSEO" };
+  if (!login || !password) return {
+    configured: false,
+    available: false,
+    reason: "provider_credentials_missing",
+    source: "DataForSEO",
+    error: "Les identifiants DataForSEO ne sont pas configurés sur le serveur.",
+  };
   const target = new URL(site).hostname.replace(/^www\./, "");
   const authorization = "Basic " + btoa(`${login}:${password}`);
   const res = await fetch("https://api.dataforseo.com/v3/dataforseo_labs/google/bulk_traffic_estimation/live", {
@@ -357,10 +363,22 @@ async function trafficEstimate(site, location = "Canada", language = "fr") {
   });
   const payload = await res.json().catch(() => ({}));
   if (!res.ok || payload.status_code !== 20000) {
-    return { configured: true, available: false, source: "DataForSEO", error: payload.status_message || `Erreur ${res.status}` };
+    return {
+      configured: true,
+      available: false,
+      reason: "provider_error",
+      source: "DataForSEO",
+      error: payload.status_message || `Erreur ${res.status}`,
+    };
   }
   const item = payload.tasks?.[0]?.result?.[0]?.items?.[0] || payload.tasks?.[0]?.result?.[0] || null;
-  if (!item) return { configured: true, available: false, source: "DataForSEO", error: "Aucune estimation disponible" };
+  if (!item) return {
+    configured: true,
+    available: false,
+    reason: "no_data",
+    source: "DataForSEO",
+    error: "Aucune estimation disponible pour ce domaine.",
+  };
   const organic = item.metrics?.organic || item.organic || {};
   const paid = item.metrics?.paid || item.paid || {};
   return {
@@ -413,8 +431,21 @@ export default async (req) => {
     }
 
     if (mode === "traffic") {
-      if (!accessKey || req.headers.get("x-paparmane-key") !== accessKey) {
-        return json({ error: "Intelligence trafic non autorisée ou protection serveur non configurée." }, 401);
+      if (!accessKey) {
+        return json({
+          configured: false,
+          available: false,
+          reason: "server_protection_missing",
+          error: "La protection privée du module trafic n'est pas configurée sur le serveur.",
+        }, 503);
+      }
+      if (req.headers.get("x-paparmane-key") !== accessKey) {
+        return json({
+          configured: false,
+          available: false,
+          reason: "access_key_invalid",
+          error: "Le code d'accès courant ne permet pas d'utiliser le module trafic.",
+        }, 401);
       }
       let site = (q.get("site") || "").trim();
       if (!/^https?:\/\//i.test(site)) site = "https://" + site;

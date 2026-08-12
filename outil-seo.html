@@ -270,7 +270,7 @@
         <div class="field"><label for="targetKeywords">Mots-clés visés</label><textarea id="targetKeywords" rows="3" placeholder="service principal&#10;service + ville&#10;question fréquente"></textarea></div>
       </div>
     </details>
-    <div class="hint">Audit complet du sitemap — jusqu'à 1 000 pages par analyse · aucune donnée envoyée à un service tiers · le site audité voit passer « PaparmaneSEO » dans ses journaux.</div>
+    <div class="hint">Audit complet du sitemap — jusqu'à 1 000 pages par analyse · le crawl reste traité par Paparmane; si l'intelligence trafic est activée, seul le nom de domaine est interrogé auprès de DataForSEO · le site audité voit passer « PaparmaneSEO » dans ses journaux.</div>
   </section>
 
   <section id="progress">
@@ -305,7 +305,7 @@ async function checkGate(){
   try{
     const r=await fetch(API+"?mode=auth",{headers:{"X-Paparmane-Key":v}});
     const data=await r.json();
-    if(data.ok){sessionStorage.setItem("pap_gate","1");sessionStorage.setItem("pap_gate_key",v);document.getElementById("gate").style.display="none";document.getElementById("gateErr").textContent="";}
+    if(data.ok){sessionStorage.setItem("pap_gate","1");sessionStorage.setItem("pap_gate_key",v);sessionStorage.setItem("pap_gate_server_configured",data.configured?"1":"0");document.getElementById("gate").style.display="none";document.getElementById("gateErr").textContent="";}
     else document.getElementById("gateErr").textContent="Code incorrect.";
   }catch{document.getElementById("gateErr").textContent="Impossible de vérifier le code.";}
 }
@@ -340,6 +340,7 @@ async function api(params, body){
       const r=await fetch(API+"?"+new URLSearchParams(params),opt);
       if(r.ok) return r.json();
       const e=await r.json().catch(()=>({})); last=new Error(e.error||("Erreur "+r.status));
+      last.status=r.status; last.code=e.reason||"";
       if(r.status<500) throw last;
     }catch(e){last=e;}
     if(attempt===0) await new Promise(r=>setTimeout(r,450));
@@ -347,7 +348,9 @@ async function api(params, body){
   const detail=location.protocol==="file:"
     ? "Impossible de joindre l’API Paparmane en ligne. Vérifie la connexion Internet ou ouvre https://paparmane.netlify.app/outil-seo.html."
     : "Impossible de joindre l’API d’audit. Réessaie dans quelques instants.";
-  throw new Error(detail+(last?.message?" ("+last.message+")":""));
+  const out=new Error(detail+(last?.message?" ("+last.message+")":""));
+  out.status=last?.status; out.code=last?.code||"request_error";
+  throw out;
 }
 
 // --- Orchestration ---
@@ -367,7 +370,7 @@ async function runAudit(){
     const trafficCacheKey="pap_traffic_"+new URL(origin).hostname+"_canada_fr";
     let cachedTraffic=null;
     try{const saved=JSON.parse(localStorage.getItem(trafficCacheKey)||"null");if(saved&&Date.now()-saved.cachedAt<86400000)cachedTraffic=saved.data;}catch{}
-    const trafficPromise=cachedTraffic?Promise.resolve({...cachedTraffic,cached:true}):api({mode:"traffic",site:origin,location:"Canada",language:"fr"}).then(data=>{if(data.available)localStorage.setItem(trafficCacheKey,JSON.stringify({cachedAt:Date.now(),data}));return data;}).catch(e=>({configured:false,error:e.message}));
+    const trafficPromise=cachedTraffic?Promise.resolve({...cachedTraffic,cached:true}):api({mode:"traffic",site:origin,location:"Canada",language:"fr"}).then(data=>{if(data.available)localStorage.setItem(trafficCacheKey,JSON.stringify({cachedAt:Date.now(),data}));return data;}).catch(e=>({configured:false,available:false,reason:e.code||"request_error",error:e.message}));
     // Un index de sitemap peut référencer plusieurs sous-sitemaps. On les lit
     // séparément pour éviter les délais d'expiration des fonctions Netlify.
     if(disc.sitemapFound && disc.sitemapQueue?.length){
@@ -834,6 +837,15 @@ function renderReport(m){
   const brokenCount=m.issues.filter(i=>i.cat==="liens"&&i.sev==="crit").length;
   const observedKeywordCount=m.siteKeywords.length;
   const targetCovered=m.targetMap.filter(x=>x.covered).length;
+  const traffic=m.disc.traffic||{};
+  const trafficUnavailable=(()=>{
+    if(traffic.reason==="server_protection_missing") return ["Activer la protection privée du module trafic","configuration Paparmane requise","bad"];
+    if(traffic.reason==="access_key_invalid") return ["Se reconnecter avec le code d'accès privé","accès au trafic refusé","bad"];
+    if(traffic.reason==="provider_credentials_missing") return ["Connecter la source de données trafic","DataForSEO non configuré","warn"];
+    if(traffic.reason==="provider_error") return [traffic.error||"La source trafic a retourné une erreur","erreur DataForSEO","bad"];
+    if(traffic.reason==="no_data") return ["Aucune estimation trouvée pour ce domaine","aucune donnée disponible",""];
+    return [traffic.error||"Estimation temporairement indisponible","connexion à vérifier","warn"];
+  })();
   const overviewCards=[
     ["Santé SEO",m.global+"/100","Score global Paparmane v"+m.auditMeta.scoreVersion,"mesuré",scoreClass(m.global)],
     ["Pages analysées",m.pages.length,m.auditMeta.successful+" réussies · "+m.auditMeta.transient+" provisoires","crawl complet",m.auditMeta.transient?"warn":"good"],
@@ -843,8 +855,8 @@ function renderReport(m){
     ["Données structurées",m.scores.schema+"/100",schemaCovered+" page(s) balisée(s) · "+m.schemaAudit.expectedMissing.length+" suggestion(s)","Schema Studio",scoreClass(m.scores.schema)],
     ["Préparation IA",m.scores.ia+"/100",aiBlocked+" robot(s) explicitement bloqué(s)","technique — pas des mentions",scoreClass(m.scores.ia)],
     ["Liens",m.scores.liens+"/100",m.linksChecked+" vérifiés · "+brokenCount+" groupe(s) critique(s)","échantillon déterministe",scoreClass(m.scores.liens)],
-    ["Trafic organique",m.disc.traffic?.available?m.disc.traffic.organic.toLocaleString("fr-CA"):"—",m.disc.traffic?.available?"visites mensuelles organiques estimées · Canada":m.disc.traffic?.configured?"Estimation indisponible pour ce domaine":"Ajouter les identifiants DataForSEO dans Netlify",m.disc.traffic?.available?"estimation DataForSEO":"source non configurée",m.disc.traffic?.available?"good":""],
-    ["Trafic payant",m.disc.traffic?.available?m.disc.traffic.paid.toLocaleString("fr-CA"):"—",m.disc.traffic?.available?"visites mensuelles payantes estimées · Canada":m.disc.traffic?.configured?"Estimation indisponible":"Ajouter les identifiants DataForSEO dans Netlify",m.disc.traffic?.available?"estimation DataForSEO":"source non configurée",m.disc.traffic?.available&&m.disc.traffic.paid>0?"warn":""],
+    ["Trafic organique",traffic.available?traffic.organic.toLocaleString("fr-CA"):"—",traffic.available?"visites mensuelles organiques estimées · Canada":trafficUnavailable[0],traffic.available?"estimation DataForSEO":trafficUnavailable[1],traffic.available?"good":trafficUnavailable[2]],
+    ["Trafic payant",traffic.available?traffic.paid.toLocaleString("fr-CA"):"—",traffic.available?"visites mensuelles payantes estimées · Canada":trafficUnavailable[0],traffic.available?"estimation DataForSEO":trafficUnavailable[1],traffic.available&&traffic.paid>0?"warn":trafficUnavailable[2]],
     ["Backlinks","—","Nécessite une base de liens externe","non mesuré",""],
     ["Mentions IA réelles","—","Nécessite des tests de prompts sur chaque plateforme","non mesuré",""],
     ["Évolution",delta===null?"—":(delta>0?"+":"")+delta,delta===null?"Un deuxième audit fiable activera la comparaison":"points depuis le dernier audit","historique local",delta>0?"good":delta<0?"bad":""],
