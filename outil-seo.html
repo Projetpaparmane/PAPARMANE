@@ -97,6 +97,22 @@
   .tri.i{border-top:3px solid var(--info)}.tri.i .n,.tri.i .l{color:var(--info)}
   .tri.g{border-top:3px solid var(--good)}.tri.g .n,.tri.g .l{color:var(--good)}
 
+  .overview{margin-top:18px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+  .overview-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px 18px;background:var(--surface-2);border-bottom:1px solid var(--line)}
+  .overview-head h3{margin:0;font-family:var(--serif);font-size:21px}.overview-head span{font-size:11px;color:var(--ink-faint)}
+  .overview-grid{display:grid;grid-template-columns:repeat(4,1fr)}
+  @media(max-width:760px){.overview-grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:430px){.overview-grid{grid-template-columns:1fr}}
+  .ov{min-height:116px;padding:15px 17px;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .ov:nth-child(4n){border-right:none}
+  @media(max-width:760px){.ov:nth-child(2n){border-right:none}.ov:nth-child(4n){border-right:none}}
+  @media(max-width:430px){.ov{border-right:none}}
+  .ov-label{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-faint);font-weight:750;line-height:1.35}
+  .ov-value{font-family:var(--serif);font-size:30px;font-weight:800;line-height:1.15;margin:5px 0 1px;color:var(--ink)}
+  .ov-value.good{color:var(--good)}.ov-value.warn{color:var(--warn)}.ov-value.bad{color:var(--crit)}
+  .ov-detail{font-size:11.5px;color:var(--ink-soft);line-height:1.35}
+  .ov-state{display:inline-block;margin-top:7px;padding:2px 7px;border-radius:999px;background:var(--surface-3);font-size:9.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-faint);font-weight:750}
+
   .cats{margin-top:26px;display:grid;gap:11px}
   .cat{display:grid;grid-template-columns:190px 1fr 52px;align-items:center;gap:14px}
   @media(max-width:540px){.cat{grid-template-columns:130px 1fr 42px;gap:9px}}
@@ -212,7 +228,7 @@
     :root{--bg:#fff;--surface:#fff;--surface-2:#f7f4ef;--surface-3:#f0ece4;--ink:#201c19;--ink-soft:#5f574f;--ink-faint:#8c8279;--line:#ddd5c8;--accent:#e64015;--accent-hi:#e64015;--accent-soft:#fbe7de;--good:#2f7d5b;--good-soft:#e3f1e9;--warn:#b9700f;--warn-soft:#f8ecd7;--crit:#c0392b;--crit-soft:#f8e2de;--info:#2f6a8f;--info-soft:#e2eef6;--shadow:none}
     #gate,.launcher,#progress,.toolbar{display:none!important}
     #report{display:block!important;margin-top:0}
-    .iss,.tbl-wrap,.pgroup,.prow,.tri,.hero{break-inside:avoid}
+    .iss,.tbl-wrap,.pgroup,.prow,.tri,.hero,.overview{break-inside:avoid}
     details{open:true}
   }
 </style>
@@ -801,6 +817,25 @@ function renderReport(m){
   const schemaCovered=m.pages.filter(p=>p.schemaTypes?.length).length;
   const schemaValid=m.pages.filter(p=>p.schemaTypes?.length&&!p.schema?.invalidBlocks&&!p.schema?.problems?.length).length;
   const schemaUse=type=>GOOGLE_RICH_SCHEMA.has(type)?"Fonction Google documentée":"Compréhension Schema.org";
+  const scoreClass=v=>v>=80?"good":v>=55?"warn":"bad";
+  const aiBlocked=m.disc.aiBots.filter(b=>b.state==="blocked").length;
+  const brokenCount=m.issues.filter(i=>i.cat==="liens"&&i.sev==="crit").length;
+  const observedKeywordCount=m.siteKeywords.length;
+  const targetCovered=m.targetMap.filter(x=>x.covered).length;
+  const overviewCards=[
+    ["Santé SEO",m.global+"/100","Score global Paparmane v"+m.auditMeta.scoreVersion,"mesuré",scoreClass(m.global)],
+    ["Pages analysées",m.pages.length,m.auditMeta.successful+" réussies · "+m.auditMeta.transient+" provisoires","crawl complet",m.auditMeta.transient?"warn":"good"],
+    ["Problèmes prioritaires",m.counts.crit,m.counts.warn+" importants · "+m.counts.info+" opportunités","audit interne",m.counts.crit?"bad":m.counts.warn?"warn":"good"],
+    ["Mots-clés observés",observedKeywordCount,m.cannibalization.length+" chevauchement(s) potentiel(s)","contenu analysé",scoreClass(m.scores.keywords)],
+    ["Mots-clés stratégiques",m.targetMap.length?targetCovered+"/"+m.targetMap.length:"—",m.targetMap.length?(m.targetMap.length-targetCovered)+" sans cible claire":"aucune liste fournie",m.targetMap.length?"fourni par le client":"non configuré",m.targetMap.length&&targetCovered===m.targetMap.length?"good":m.targetMap.length?"warn":""],
+    ["Données structurées",m.scores.schema+"/100",schemaCovered+" page(s) balisée(s) · "+m.schemaAudit.expectedMissing.length+" suggestion(s)","Schema Studio",scoreClass(m.scores.schema)],
+    ["Préparation IA",m.scores.ia+"/100",aiBlocked+" robot(s) explicitement bloqué(s)","technique — pas des mentions",scoreClass(m.scores.ia)],
+    ["Liens",m.scores.liens+"/100",m.linksChecked+" vérifiés · "+brokenCount+" groupe(s) critique(s)","échantillon déterministe",scoreClass(m.scores.liens)],
+    ["Trafic organique","—","Connecter Google Search Console pour clics et impressions","non connecté",""],
+    ["Backlinks","—","Nécessite une base de liens externe","non mesuré",""],
+    ["Mentions IA réelles","—","Nécessite des tests de prompts sur chaque plateforme","non mesuré",""],
+    ["Évolution",delta===null?"—":(delta>0?"+":"")+delta,delta===null?"Un deuxième audit fiable activera la comparaison":"points depuis le dernier audit","historique local",delta>0?"good":delta<0?"bad":""],
+  ];
 
   const catRows = [
     ["Fondations techniques","HTTPS, mobile, plan de site","fondations"],
@@ -922,6 +957,11 @@ function renderReport(m){
       <div class="tri i"><div class="n tnum">${m.counts.info}</div><div class="l">Opportunités</div><div class="d">croissance</div></div>
       <div class="tri g"><div class="n tnum">${m.counts.wins}</div><div class="l">Conformes</div><div class="d">rien à faire</div></div>
     </div>
+
+    <section class="overview" aria-labelledby="overview-title">
+      <div class="overview-head"><h3 id="overview-title">Vue d'ensemble</h3><span>Mesures actuelles et connexions disponibles</span></div>
+      <div class="overview-grid">${overviewCards.map(([label,value,detail,state,cls])=>`<div class="ov"><div class="ov-label">${esc(label)}</div><div class="ov-value ${cls}">${esc(value)}</div><div class="ov-detail">${esc(detail)}</div><span class="ov-state">${esc(state)}</span></div>`).join("")}</div>
+    </section>
 
     <div class="cats">${catRows}</div>
 
