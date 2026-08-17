@@ -73,6 +73,69 @@ const decode = (s) => s
   .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
   .replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/&nbsp;/g, " ");
 
+const plain = (s) => String(s || "")
+  .toLocaleLowerCase("fr-CA")
+  .normalize("NFKD")
+  .replace(/[\u0300-\u036f]/g, "")
+  .replace(/\s+/g, " ")
+  .trim();
+
+function hashText(value) {
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i++) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
+}
+
+function removePageChrome(html) {
+  let out = String(html || "");
+  const structural = ["script", "style", "nav", "footer", "header", "aside", "noscript"];
+  for (const tag of structural) {
+    out = out.replace(new RegExp(`<${tag}\\b[\\s\\S]*?<\\/${tag}>`, "gi"), " ");
+  }
+  // Les bannières de consentement injectent beaucoup de vocabulaire répétitif
+  // (stockage, accès, préférences) qui ne décrit jamais le sujet de la page.
+  const consentMarker = "(?:cmplz|cookie|consent|onetrust|cky-|gdpr|borlabs|moove[_-]gdpr|cookie-law|cc-window|tarteaucitron)";
+  const consentBlock = new RegExp(`<([a-z][a-z0-9-]*)\\b[^>]*(?:id|class)=["'][^"']*${consentMarker}[^"']*["'][^>]*>[\\s\\S]*?<\\/\\1>`, "gi");
+  for (let i = 0; i < 3; i++) out = out.replace(consentBlock, " ");
+  return out;
+}
+
+function usefulContentHtml(html) {
+  const mains = [...String(html || "").matchAll(/<main\b[^>]*>([\s\S]*?)<\/main>/gi)].map(m => m[1]);
+  const articles = mains.length ? [] : [...String(html || "").matchAll(/<article\b[^>]*>([\s\S]*?)<\/article>/gi)].map(m => m[1]);
+  return removePageChrome((mains.length ? mains : articles.length ? articles : [html]).join(" "));
+}
+
+function detectPageState(title, h1, html, bodyText) {
+  const heading = plain(`${title || ""} ${(h1 || []).join(" ")}`);
+  const body = plain(String(bodyText || "").slice(0, 5000));
+  const hay = `${heading} ${body} ${plain(String(html || "").slice(0, 12000))}`;
+  const shortInterstitial = body.split(/\s+/).filter(Boolean).length < 350;
+  const maintenance = [
+    "site is undergoing maintenance", "website is undergoing maintenance", "maintenance mode",
+    "site en maintenance", "site temporairement indisponible", "site momentanement indisponible",
+    "under construction", "coming soon", "bientot disponible", "de retour bientot",
+  ].find(marker => heading.includes(marker) || (shortInterstitial && hay.includes(marker)));
+  if (maintenance) return { kind: "maintenance", reason: maintenance };
+  const challenge = [
+    "checking your browser", "just a moment", "verifying you are human", "verify you are human",
+    "enable javascript and cookies to continue", "attention required cloudflare", "security check",
+  ].find(marker => heading.includes(marker) || (shortInterstitial && hay.includes(marker)));
+  if (challenge) return { kind: "challenge", reason: challenge };
+  return { kind: "normal", reason: null };
+}
+
+function cleanAuditUrl(value) {
+  try {
+    const url = new URL(value);
+    url.searchParams.delete("_paparmane_audit");
+    return url.href;
+  } catch { return value; }
+}
+
 function one(re, s) { const m = s.match(re); return m ? decode(m[1].trim()) : null; }
 function all(re, s) { return [...s.matchAll(re)].map(m => m[1]); }
 
@@ -98,7 +161,9 @@ function inspectStructuredData(blocks) {
       if (missing.length) problems.push(`${type} : champ(s) manquant(s) — ${missing.join(", ")}`);
     });
     for (const [key, value] of Object.entries(node)) {
-      if (value === "") problems.push(`${rawTypes[0] || "Objet"} : propriété vide — ${key}`);
+      // Une propriété facultative vide (par exemple WebSite.description dans
+      // certains graphes Yoast) n'invalide pas le JSON-LD. Les champs requis
+      // sont déjà contrôlés précisément ci-dessus.
       if (/^(url|image|logo|sameAs)$/i.test(key)) {
         const values = Array.isArray(value) ? value : [value];
         values.filter(v => typeof v === "string").forEach(v => {
@@ -121,14 +186,15 @@ function inspectStructuredData(blocks) {
 
 function inferExpectedSchema(url, title, h1, bodyText) {
   const hay = `${url} ${title || ""} ${(h1 || []).join(" ")} ${bodyText.slice(0, 2500)}`.toLocaleLowerCase("fr-CA");
+  const headingHay = `${new URL(url).pathname} ${title || ""} ${(h1 || []).join(" ")}`.toLocaleLowerCase("fr-CA");
   const expected = [];
   const add = (type, reason) => { if (!expected.some(x => x.type === type)) expected.push({ type, reason }); };
   const path = new URL(url).pathname.replace(/\/$/, "") || "/";
   if (path === "/") add("Organization", "page d'accueil : identité officielle de l'entreprise");
-  if (/hebergement|hébergement|gite|gîte|yourte|hotel|hôtel|auberge|chalet|camping/.test(hay)) add("LodgingBusiness", "contenu d'hébergement détecté");
+  if (/hebergement|hébergement|gite|gîte|yourte|hotel|hôtel|auberge|chalet|camping/.test(headingHay)) add("LodgingBusiness", "contenu d'hébergement détecté");
   if (/\/blog|\/actualit|\/article|blogue|datepublished/.test(hay)) add("Article", "article ou actualité détecté");
   if (/\/produit|\/product|\/boutique|ajouter au panier|add to cart/.test(hay)) add("Product", "page produit ou boutique détectée");
-  if (/\/service|nos services|service offert/.test(hay)) add("Service", "page de service détectée");
+  if (/\/services?(?:\/|$)/.test(path) || /\bservices?\s+(?:de|d'|offert)/.test(headingHay)) add("Service", "page de service détectée");
   if (/faq|foire aux questions|questions fréquentes/.test(hay)) add("FAQPage", "section de questions-réponses détectée");
   if (/\/evenement|\/event|événement|billetterie/.test(hay)) add("Event", "événement détecté");
   return expected;
@@ -176,7 +242,11 @@ function analyzePage(url, html, finalUrl) {
 
   const imgs = [...html.matchAll(/<img\b[^>]*>/gi)].map(m => m[0]);
   const images = imgs.map(tag => {
-    const src = one(/\bsrc=["']([^"']+)/i, tag) || one(/\bdata-src=["']([^"']+)/i, tag) || "";
+    const lazySrc = one(/\b(?:data-src|data-lazy-src|data-original|data-litespeed-src)=["']([^"']+)/i, tag);
+    const rawSrc = one(/\bsrc=["']([^"']+)/i, tag);
+    const srcset = one(/\b(?:data-srcset|srcset)=["']([^"']+)/i, tag);
+    const srcsetFirst = srcset ? srcset.split(",")[0].trim().split(/\s+/)[0] : "";
+    const src = lazySrc || (rawSrc && !rawSrc.startsWith("data:") ? rawSrc : "") || srcsetFirst || rawSrc || "";
     const altM = tag.match(/\balt=(["'])([\s\S]*?)\1/i);
     return {
       file: (src.split("/").pop() || "?").split("?")[0].slice(0, 90),
@@ -197,20 +267,38 @@ function analyzePage(url, html, finalUrl) {
   };
 
   const origin = new URL(finalUrl).origin;
+  const rawHrefs = all(/<a\b[^>]*href=["']([^"']+)["']/gi, html).map(decode);
+  const emails = [...new Set(rawHrefs
+    .filter(h => /^mailto:/i.test(h))
+    .map(h => h.replace(/^mailto:/i, "").split("?")[0].trim().toLowerCase())
+    .filter(h => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(h)))].slice(0, 8);
+  const phones = [...new Set(rawHrefs
+    .filter(h => /^tel:/i.test(h))
+    .map(h => h.replace(/^tel:/i, "").split("?")[0].trim())
+    .filter(Boolean))].slice(0, 8);
+  const socials = [...new Set(rawHrefs
+    .filter(h => /^https?:\/\//i.test(h) && /(?:facebook|instagram|linkedin|tiktok|youtube)\.com/i.test(h))
+    .map(h => h.split("#")[0]))].slice(0, 12);
+  const ctas = all(/<(?:a|button)\b[^>]*>([\s\S]*?)<\/(?:a|button)>/gi, html)
+    .map(x => decode(strip(x)).replace(/\s+/g, " ").trim())
+    .filter(x => x && /contact|joindre|réserv|reserve|devis|soumission|appel|call|acheter|commander|prendre rendez-vous/i.test(x));
   const links = [...new Set(
-    all(/<a\b[^>]*href=["']([^"'#]+?)["']/gi, html)
+    rawHrefs
       .map(h => { try { return new URL(decode(h), finalUrl).href.split("#")[0]; } catch { return null; } })
       .filter(h => h && h.startsWith(origin) && !/\.(jpg|jpeg|png|webp|gif|pdf|zip|css|js|xml|ico|svg|mp4|woff2?)(\?|$)/i.test(h))
   )].slice(0, 80);
 
-  const bodyText = strip(html
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<nav[\s\S]*?<\/nav>/gi, " ")
-    .replace(/<footer[\s\S]*?<\/footer>/gi, " "));
+  const bodyText = decode(strip(usefulContentHtml(html)));
   const keywords = extractKeywords(bodyText);
   const focusKeyword = keywords.top[0]?.term || null;
-  const inField = field => focusKeyword ? (field || "").toLocaleLowerCase("fr-CA").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").includes(focusKeyword) : false;
+  const focusTokens = focusKeyword ? (focusKeyword.match(/[a-z][a-z'-]{2,}/g) || []).filter(w => !STOPWORDS.has(w)) : [];
+  const inField = field => {
+    if (!focusTokens.length) return false;
+    const fieldTokens = new Set(((field || "").toLocaleLowerCase("fr-CA").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").match(/[a-z][a-z'-]{2,}/g) || []).filter(w => !STOPWORDS.has(w)));
+    return focusTokens.every(token => fieldTokens.has(token));
+  };
+  const pageState = detectPageState(title, h1, html, bodyText);
+  const signatureBasis = plain(`${title || ""} ${(h1 || []).join(" ")} ${bodyText}`).slice(0, 24000);
 
   return {
     url, finalUrl, redirected: finalUrl.replace(/\/$/, "") !== url.replace(/\/$/, ""),
@@ -224,8 +312,11 @@ function analyzePage(url, html, finalUrl) {
     images, og, schemaTypes, schema, expectedSchema: inferExpectedSchema(finalUrl, title, h1, bodyText),
     isWordPress: /wp-content|wp-json/i.test(html),
     words: bodyText ? bodyText.split(" ").length : 0,
+    contentSignature: hashText(signatureBasis),
+    pageState,
     keywords: keywords.top, focusKeyword,
     keywordAlignment: { title: inField(title), h1: inField(h1.join(" ")), desc: inField(desc) },
+    contact: { emails, phones, socials, hasForm: /<form\b/i.test(html), ctas: [...new Set(ctas)].slice(0, 10) },
     sizeKB: Math.round(html.length / 1024),
     links,
   };
@@ -460,7 +551,7 @@ export default async (req) => {
       const r = await grab(url, { cacheBust: true });
       if (!r.ok) return json({ url, dead: true, status: 0, error: r.error });
       if (r.status >= 400) return json({ url, dead: true, status: r.status });
-      return json(analyzePage(url, r.body, r.finalUrl));
+      return json(analyzePage(url, r.body, cleanAuditUrl(r.finalUrl)));
     }
 
     if (mode === "verify" && req.method === "POST") {

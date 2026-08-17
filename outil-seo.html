@@ -71,6 +71,13 @@
   .doc-sub{color:var(--ink-soft);font-size:14px;display:flex;flex-wrap:wrap;gap:5px 14px;margin-bottom:24px}
   .doc-sub .sep{color:var(--line)}
 
+  .audit-stop{background:var(--surface);border:1px solid var(--warn);border-left:5px solid var(--warn);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px 26px}
+  .audit-stop h3{font-family:var(--serif);font-size:25px;line-height:1.2;margin:0 0 9px}
+  .audit-stop p{color:var(--ink-soft);margin:0 0 14px}
+  .audit-stop .stop-state{display:inline-block;margin-bottom:12px;padding:4px 10px;border-radius:999px;background:var(--warn-soft);color:var(--warn);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.1em}
+  .audit-stop .where{margin:14px 0}
+  .audit-stop .steps{margin-top:12px}
+
   .hero{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;display:grid;grid-template-columns:205px 1fr}
   @media(max-width:640px){.hero{grid-template-columns:1fr}}
   .gauge-cell{background:var(--surface-2);border-right:1px solid var(--line);display:grid;place-items:center;padding:26px 18px;gap:6px;text-align:center}
@@ -184,6 +191,17 @@
   .matrix-item{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:13px 15px;display:grid;grid-template-columns:1fr auto;gap:5px 10px}
   .matrix-item b{font-size:13px}.matrix-item small{color:var(--ink-faint);grid-column:1/-1}
 
+  .prospect-panel{margin-top:18px;background:linear-gradient(135deg,var(--surface),var(--surface-2));border:1px solid var(--accent);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px}
+  .prospect-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+  .prospect-head h3{font-family:var(--serif);font-size:22px;line-height:1.2;margin:0 0 4px}.prospect-head p{font-size:12.5px;color:var(--ink-soft);margin:0}
+  .prospect-score{font:800 28px var(--serif);color:var(--accent-hi);white-space:nowrap}.prospect-score small{display:block;font:700 9px var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint)}
+  .prospect-facts{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:14px}
+  @media(max-width:620px){.prospect-facts{grid-template-columns:1fr}}
+  .prospect-fact{background:var(--surface-3);border-radius:9px;padding:10px 12px}.prospect-fact b{display:block;font-size:17px}.prospect-fact span{font-size:10.5px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.07em}
+  .contact-line{font-size:12.5px;color:var(--ink-soft);margin:8px 0 14px}.contact-line a{margin-right:10px}
+  .pitch{white-space:pre-wrap;background:#12100d;border:1px solid var(--line);border-radius:10px;padding:14px 15px;color:var(--ink-soft);font:12px/1.55 var(--mono);max-height:290px;overflow:auto}
+  .pitch-actions{display:flex;justify-content:flex-end;margin-top:10px}.pitch-actions .btn{padding:9px 15px;font-size:12px}
+
   .pgroup{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:13px 16px;margin-bottom:10px}
   .pgroup summary{cursor:pointer;font-weight:650;font-size:13.5px;display:flex;align-items:center;justify-content:space-between;gap:10px;list-style:none}
   .pgroup summary::-webkit-details-marker{display:none}
@@ -225,10 +243,17 @@
 
   /* Impression : rapport clair pour PDF client */
   @media print{
+    @page{size:letter;margin:14mm 13mm 16mm}
     :root{--bg:#fff;--surface:#fff;--surface-2:#f7f4ef;--surface-3:#f0ece4;--ink:#201c19;--ink-soft:#5f574f;--ink-faint:#8c8279;--line:#ddd5c8;--accent:#e64015;--accent-hi:#e64015;--accent-soft:#fbe7de;--good:#2f7d5b;--good-soft:#e3f1e9;--warn:#b9700f;--warn-soft:#f8ecd7;--crit:#c0392b;--crit-soft:#f8e2de;--info:#2f6a8f;--info-soft:#e2eef6;--shadow:none}
-    #gate,.launcher,#progress,.toolbar{display:none!important}
-    #report{display:block!important;margin-top:0}
-    .iss,.tbl-wrap,.pgroup,.prow,.tri,.hero,.overview{break-inside:avoid}
+    #gate,.launcher,#progress,.toolbar,.prospection-only{display:none!important}
+    .wrap{max-width:none;padding:0}
+    #report{display:block!important;margin-top:0;overflow:visible}
+    .issues{display:block}
+    .issues .iss+ .iss{margin-top:16px}
+    .iss,.tbl-wrap,.pgroup,.prow,.tri,.hero,.overview,.audit-stop{break-inside:avoid-page;page-break-inside:avoid;overflow:hidden}
+    .iss-head h4{min-width:0;overflow-wrap:anywhere}
+    .sec-h{break-after:avoid-page;page-break-after:avoid}
+    .tbl-wrap{overflow:visible} table{min-width:0}
     details{open:true}
   }
 </style>
@@ -256,21 +281,22 @@
   </header>
 
   <section class="launcher">
-    <h1>Auditer un site client</h1>
-    <p>Entre l'adresse du site : le robot crawle les pages, inspecte images, balises, données
-      structurées et visibilité IA, puis génère le rapport à la marque Paparmane.</p>
+    <h1>Trouver les occasions SEO d'un prospect</h1>
+    <p>Entre n'importe quel site public : Paparmane trouve les faiblesses visibles, les preuves exactes
+      et les interventions que tu peux proposer — sans accès au site ni à Search Console.</p>
     <div class="row">
       <input id="siteUrl" type="url" placeholder="www.site-du-client.com" onkeydown="if(event.key==='Enter')runAudit()">
       <button class="btn" id="goBtn" onclick="runAudit()">Lancer l'audit</button>
     </div>
     <details class="advanced">
-      <summary>Options avancées — client et mots-clés cibles</summary>
+      <summary>Options avancées — prospect et mots-clés cibles</summary>
       <div class="adv-grid">
-        <div class="field"><label for="clientName">Nom du client</label><input id="clientName" type="text" placeholder="Entreprise ABC"></div>
+        <div class="field"><label for="clientName">Nom de l'entreprise prospectée</label><input id="clientName" type="text" placeholder="Entreprise ABC"></div>
+        <div class="field"><label for="contactName">Nom du contact, si connu</label><input id="contactName" type="text" placeholder="Marie"></div>
         <div class="field"><label for="targetKeywords">Mots-clés visés</label><textarea id="targetKeywords" rows="3" placeholder="service principal&#10;service + ville&#10;question fréquente"></textarea></div>
       </div>
     </details>
-    <div class="hint">Audit complet du sitemap — jusqu'à 1 000 pages par analyse · le crawl reste traité par Paparmane; si l'intelligence trafic est activée, seul le nom de domaine est interrogé auprès de DataForSEO · le site audité voit passer « PaparmaneSEO » dans ses journaux.</div>
+    <div class="hint">Audit public de prospection — jusqu'à 1 000 pages · aucun accès au site ni à Search Console · le site analysé voit passer « PaparmaneSEO » dans ses journaux.</div>
   </section>
 
   <section id="progress">
@@ -329,6 +355,63 @@ const RICH_HINTS = ["FAQPage","LocalBusiness","LodgingBusiness","Product","Artic
 // Un balisage valide rend une page admissible, sans garantir son affichage enrichi.
 const GOOGLE_RICH_SCHEMA = new Set(["Article","BlogPosting","BreadcrumbList","Dataset","DiscussionForumPosting","Event","JobPosting","LocalBusiness","Organization","Product","Recipe","Review","AggregateRating","SoftwareApplication","VideoObject","VacationRental","ProfilePage","QAPage"]);
 
+function detectAuditBarrier(pagesAll){
+  const pages=pagesAll.filter(p=>!p.dead);
+  if(!pages.length) return null;
+  const pathOf=p=>{try{return new URL(p.finalUrl||p.url).pathname.replace(/\/$/,"")||"/";}catch{return "";}};
+  const explicit=pages.filter(p=>p.pageState?.kind&&p.pageState.kind!=="normal");
+  const homeBlocked=explicit.some(p=>pathOf(p)==="/");
+  if(explicit.length && (homeBlocked||explicit.length>=Math.ceil(pages.length*.5))){
+    const kind=explicit.some(p=>p.pageState.kind==="challenge")?"challenge":"maintenance";
+    const affected=explicit.filter(p=>p.pageState.kind===kind);
+    return {
+      kind,
+      count:affected.length,
+      total:pages.length,
+      title:affected[0]?.title||"",
+      reason:affected[0]?.pageState?.reason||"",
+      examples:affected.slice(0,8).map(p=>p.url),
+    };
+  }
+
+  const groups=new Map();
+  for(const p of pages){
+    if(!p.contentSignature) continue;
+    const group=groups.get(p.contentSignature)||[];
+    group.push(p); groups.set(p.contentSignature,group);
+  }
+  const dominant=[...groups.values()].sort((a,b)=>b.length-a.length)[0]||[];
+  const threshold=Math.max(3,Math.ceil(pages.length*.7));
+  const titles=new Set(dominant.map(p=>(p.title||"").trim()).filter(Boolean));
+  const averageWords=dominant.length?dominant.reduce((sum,p)=>sum+(p.words||0),0)/dominant.length:0;
+  if(dominant.length>=threshold&&titles.size<=1&&averageWords<350){
+    return {
+      kind:"duplicate-wall",
+      count:dominant.length,
+      total:pages.length,
+      title:dominant[0]?.title||"",
+      reason:"contenu presque identique servi sur des URL différentes",
+      examples:dominant.slice(0,8).map(p=>p.url),
+    };
+  }
+  return null;
+}
+
+function isUtilityPage(page){
+  try{
+    const path=new URL(page.finalUrl||page.url).pathname.toLocaleLowerCase("fr-CA");
+    return /\/(?:politique[^/]*|privacy[^/]*|confidentialite[^/]*|confidentialité[^/]*|temoins[^/]*|témoins[^/]*|cookies?[^/]*|mentions-legales[^/]*|mentions-légales[^/]*|legal[^/]*|terms[^/]*|conditions[^/]*)(?:\/|$)/.test(path);
+  }catch{return false;}
+}
+
+function isKeywordPage(page){
+  if(isUtilityPage(page)) return false;
+  try{
+    const path=new URL(page.finalUrl||page.url).pathname.replace(/\/$/,"");
+    return !/\/(?:contact|connexion|login|panier|cart|checkout)$/.test(path);
+  }catch{return true;}
+}
+
 function log(msg, cls){ const d=document.createElement("div"); if(cls)d.className=cls; d.textContent=msg; const p=$("#plog"); p.appendChild(d); p.scrollTop=p.scrollHeight; }
 function setBar(pct){ $("#pbarFill").style.width = Math.min(100,Math.round(pct))+"%"; }
 async function api(params, body){
@@ -363,6 +446,7 @@ async function runAudit(){
 
   try{
     const clientName=$("#clientName")?.value.trim()||"";
+    const contactName=$("#contactName")?.value.trim()||"";
     const targetKeywords=[...new Set(($("#targetKeywords")?.value||"").split(/[\n,;]/).map(x=>x.trim()).filter(Boolean))].slice(0,50);
     log("Découverte du site (robots.txt, sitemap, llms.txt)…");
     const disc = await api({mode:"discover", site:raw});
@@ -421,22 +505,29 @@ async function runAudit(){
     }
     await Promise.all(Array.from({length:CRAWL_WORKERS},()=>worker()));
 
-    // Vérification des liens internes
+    // Une page de maintenance ou un pare-feu peut répondre 200 à toutes les
+    // URL. Dans ce cas, continuer créerait un faux audit très convaincant.
     pages.sort((a,b)=>(a.url||"").localeCompare(b.url||""));
-    const crawled = new Set(pages.map(p=>(p.finalUrl||p.url).replace(/\/$/,"")));
-    const linkTargets = [...new Set(pages.flatMap(p=>p.links||[]))]
-      .filter(l=>!crawled.has(l.replace(/\/$/,""))).sort((a,b)=>a.localeCompare(b)).slice(0,45);
-    log("Vérification de "+linkTargets.length+" liens internes…");
-    const linkResults=[];
-    for(let i=0;i<linkTargets.length;i+=15){
-      const {results} = await api({mode:"verify"},{urls:linkTargets.slice(i,i+15)});
-      linkResults.push(...results);
-      setBar(70+20*Math.min(1,(i+15)/Math.max(1,linkTargets.length)));
+    const auditBarrier=detectAuditBarrier(pages);
+    let linkResults=[];
+    if(auditBarrier){
+      log("⚠ Audit interrompu : "+auditBarrier.reason+" ("+auditBarrier.count+"/"+auditBarrier.total+" pages).", "warnl");
+      setBar(90);
+    }else{
+      const crawled = new Set(pages.map(p=>(p.finalUrl||p.url).replace(/\/$/,"")));
+      const linkTargets = [...new Set(pages.flatMap(p=>p.links||[]))]
+        .filter(l=>!crawled.has(l.replace(/\/$/,""))).sort((a,b)=>a.localeCompare(b)).slice(0,45);
+      log("Vérification de "+linkTargets.length+" liens internes…");
+      for(let i=0;i<linkTargets.length;i+=15){
+        const {results} = await api({mode:"verify"},{urls:linkTargets.slice(i,i+15)});
+        linkResults.push(...results);
+        setBar(70+20*Math.min(1,(i+15)/Math.max(1,linkTargets.length)));
+      }
     }
 
     // Vérification des liens du llms.txt
     let llmsLinkResults=[];
-    if(disc.llms?.exists && disc.llms.links?.length){
+    if(!auditBarrier&&disc.llms?.exists && disc.llms.links?.length){
       log("Vérification des "+disc.llms.links.length+" liens du llms.txt…");
       for(let i=0;i<disc.llms.links.length;i+=15){
         const {results} = await api({mode:"verify"},{urls:disc.llms.links.slice(i,i+15)});
@@ -444,17 +535,23 @@ async function runAudit(){
       }
     }
     setBar(96);
-    log("Chargement de l'intelligence trafic…");
-    disc.traffic=await trafficPromise;
+    if(auditBarrier){
+      disc.traffic={configured:false,available:false,reason:"audit_inconclusive"};
+    }else{
+      log("Chargement de l'intelligence trafic…");
+      disc.traffic=await trafficPromise;
+    }
     log("Compilation du rapport…");
 
-    const model = buildModel(origin, disc, pages, linkResults, llmsLinkResults, {clientName,targetKeywords});
+    const model = buildModel(origin, disc, pages, linkResults, llmsLinkResults, {clientName,contactName,targetKeywords,auditBarrier});
     let history=[];
     try{ history=JSON.parse(localStorage.getItem("pap_audits_"+new URL(origin).hostname)||"[]"); if(!Array.isArray(history)) history=[]; }catch{ history=[]; }
-    model.previous=history.find(h=>h.scoreVersion===model.auditMeta.scoreVersion&&h.confidence==="élevée")||null;
+    model.previous=model.auditMeta.conclusive===false?null:(history.find(h=>h.scoreVersion===model.auditMeta.scoreVersion&&h.confidence==="élevée")||null);
     renderReport(model);
-    const snapshot={date:new Date().toISOString(),global:model.global,scores:model.scores,counts:model.counts,pages:model.pages.length,scoreVersion:model.auditMeta.scoreVersion,confidence:model.auditMeta.confidence};
-    localStorage.setItem("pap_audits_"+new URL(origin).hostname,JSON.stringify([snapshot,...history].slice(0,12)));
+    if(model.auditMeta.conclusive!==false&&model.auditMeta.confidence==="élevée"){
+      const snapshot={date:new Date().toISOString(),global:model.global,scores:model.scores,counts:model.counts,pages:model.pages.length,scoreVersion:model.auditMeta.scoreVersion,confidence:model.auditMeta.confidence};
+      localStorage.setItem("pap_audits_"+new URL(origin).hostname,JSON.stringify([snapshot,...history].slice(0,12)));
+    }
     setBar(100);
     $("#progress").style.display="none";
     $("#report").style.display="block";
@@ -470,7 +567,17 @@ async function runAudit(){
 function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, options={}){
   const pages = pagesAll.filter(p=>!p.dead);
   const deadPages = pagesAll.filter(p=>p.dead);
+  const auditBarrier=options.auditBarrier||detectAuditBarrier(pagesAll);
+  if(auditBarrier){
+    return {
+      origin,disc,pages,deadPages,barrier:auditBarrier,
+      clientName:options.clientName||"",contactName:options.contactName||"",
+      linksChecked:0,previous:null,global:null,scores:null,counts:null,
+      auditMeta:{scoreVersion:"2.2",requested:pagesAll.length,successful:pages.length,transient:deadPages.filter(p=>p.transient).length,confidence:"non concluante",conclusive:false},
+    };
+  }
   const n = Math.max(1,pages.length);
+  const keywordPages=pages.filter(isKeywordPage);
   const isWP = pages.some(p=>p.isWordPress);
   const S = short; const sh = u=>short(u,origin);
   const issues=[]; const wins=[];
@@ -478,18 +585,18 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
 
   // ---- Mots-clés observés (analyse interne, sans volumes externes) ----
   const keywordTotals=new Map();
-  for(const p of pages) for(const k of p.keywords||[]){
+  for(const p of keywordPages) for(const k of p.keywords||[]){
     const cur=keywordTotals.get(k.term)||{term:k.term,count:0,pages:0,kind:k.kind};
     cur.count+=k.count; cur.pages++; keywordTotals.set(k.term,cur);
   }
   const siteKeywords=[...keywordTotals.values()].sort((a,b)=>b.count-a.count).slice(0,25);
   const focusGroups={};
-  for(const p of pages) if(p.focusKeyword) (focusGroups[p.focusKeyword]??=[]).push(p);
+  for(const p of keywordPages) if(p.focusKeyword&&(p.words||0)>=80) (focusGroups[p.focusKeyword]??=[]).push(p);
   const cannibalization=Object.entries(focusGroups).filter(([,group])=>group.length>1);
-  const weakAlignment=pages.filter(p=>p.focusKeyword&&(!p.keywordAlignment?.title||!p.keywordAlignment?.h1));
+  const weakAlignment=keywordPages.filter(p=>(p.words||0)>=80&&p.focusKeyword&&(!p.keywordAlignment?.title||!p.keywordAlignment?.h1));
   const targetMap=(options.targetKeywords||[]).map(keyword=>{
     const k=norm(keyword);
-    const ranked=pages.map(p=>{
+    const ranked=keywordPages.map(p=>{
       let score=0;
       if(norm(p.title).includes(k)) score+=40;
       if(norm((p.h1||[]).join(" ")).includes(k)) score+=40;
@@ -699,7 +806,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   // robots de recherche/citation bloqués réduisent directement la visibilité.
   const searchAgents = ["OAI-SearchBot","ChatGPT-User","Claude-SearchBot","Claude-Web","PerplexityBot","Perplexity-User"];
   const majorBlocked = blocked.filter(b=>searchAgents.includes(b.agent));
-  const thinPages = pages.filter(p=>(p.words||0)<180);
+  const thinPages = keywordPages.filter(p=>(p.words||0)<180);
   const identityReady = pages.some(p=>p.schemaTypes.some(t=>businessTypes.has(t)));
   const gptStrat = blocked.some(b=>b.agent==="GPTBot") && disc.aiBots.some(b=>b.agent==="OAI-SearchBot"&&b.state==="allowed");
   if(majorBlocked.length){
@@ -810,14 +917,60 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
     body:"Le score reste affiché pour permettre le diagnostic, mais sa comparaison avec un autre audit est suspendue. Une panne réseau ou une protection anti-robot ne doit pas être interprétée comme une baisse SEO.",
     where:transientPages.slice(0,20).map(p=>"<code>"+esc(sh(p.url))+"</code> — réponse réseau indisponible"),
     steps:["Relancer l'audit quelques minutes plus tard.","Si les mêmes pages échouent encore, vérifier le pare-feu, le CDN ou la protection anti-robot.","Ne comparer les scores que lorsque la confiance est indiquée comme élevée."],effort:"5 min",gain:"fiabilité de la mesure"});
-  const auditMeta={scoreVersion:"2.1",requested:pagesAll.length,successful:pages.length,transient:transientPages.length,confidence:transientPages.length?"provisoire":"élevée"};
-  return {origin, disc, pages, deadPages, issues, wins, scores, global, imgPages, uniqFiles, isWP, aiReadiness, siteKeywords, cannibalization, targetMap, clientName:options.clientName||"",schemaAudit:{inventory:schemaInventory,expectedMissing,entityNames,entityIds},auditMeta,
-          counts:{crit:issues.filter(i=>i.sev==="crit").length,warn:issues.filter(i=>i.sev==="warn").length,info:issues.filter(i=>i.sev==="info").length,wins:wins.length},
+  const counts={crit:issues.filter(i=>i.sev==="crit").length,warn:issues.filter(i=>i.sev==="warn").length,info:issues.filter(i=>i.sev==="info").length,wins:wins.length};
+  const publicContacts={
+    emails:[...new Set(pages.flatMap(p=>p.contact?.emails||[]))].slice(0,12),
+    phones:[...new Set(pages.flatMap(p=>p.contact?.phones||[]))].slice(0,12),
+    socials:[...new Set(pages.flatMap(p=>p.contact?.socials||[]))].slice(0,15),
+    hasForm:pages.some(p=>p.contact?.hasForm),
+    ctas:[...new Set(pages.flatMap(p=>p.contact?.ctas||[]))].slice(0,15),
+  };
+  const pagesNeedingWork=pages.filter(p=>!p.title||p.titleLen>60||!p.desc||p.descLen>165||p.h1Count!==1||!p.viewport||(p.images||[]).some(im=>im.cls==="content"&&(im.alt===null||im.alt===""))||!p.schemaTypes?.length||p.schema?.invalidBlocks||p.schema?.problems?.length).length;
+  const quickWins=issues.filter(i=>/\b(?:3|5|10|15|20|30) min|~(?:3|5|10|15|20|30) min/i.test(i.effort||"")).length;
+  const proofCount=issues.reduce((sum,i)=>sum+(i.where?.length||0),0);
+  const opportunityScore=Math.max(0,Math.min(100,Math.round((100-global)*1.05+counts.crit*4+counts.warn*1.5)));
+  const auditMeta={scoreVersion:"2.2",requested:pagesAll.length,successful:pages.length,transient:transientPages.length,confidence:transientPages.length?"provisoire":"élevée",conclusive:true};
+  return {origin, disc, pages, keywordPages, deadPages, issues, wins, scores, global, imgPages, uniqFiles, isWP, aiReadiness, siteKeywords, cannibalization, targetMap, clientName:options.clientName||"",contactName:options.contactName||"",publicContacts,pagesNeedingWork,quickWins,proofCount,opportunityScore,schemaAudit:{inventory:schemaInventory,expectedMissing,entityNames,entityIds},auditMeta,
+          counts,
           linksChecked: linkResults.length};
 }
 
 // --- Rendu ---
+function renderInconclusiveReport(m){
+  const today = new Date().toLocaleDateString("fr-CA",{year:"numeric",month:"long",day:"numeric"});
+  const host = m.origin.replace(/^https?:\/\//,"");
+  const b=m.barrier||{};
+  const reason=b.kind==="maintenance"?"une page de maintenance":b.kind==="challenge"?"une vérification anti-robot":"un contenu identique sur plusieurs URL";
+  const explanation=b.kind==="duplicate-wall"
+    ?"Le serveur a retourné pratiquement le même contenu sur des adresses différentes. Il peut s'agir d'une page de maintenance, d'un pare-feu ou d'une redirection interne qui conserve un code 200."
+    :"Le serveur a présenté "+reason+" au robot Paparmane. Les titres, textes, images et données structurées observés ne représentent donc pas les vraies pages du site.";
+  $("#report").innerHTML=`
+    <h2 class="doc-title">Audit SEO non concluant<br>${esc(m.clientName||host)}</h2>
+    <div class="doc-sub">
+      <span><a href="${esc(m.origin)}" target="_blank">${esc(host)}</a></span><span class="sep">•</span>
+      <span class="tnum">${m.pages.length} réponse(s) inspectée(s)</span><span class="sep">•</span>
+      <span class="tnum">${today}</span><span class="tag mid">Score v${esc(m.auditMeta.scoreVersion)} · non calculé</span>
+    </div>
+    <section class="audit-stop">
+      <span class="stop-state">Audit interrompu automatiquement</span>
+      <h3>Aucun score ne sera attribué à des pages qui ne peuvent pas être observées correctement.</h3>
+      <p>${explanation}</p>
+      <div class="where"><b>Preuve :</b> ${b.count||0} réponse(s) sur ${b.total||m.pages.length} partagent cet état${b.title?` et le titre « ${esc(b.title)} »`:""}.
+        ${b.examples?.length?`<ul>${b.examples.map(u=>`<li><code>${esc(short(u,m.origin))}</code></li>`).join("")}</ul>`:""}
+      </div>
+      <div class="block-lab">Comment obtenir un audit fiable</div>
+      <ol class="steps">
+        <li>Désactiver temporairement le mode maintenance ou terminer la vérification anti-robot.</li>
+        <li>Si le site est déjà public, autoriser l'agent <code>PaparmaneSEO</code> dans le pare-feu ou le CDN.</li>
+        <li>Relancer ensuite l'audit. Aucun résultat de cette tentative n'a été ajouté à l'historique.</li>
+      </ol>
+    </section>
+    <div class="note"><b>Protection anti-faux positif.</b> Les alertes de titres dupliqués, contenu trop court, images, mots-clés et schémas ont volontairement été supprimées, car elles auraient décrit la page intermédiaire plutôt que le site.</div>
+    <div class="toolbar"><button class="btn ghost" onclick="window.print()">Imprimer / PDF technique</button><button class="btn" onclick="window.scrollTo({top:0,behavior:'smooth'})">Nouvel audit</button></div>`;
+}
+
 function renderReport(m){
+  if(m.auditMeta?.conclusive===false){renderInconclusiveReport(m);return;}
   const sh=u=>short(u,m.origin);
   const today = new Date().toLocaleDateString("fr-CA",{year:"numeric",month:"long",day:"numeric"});
   const host = m.origin.replace(/^https?:\/\//,"");
@@ -1003,11 +1156,11 @@ function renderReport(m){
     ${sevSection("info","Opportunités","Pas des erreurs — des leviers pour aller plus loin.")}
 
     <div class="sec-h"><h3>Analyse des mots-clés observés</h3><span class="cnt">${m.siteKeywords.length}</span><div class="rule"></div></div>
-    <p class="sec-intro">Expressions les plus présentes dans le contenu utile du site. Le chiffre représente le nombre d'occurrences observées pendant le crawl — <b>pas un volume de recherche Google</b>.</p>
+    <p class="sec-intro">Expressions les plus présentes dans le contenu utile des pages à positionner. Les pages légales, de connexion, de panier et de contact sont exclues de cette section, mais restent vérifiées dans l'audit technique. Le chiffre représente le nombre d'occurrences observées pendant le crawl — <b>pas un volume de recherche Google</b>.</p>
     <div class="kw-cloud">${m.siteKeywords.length?m.siteKeywords.map(k=>`<span class="kw"><b>${esc(k.term)}</b><small>${k.count}× · ${k.pages} p.</small></span>`).join(""):`<span class="sec-intro">Pas assez de contenu textuel pour dégager des sujets fiables.</span>`}</div>
     <div class="tbl-wrap"><table>
       <thead><tr><th>Page</th><th>Expression dominante observée</th><th class="c">Titre</th><th class="c">H1</th><th class="c">Description</th></tr></thead>
-      <tbody>${m.pages.map(p=>`<tr><td class="pg">${esc(sh(p.url))}</td><td>${p.focusKeyword?`<b>${esc(p.focusKeyword)}</b>`:"—"}</td>
+      <tbody>${m.keywordPages.map(p=>`<tr><td class="pg">${esc(sh(p.url))}</td><td>${p.focusKeyword?`<b>${esc(p.focusKeyword)}</b>`:"—"}</td>
         <td class="c"><span class="dot ${p.keywordAlignment?.title?"ok":"no"}"></span></td>
         <td class="c"><span class="dot ${p.keywordAlignment?.h1?"ok":"no"}"></span></td>
         <td class="c"><span class="dot ${p.keywordAlignment?.desc?"ok":"mid"}"></span></td></tr>`).join("")}</tbody>
