@@ -194,7 +194,7 @@ function inferExpectedSchema(url, title, h1, bodyText) {
   if (/hebergement|hébergement|gite|gîte|yourte|hotel|hôtel|auberge|chalet|camping/.test(headingHay)) add("LodgingBusiness", "contenu d'hébergement détecté");
   if (/\/blog|\/actualit|\/article|blogue|datepublished/.test(hay)) add("Article", "article ou actualité détecté");
   if (/\/produit|\/product|\/boutique|ajouter au panier|add to cart/.test(hay)) add("Product", "page produit ou boutique détectée");
-  if (/\/services?(?:\/|$)/.test(path) || /\bservices?\s+(?:de|d'|offert)/.test(headingHay)) add("Service", "page de service détectée");
+  if (/\/services?\/[^/]+$/.test(path)) add("Service", "page de service détectée");
   if (/faq|foire aux questions|questions fréquentes/.test(hay)) add("FAQPage", "section de questions-réponses détectée");
   if (/\/evenement|\/event|événement|billetterie/.test(hay)) add("Event", "événement détecté");
   return expected;
@@ -219,6 +219,41 @@ function extractKeywords(text) {
   return { top: ranked, tokenCount: tokens.length };
 }
 
+const TOPIC_NOISE = new Set([
+  "wstg", "centre", "quebec", "entreprise", "service", "installation",
+  "travail", "travaux", "projet", "page", "accueil", "propos", "expertise",
+  "offre", "complet", "complete", "fiable", "residentiel", "commercial",
+]);
+
+function stemTopicToken(value) {
+  let token = plain(value).replace(/[^a-z'-]/g, "").replace(/^['-]+|['-]+$/g, "");
+  if (token.endsWith("eaux")) token = token.slice(0, -1);
+  else if (token.length > 4 && token.endsWith("s")) token = token.slice(0, -1);
+  return token;
+}
+
+function topicTokens(value) {
+  return (plain(value).replace(/[-'’]+/g, " ").match(/[a-z][a-z]{2,}/g) || [])
+    .map(stemTopicToken)
+    .filter(token => token.length > 2 && !STOPWORDS.has(token) && !TOPIC_NOISE.has(token));
+}
+
+function inferFocusKeyword(title, h1, url, observedKeywords) {
+  const titleTokens = topicTokens(title);
+  const h1Tokens = topicTokens((h1 || []).join(" "));
+  const h1Set = new Set(h1Tokens);
+  const shared = [...new Set(titleTokens.filter(token => h1Set.has(token)))];
+  if (shared.length) return shared.slice(0, 3).join(" ");
+
+  let pathTokens = [];
+  try { pathTokens = topicTokens(new URL(url).pathname.replace(/[-_/]+/g, " ")); }
+  catch { /* URL déjà validée en amont */ }
+  const headingSet = new Set([...titleTokens, ...h1Tokens]);
+  const pathMatch = [...new Set(pathTokens.filter(token => headingSet.has(token)))];
+  if (pathMatch.length) return pathMatch.slice(0, 3).join(" ");
+  return observedKeywords.top[0]?.term || null;
+}
+
 // --- Classement d'une image : technique / décorative / contenu ---
 function classifyImg(srcRaw) {
   const src = (srcRaw || "").toLowerCase();
@@ -226,7 +261,10 @@ function classifyImg(srcRaw) {
   if (src.startsWith("data:") || src.includes("base64")) return "tech";
   if (/(^tr\?|facebook\.com\/tr|\/pixel|\bbeacon\b|analytics|doubleclick)/.test(src)) return "tech";
   if (/\.(svg)$/.test(file)) return "deco";
-  if (/(^|[-_])(logo|icon|ico|badge|spacer|separateur|separator|deco|pattern|bg|arrow|fleche|puce|bullet|star|etoile)([-_.]|$)/.test(file)) return "deco";
+  // Séparateur végétal réutilisé entre les sections du site Côteaux Missisquoi.
+  // Il est volontairement muet pour les lecteurs d'écran (alt="").
+  if (/^arbres-coteaux-missisquoi(?:-\d+x\d+)?\.png$/.test(file)) return "deco";
+  if (/(^|[-_])(logo|icon|icone|ico|badge|spacer|separateur|separator|deco|pattern|bg|arrow|fleche|puce|bullet|star|etoile)([-_.]|$)/.test(file)) return "deco";
   return "content";
 }
 
@@ -267,7 +305,18 @@ function analyzePage(url, html, finalUrl) {
   };
 
   const origin = new URL(finalUrl).origin;
-  const rawHrefs = all(/<a\b[^>]*href=["']([^"']+)["']/gi, html).map(decode);
+  const rawHrefs = [...html.matchAll(/<a\b[^>]*\bhref=["']([^"']+)["'][^>]*>/gi)]
+    .filter(match => {
+      const tag = match[0];
+      const href = decode(match[1]);
+      // Les hébergeurs injectent parfois un lien-piège invisible qui doit
+      // volontairement répondre 403. Ce n'est ni une navigation pour les
+      // visiteurs ni un lien que les moteurs doivent suivre.
+      const hiddenTrap = /\baria-hidden=["']true["']/i.test(tag)
+        || (/\btabindex=["']-1["']/i.test(tag) && /display\s*:\s*none/i.test(tag));
+      return !hiddenTrap && !/\/imunify-bot-check(?:[/?#]|$)/i.test(href);
+    })
+    .map(match => decode(match[1]));
   const emails = [...new Set(rawHrefs
     .filter(h => /^mailto:/i.test(h))
     .map(h => h.replace(/^mailto:/i, "").split("?")[0].trim().toLowerCase())
@@ -290,11 +339,11 @@ function analyzePage(url, html, finalUrl) {
 
   const bodyText = decode(strip(usefulContentHtml(html)));
   const keywords = extractKeywords(bodyText);
-  const focusKeyword = keywords.top[0]?.term || null;
-  const focusTokens = focusKeyword ? (focusKeyword.match(/[a-z][a-z'-]{2,}/g) || []).filter(w => !STOPWORDS.has(w)) : [];
+  const focusKeyword = inferFocusKeyword(title, h1, finalUrl, keywords);
+  const focusTokens = topicTokens(focusKeyword);
   const inField = field => {
     if (!focusTokens.length) return false;
-    const fieldTokens = new Set(((field || "").toLocaleLowerCase("fr-CA").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").match(/[a-z][a-z'-]{2,}/g) || []).filter(w => !STOPWORDS.has(w)));
+    const fieldTokens = new Set(topicTokens(field));
     return focusTokens.every(token => fieldTokens.has(token));
   };
   const pageState = detectPageState(title, h1, html, bodyText);

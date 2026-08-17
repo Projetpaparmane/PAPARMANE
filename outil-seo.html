@@ -573,7 +573,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
       origin,disc,pages,deadPages,barrier:auditBarrier,
       clientName:options.clientName||"",contactName:options.contactName||"",
       linksChecked:0,previous:null,global:null,scores:null,counts:null,
-      auditMeta:{scoreVersion:"2.2",requested:pagesAll.length,successful:pages.length,transient:deadPages.filter(p=>p.transient).length,confidence:"non concluante",conclusive:false},
+      auditMeta:{scoreVersion:"2.3",requested:pagesAll.length,successful:pages.length,transient:deadPages.filter(p=>p.transient).length,confidence:"non concluante",conclusive:false},
     };
   }
   const n = Math.max(1,pages.length);
@@ -591,7 +591,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   }
   const siteKeywords=[...keywordTotals.values()].sort((a,b)=>b.count-a.count).slice(0,25);
   const focusGroups={};
-  for(const p of keywordPages) if(p.focusKeyword&&(p.words||0)>=80) (focusGroups[p.focusKeyword]??=[]).push(p);
+  for(const p of keywordPages) if(p.focusKeyword&&p.focusKeyword.split(/\s+/).length>=2&&(p.words||0)>=80) (focusGroups[p.focusKeyword]??=[]).push(p);
   const cannibalization=Object.entries(focusGroups).filter(([,group])=>group.length>1);
   const weakAlignment=keywordPages.filter(p=>(p.words||0)>=80&&p.focusKeyword&&(!p.keywordAlignment?.title||!p.keywordAlignment?.h1));
   const targetMap=(options.targetKeywords||[]).map(keyword=>{
@@ -786,7 +786,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
       effort:"30-90 min / modèle",gain:"élevé — compréhension Google et IA"});
   }
   if(expectedMissing.length){
-    issues.push({sev:"warn",cat:"schema",title:expectedMissingPages+" page(s) semblent avoir besoin d'un type de schéma plus précis",
+    issues.push({sev:"info",cat:"schema",title:expectedMissingPages+" page(s) semblent avoir besoin d'un type de schéma plus précis",
       body:"Le contenu visible indique un type de page clair, mais le JSON-LD correspondant n'a pas été détecté. Cette recommandation est fondée sur le contenu et l'URL; elle doit être confirmée avant implantation.",
       where:expectedMissing.slice(0,20).map(x=>"<code>"+esc(sh(x.page.url))+"</code> — ajouter ou confirmer <b>"+esc(x.type)+"</b> ("+esc(x.reason)+")"),
       steps:["Confirmer que la page représente réellement le type suggéré.","Ajouter un seul bloc cohérent, ou enrichir le graphe existant en réutilisant les mêmes <code>@id</code>.","Remplir uniquement les propriétés visibles et vérifiables sur la page.","Valider la syntaxe avec Schema.org Validator, puis l'admissibilité avec Google Rich Results Test."],
@@ -892,12 +892,11 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
     social: Math.round(100*ratio(noOg.length,n)),
     keywords: Math.max(0,Math.round(100-weakAlignment.length/Math.max(1,n)*55-Math.min(35,cannibalization.length*7))),
     schema: Math.max(0,Math.min(100,Math.round(100*(
-      .25*ratio(pagesNoSchema.length,n)+
-      .35*ratio(pagesSchemaInvalid.length,n)+
-      .25*(expectedMissing.length?ratio(expectedMissingPages,n):1)+
-      .15*(identityReady?1:0)
+      .3*ratio(pagesNoSchema.length,n)+
+      .5*ratio(pagesSchemaInvalid.length,n)+
+      .2*(identityReady?1:0)
     )))),
-    ia: Math.max(0,Math.round(100 - majorBlocked.length*11 - (!identityReady?18:0) - Math.min(20,thinPages.length/Math.max(1,n)*25) - (disc.llms?.exists? (llmsLinkResults.some(r=>r.status>=400||r.finalUrl.replace(/\/$/,"")===origin&&r.url.replace(/\/$/,"")!==origin)?18:0) : 12))),
+    ia: Math.max(0,Math.round(100 - majorBlocked.length*11 - (!identityReady?18:0) - (disc.llms?.exists? (llmsLinkResults.some(r=>r.status>=400||r.finalUrl.replace(/\/$/,"")===origin&&r.url.replace(/\/$/,"")!==origin)?18:0) : 12))),
     liens: Math.round(100*ratio(dead.length+deadPages.filter(p=>!p.transient).length*2, Math.max(1,linkResults.length+pagesAll.length)))
   };
   scores.fondations = Math.max(0,Math.min(100,scores.fondations));
@@ -929,7 +928,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   const quickWins=issues.filter(i=>/\b(?:3|5|10|15|20|30) min|~(?:3|5|10|15|20|30) min/i.test(i.effort||"")).length;
   const proofCount=issues.reduce((sum,i)=>sum+(i.where?.length||0),0);
   const opportunityScore=Math.max(0,Math.min(100,Math.round((100-global)*1.05+counts.crit*4+counts.warn*1.5)));
-  const auditMeta={scoreVersion:"2.2",requested:pagesAll.length,successful:pages.length,transient:transientPages.length,confidence:transientPages.length?"provisoire":"élevée",conclusive:true};
+  const auditMeta={scoreVersion:"2.3",requested:pagesAll.length,successful:pages.length,transient:transientPages.length,confidence:transientPages.length?"provisoire":"élevée",conclusive:true};
   return {origin, disc, pages, keywordPages, deadPages, issues, wins, scores, global, imgPages, uniqFiles, isWP, aiReadiness, siteKeywords, cannibalization, targetMap, clientName:options.clientName||"",contactName:options.contactName||"",publicContacts,pagesNeedingWork,quickWins,proofCount,opportunityScore,schemaAudit:{inventory:schemaInventory,expectedMissing,entityNames,entityIds},auditMeta,
           counts,
           linksChecked: linkResults.length};
