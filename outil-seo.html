@@ -451,10 +451,10 @@ async function runAudit(){
     log("Découverte du site (robots.txt, sitemap, llms.txt)…");
     const disc = await api({mode:"discover", site:raw});
     const origin = disc.origin;
-    const trafficCacheKey="pap_traffic_"+new URL(origin).hostname+"_canada_fr";
+    const trafficCacheKey="pap_intelligence_v1_"+new URL(origin).hostname+"_canada_fr";
     let cachedTraffic=null;
-    try{const saved=JSON.parse(localStorage.getItem(trafficCacheKey)||"null");if(saved&&Date.now()-saved.cachedAt<86400000)cachedTraffic=saved.data;}catch{}
-    const trafficPromise=cachedTraffic?Promise.resolve({...cachedTraffic,cached:true}):api({mode:"traffic",site:origin,location:"Canada",language:"fr"}).then(data=>{if(data.available)localStorage.setItem(trafficCacheKey,JSON.stringify({cachedAt:Date.now(),data}));return data;}).catch(e=>({configured:false,available:false,reason:e.code||"request_error",error:e.message}));
+    try{const saved=JSON.parse(localStorage.getItem(trafficCacheKey)||"null");if(saved&&Date.now()-saved.cachedAt<604800000)cachedTraffic=saved.data;}catch{}
+    const trafficPromise=cachedTraffic?Promise.resolve({...cachedTraffic,cached:true}):api({mode:"traffic",site:origin,location:"Canada",language:"fr"}).then(data=>{if(data.available||data.strategicKeywords?.available||data.backlinks?.available||data.aiMentions?.available)localStorage.setItem(trafficCacheKey,JSON.stringify({cachedAt:Date.now(),data}));return data;}).catch(e=>({configured:false,available:false,reason:e.code||"request_error",error:e.message}));
     // Un index de sitemap peut référencer plusieurs sous-sitemaps. On les lit
     // séparément pour éviter les délais d'expiration des fonctions Netlify.
     if(disc.sitemapFound && disc.sitemapQueue?.length){
@@ -538,7 +538,7 @@ async function runAudit(){
     if(auditBarrier){
       disc.traffic={configured:false,available:false,reason:"audit_inconclusive"};
     }else{
-      log("Chargement de l'intelligence trafic…");
+      log("Chargement des mots-clés, backlinks, mentions IA et estimations de trafic…");
       disc.traffic=await trafficPromise;
     }
     log("Compilation du rapport…");
@@ -1122,6 +1122,17 @@ function renderReport(m){
   const targetCovered=m.targetMap.filter(x=>x.covered).length;
   const advanced=m.advancedAudit||{};
   const traffic=m.disc.traffic||{};
+  const externalKeywords=traffic.strategicKeywords||{};
+  const rankedKeywords=Array.isArray(externalKeywords.items)?externalKeywords.items:[];
+  const backlinkData=traffic.backlinks||{};
+  const aiMentionData=traffic.aiMentions||{};
+  const fmt=value=>Number(value||0).toLocaleString("fr-CA");
+  const providerFailure=data=>data?.error||(
+    data?.reason==="provider_timeout"?"Délai dépassé — réessayer plus tard":
+    data?.reason==="provider_unauthorized"?"Accès DataForSEO non autorisé pour ce module":
+    "Donnée temporairement indisponible"
+  );
+  const platformLabel=platform=>platform==="chat_gpt"?"ChatGPT":platform==="google"?"Google IA":String(platform||"IA").replaceAll("_"," ");
   const trafficUnavailable=(()=>{
     if(traffic.reason==="server_protection_missing") return ["Activer la protection privée du module trafic","configuration Paparmane requise","bad"];
     if(traffic.reason==="access_key_invalid") return ["Se reconnecter avec le code d'accès privé","accès au trafic refusé","bad"];
@@ -1135,7 +1146,7 @@ function renderReport(m){
     ["Pages analysées",m.pages.length,m.auditMeta.successful+" réussies · "+m.auditMeta.transient+" provisoires","crawl complet",m.auditMeta.transient?"warn":"good"],
     ["Problèmes prioritaires",m.counts.crit,m.counts.warn+" importants · "+m.counts.info+" opportunités","audit interne",m.counts.crit?"bad":m.counts.warn?"warn":"good"],
     ["Mots-clés organiques",m.disc.traffic?.available&&m.disc.traffic.organicKeywords!=null?m.disc.traffic.organicKeywords.toLocaleString("fr-CA"):observedKeywordCount,m.disc.traffic?.available?"classements Google estimés · Canada":m.cannibalization.length+" chevauchement(s) potentiel(s)",m.disc.traffic?.available?"estimation DataForSEO":"contenu observé",scoreClass(m.scores.keywords)],
-    ["Mots-clés stratégiques",m.targetMap.length?targetCovered+"/"+m.targetMap.length:"—",m.targetMap.length?(m.targetMap.length-targetCovered)+" sans cible claire":"aucune liste fournie",m.targetMap.length?"fourni par le client":"non configuré",m.targetMap.length&&targetCovered===m.targetMap.length?"good":m.targetMap.length?"warn":""],
+    ["Mots-clés stratégiques",m.targetMap.length?targetCovered+"/"+m.targetMap.length:externalKeywords.available?fmt(externalKeywords.totalCount):"—",m.targetMap.length?(m.targetMap.length-targetCovered)+" sans cible claire":externalKeywords.available?rankedKeywords.length+" meilleures positions et occasions chargées":providerFailure(externalKeywords),m.targetMap.length?"fourni par le client":externalKeywords.available?"DataForSEO · Canada":"non mesuré",m.targetMap.length&&targetCovered===m.targetMap.length?"good":m.targetMap.length?"warn":externalKeywords.available?(rankedKeywords.length?"good":"warn"):""],
     ["Données structurées",m.scores.schema+"/100",schemaCovered+" page(s) balisée(s) · "+m.schemaAudit.expectedMissing.length+" suggestion(s)","Schema Studio",scoreClass(m.scores.schema)],
     ["Préparation IA",m.scores.ia+"/100",aiBlocked+" robot(s) explicitement bloqué(s)","technique — pas des mentions",scoreClass(m.scores.ia)],
     ["Liens",m.scores.liens+"/100",m.linksChecked+" vérifiés · "+brokenCount+" groupe(s) critique(s)","échantillon déterministe",scoreClass(m.scores.liens)],
@@ -1143,8 +1154,8 @@ function renderReport(m){
     ["ALT strict — accueil",(advanced.homepageStrictMissing||0)+"/"+(advanced.homepageStrictTotal||0),(advanced.homepageStrictMissing||0)+" ALT absent(s) ou vide(s) sur l'accueil · pixels techniques exclus","contrôle compatible SEOptimer",advanced.homepageStrictMissing?"warn":"good"],
     ["Trafic organique",traffic.available?traffic.organic.toLocaleString("fr-CA"):"—",traffic.available?"visites mensuelles organiques estimées · Canada":trafficUnavailable[0],traffic.available?"estimation DataForSEO":trafficUnavailable[1],traffic.available?"good":trafficUnavailable[2]],
     ["Trafic payant",traffic.available?traffic.paid.toLocaleString("fr-CA"):"—",traffic.available?"visites mensuelles payantes estimées · Canada":trafficUnavailable[0],traffic.available?"estimation DataForSEO":trafficUnavailable[1],traffic.available&&traffic.paid>0?"warn":trafficUnavailable[2]],
-    ["Backlinks","—","Nécessite une base de liens externe","non mesuré",""],
-    ["Mentions IA réelles","—","Nécessite des tests de prompts sur chaque plateforme","non mesuré",""],
+    ["Backlinks",backlinkData.available?fmt(backlinkData.backlinks):"—",backlinkData.available?fmt(backlinkData.referringDomains)+" domaines référents · rang "+(backlinkData.rank??"—"):providerFailure(backlinkData),backlinkData.available?"mesure DataForSEO":"non mesuré",backlinkData.available?(backlinkData.backlinks?"good":"warn"):""],
+    ["Mentions IA réelles",aiMentionData.available?fmt(aiMentionData.mentions):"—",aiMentionData.available?(aiMentionData.platforms?.length?aiMentionData.platforms.map(x=>platformLabel(x.platform)+" "+fmt(x.mentions)).join(" · "):"aucune mention détectée")+" · "+(aiMentionData.scope||"portée externe"):providerFailure(aiMentionData),aiMentionData.available?"base DataForSEO":"non mesuré",aiMentionData.available?(aiMentionData.mentions?"good":"warn"):""],
     ["Évolution",delta===null?"—":(delta>0?"+":"")+delta,delta===null?"Un deuxième audit fiable activera la comparaison":"points depuis le dernier audit","historique local",delta>0?"good":delta<0?"bad":""],
   ];
 
@@ -1332,6 +1343,31 @@ function renderReport(m){
       ${m.targetMap.map(x=>`<tr><td><b>${esc(x.keyword)}</b></td><td class="pg">${x.best?esc(sh(x.best.url)):"—"}</td><td class="c"><span class="tag ${x.score>=60?"ok":x.covered?"mid":"no"}">${Math.min(100,x.score)}%</span></td><td>${x.score>=60?"Conserver et renforcer":x.covered?"Clarifier la cible":"Créer ou refondre une page"}</td></tr>`).join("")}
     </tbody></table></div>`:""}
 
+    ${traffic.available||externalKeywords.available||backlinkData.available||aiMentionData.available?`
+    <div class="sec-h"><h3>Intelligence de marché DataForSEO</h3><div class="rule"></div></div>
+    <p class="sec-intro">Mesures externes comparables à un outil de marché : positions Google au Canada en français, profil de liens et mentions observées dans la base IA. Les résultats sont conservés sept jours pour maîtriser les frais de collecte.</p>
+
+    ${externalKeywords.available?`<h4>Mots-clés Google classés et occasions</h4>
+    <p class="sec-intro">Ce sont des requêtes sur lesquelles le domaine est déjà visible. Elles servent à choisir les gains rapides; elles ne remplacent pas les objectifs d'affaires fournis par le client.</p>
+    <div class="tbl-wrap"><table><thead><tr><th>Mot-clé</th><th class="c">Position</th><th class="c">Volume/mois</th><th class="c">Visites estimées</th><th class="c">CPC</th><th>Page classée</th><th>Décision</th></tr></thead><tbody>
+      ${rankedKeywords.length?rankedKeywords.map(k=>{const rank=Number(k.rank)||null;const decision=rank&&rank<=3?"Défendre":rank&&rank<=20?"Gain rapide":rank?"Faire progresser":"À vérifier";return `<tr><td><b>${esc(k.keyword)}</b></td><td class="c tnum">${rank?"#"+rank:"—"}</td><td class="c tnum">${fmt(k.searchVolume)}</td><td class="c tnum">${fmt(k.estimatedVisits)}</td><td class="c tnum">${k.cpc==null?"—":Number(k.cpc).toLocaleString("fr-CA",{style:"currency",currency:"USD"})}</td><td class="pg">${k.url?esc(sh(k.url)):"—"}</td><td><span class="tag ${decision==="Gain rapide"?"ok":decision==="Faire progresser"?"mid":""}">${decision}</span></td></tr>`}).join(""):`<tr><td colspan="7">Aucun mot-clé classé trouvé dans cette base pour le marché Canada/français.</td></tr>`}
+    </tbody></table></div>`:""}
+
+    ${backlinkData.available?`<div class="sec-h"><h3>Profil de backlinks</h3><div class="rule"></div></div>
+    <div class="ai-grid">
+      <div class="ai-card"><div class="ai-card-head"><span>Backlinks</span><span class="ai-card-score">${fmt(backlinkData.backlinks)}</span></div><p>Liens externes vivants détectés vers le domaine.</p></div>
+      <div class="ai-card"><div class="ai-card-head"><span>Domaines référents</span><span class="ai-card-score">${fmt(backlinkData.referringDomains)}</span></div><p>${fmt(backlinkData.referringMainDomains)} domaines principaux · ${fmt(backlinkData.referringPages)} pages référentes.</p></div>
+      <div class="ai-card"><div class="ai-card-head"><span>Rang du domaine</span><span class="ai-card-score">${backlinkData.rank??"—"}/100</span></div><p>Indice DataForSEO sur une échelle de 100, distinct du score d'audit Paparmane.</p></div>
+      <div class="ai-card"><div class="ai-card-head"><span>Liens à surveiller</span><span class="ai-card-score">${fmt(backlinkData.brokenBacklinks)}</span></div><p>${fmt(backlinkData.nofollow)} liens nofollow${typeof backlinkData.spamScore==="number"?" · score de spam moyen "+backlinkData.spamScore:""}.</p></div>
+    </div>`:""}
+
+    ${aiMentionData.available?`<div class="sec-h"><h3>Mentions IA mesurées</h3><div class="rule"></div></div>
+    <p class="sec-intro"><b>Mesure réelle de la base DataForSEO, distincte de la préparation technique IA.</b> Elle comptabilise les mentions observées sur les plateformes couvertes pour ${esc(aiMentionData.scope||"la portée disponible")}. Il ne s'agit pas d'un test personnalisé de chaque question qu'un client pourrait poser.</p>
+    <div class="tbl-wrap"><table><thead><tr><th>Plateforme</th><th>Marché</th><th class="c">Mentions</th><th class="c">Volume de recherches IA</th><th>Lecture</th></tr></thead><tbody>
+      ${aiMentionData.platforms?.length?aiMentionData.platforms.map(p=>`<tr><td><b>${esc(platformLabel(p.platform))}</b></td><td>${esc(p.location||aiMentionData.scope)} · ${esc(p.language||"")}</td><td class="c tnum">${fmt(p.mentions)}</td><td class="c tnum">${fmt(p.aiSearchVolume)}</td><td>${p.mentions?"La marque est déjà citée":"Aucune mention trouvée dans l'échantillon"}</td></tr>`).join(""):`<tr><td colspan="5">Aucune mention IA trouvée dans la base pour cette portée.</td></tr>`}
+    </tbody></table></div>`:""}
+    `:""}
+
     <div class="sec-h"><h3>Schema Studio — données structurées</h3><div class="rule"></div></div>
     <p class="sec-intro">Inventaire technique du JSON-LD. « Valide » signifie que le bloc est lisible et possède les propriétés essentielles vérifiées par Paparmane; l'admissibilité finale à un résultat enrichi doit ensuite être confirmée avec l'outil Google.</p>
     <div class="ai-grid">
@@ -1378,7 +1414,7 @@ function renderReport(m){
 
     <div class="note"><b>Méthodologie — score v${esc(m.auditMeta.scoreVersion)}, confiance ${esc(m.auditMeta.confidence)}.</b> Rapport produit par le moteur d'analyse Paparmane :
       ${m.pages.length} pages crawlées, ${m.pages.reduce((a,p)=>a+(p.images||[]).length,0)} images inspectées,
-      ${m.linksChecked} liens vérifiés, robots.txt, indexabilité META/HTTP, canoniques, hiérarchie H1–H6, ALT strict et sémantique, ressources HTML, iFrames, favicon, hreflang, données structurées et llms.txt analysés. Les URL et les liens sont triés avant échantillonnage pour rendre deux audits comparables; les erreurs réseau sont relancées une fois. Le temps de réponse est un indicateur ponctuel et ne modifie pas le score. Les mots-clés sont extraits du contenu du site; aucun volume, coût par clic, backlink ou niveau de concurrence n'est inventé. Aucune donnée tierce payante.</div>
+      ${m.linksChecked} liens internes vérifiés, robots.txt, indexabilité META/HTTP, canoniques, hiérarchie H1–H6, ALT strict et sémantique, ressources HTML, iFrames, favicon, hreflang, données structurées et llms.txt analysés. Les URL et les liens sont triés avant échantillonnage pour rendre deux audits comparables; les erreurs réseau sont relancées une fois. Le temps de réponse est un indicateur ponctuel et ne modifie pas le score. Les volumes Google, estimations de trafic, backlinks et mentions IA affichés comme tels proviennent de DataForSEO; Paparmane ne fabrique jamais ces chiffres et les données externes ne modifient pas le score technique.</div>
 
     <div class="toolbar">
       <button class="btn ghost" onclick="window.print()">Imprimer / PDF client</button>

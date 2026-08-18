@@ -606,8 +606,51 @@ async function verify(urls) {
   return results;
 }
 
-// ---------- INTELLIGENCE TRAFIC (DataForSEO, identifiants serveur seulement) ----------
-async function trafficEstimate(site, location = "Canada", language = "fr") {
+// ---------- INTELLIGENCE EXTERNE (DataForSEO, identifiants serveur seulement) ----------
+async function dataForSeoPost(path, taskBody, authorization, timeoutMs = 8000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch("https://api.dataforseo.com" + path, {
+      method: "POST",
+      headers: { "Authorization": authorization, "Content-Type": "application/json" },
+      body: JSON.stringify([taskBody]),
+      signal: controller.signal,
+    });
+    const payload = await res.json().catch(() => ({}));
+    const task = payload.tasks?.[0] || null;
+    if (!res.ok || payload.status_code !== 20000 || (task && task.status_code !== 20000)) {
+      const error = new Error(task?.status_message || payload.status_message || `Erreur ${res.status}`);
+      error.reason = res.status === 401 || res.status === 403 ? "provider_unauthorized" : "provider_error";
+      error.providerCostUsd = payload.cost ?? task?.cost ?? 0;
+      throw error;
+    }
+    return {
+      result: task?.result?.[0] || null,
+      providerCostUsd: Number(payload.cost ?? task?.cost ?? 0) || 0,
+    };
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      const timeoutError = new Error("La source a dépassé le délai de réponse.");
+      timeoutError.reason = "provider_timeout";
+      throw timeoutError;
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function unavailableProviderResult(error) {
+  return {
+    available: false,
+    reason: error?.reason || "provider_error",
+    error: error?.message || "La source DataForSEO a retourné une erreur.",
+    providerCostUsd: Number(error?.providerCostUsd || 0),
+  };
+}
+
+async function externalIntelligence(site, location = "Canada", language = "fr") {
   const login = process.env.DATAFORSEO_LOGIN;
   const password = process.env.DATAFORSEO_PASSWORD;
   if (!login || !password) return {
@@ -619,41 +662,158 @@ async function trafficEstimate(site, location = "Canada", language = "fr") {
   };
   const target = new URL(site).hostname.replace(/^www\./, "");
   const authorization = "Basic " + btoa(`${login}:${password}`);
-  const res = await fetch("https://api.dataforseo.com/v3/dataforseo_labs/google/bulk_traffic_estimation/live", {
-    method: "POST",
-    headers: { "Authorization": authorization, "Content-Type": "application/json" },
-    body: JSON.stringify([{
+
+  const requests = await Promise.allSettled([
+    dataForSeoPost("/v3/dataforseo_labs/google/bulk_traffic_estimation/live", {
       targets: [target], location_name: location, language_code: language,
       item_types: ["organic", "paid", "featured_snippet", "local_pack"],
-    }]),
-  });
-  const payload = await res.json().catch(() => ({}));
-  if (!res.ok || payload.status_code !== 20000) {
-    return {
-      configured: true,
-      available: false,
-      reason: "provider_error",
-      source: "DataForSEO",
-      error: payload.status_message || `Erreur ${res.status}`,
+    }, authorization),
+    dataForSeoPost("/v3/dataforseo_labs/google/ranked_keywords/live", {
+      target, location_name: location, language_code: language,
+      item_types: ["organic", "featured_snippet", "local_pack"],
+      ignore_synonyms: true,
+      limit: 20,
+      order_by: ["keyword_data.keyword_info.search_volume,desc"],
+    }, authorization),
+    dataForSeoPost("/v3/backlinks/summary/live", {
+      target,
+      include_subdomains: true,
+      include_indirect_links: true,
+      exclude_internal_backlinks: true,
+      backlinks_status_type: "live",
+      rank_scale: "one_hundred",
+      internal_list_limit: 10,
+    }, authorization),
+    // Une requête sans plateforme renvoie les plateformes prises en charge.
+    // DataForSEO limite actuellement ChatGPT aux États-Unis et à l'anglais :
+    // cette portée est exposée clairement dans le rapport, jamais confondue
+    // avec l'indice technique de préparation IA calculé par Paparmane.
+    dataForSeoPost("/v3/ai_optimization/llm_mentions/target_metrics_lite/live", {
+      target: [{
+        domain: target,
+        search_filter: "include",
+        search_scope: ["any"],
+        include_subdomains: true,
+      }],
+      limit: 20,
+    }, authorization),
+  ]);
+
+  const [trafficRequest, keywordRequest, backlinkRequest, aiRequest] = requests;
+  let traffic = trafficRequest.status === "fulfilled" ? trafficRequest.value : unavailableProviderResult(trafficRequest.reason);
+  let strategicKeywords = keywordRequest.status === "fulfilled" ? keywordRequest.value : unavailableProviderResult(keywordRequest.reason);
+  let backlinks = backlinkRequest.status === "fulfilled" ? backlinkRequest.value : unavailableProviderResult(backlinkRequest.reason);
+  let aiMentions = aiRequest.status === "fulfilled" ? aiRequest.value : unavailableProviderResult(aiRequest.reason);
+
+  if (traffic.result) {
+    const item = traffic.result.items?.[0] || traffic.result;
+    const organic = item.metrics?.organic || item.organic || {};
+    const paid = item.metrics?.paid || item.paid || {};
+    traffic = {
+      available: true,
+      organic: Math.round(organic.etv ?? organic.estimated_traffic_volume ?? item.organic_etv ?? 0),
+      paid: Math.round(paid.etv ?? paid.estimated_traffic_volume ?? item.paid_etv ?? 0),
+      organicKeywords: organic.count ?? item.organic_count ?? null,
+      paidKeywords: paid.count ?? item.paid_count ?? null,
+      estimated: true,
+      providerCostUsd: traffic.providerCostUsd,
     };
+  } else if (traffic.available !== false) {
+    traffic = { available: false, reason: "no_data", error: "Aucune estimation disponible pour ce domaine.", providerCostUsd: traffic.providerCostUsd };
   }
-  const item = payload.tasks?.[0]?.result?.[0]?.items?.[0] || payload.tasks?.[0]?.result?.[0] || null;
-  if (!item) return {
-    configured: true,
-    available: false,
-    reason: "no_data",
-    source: "DataForSEO",
-    error: "Aucune estimation disponible pour ce domaine.",
-  };
-  const organic = item.metrics?.organic || item.organic || {};
-  const paid = item.metrics?.paid || item.paid || {};
+
+  if (strategicKeywords.result) {
+    const items = Array.isArray(strategicKeywords.result.items) ? strategicKeywords.result.items : [];
+    strategicKeywords = {
+      available: true,
+      totalCount: strategicKeywords.result.total_count ?? items.length,
+      items: items.map(entry => {
+        const keyword = entry.keyword_data || {};
+        const info = keyword.keyword_info || {};
+        const serp = entry.ranked_serp_element?.serp_item || {};
+        return {
+          keyword: keyword.keyword || entry.keyword || "",
+          searchVolume: Math.round(info.search_volume ?? 0),
+          cpc: info.cpc ?? null,
+          competition: info.competition ?? null,
+          rank: serp.rank_group ?? serp.rank_absolute ?? null,
+          url: serp.url || serp.relative_url || "",
+          estimatedVisits: Math.round(serp.etv ?? 0),
+        };
+      }).filter(item => item.keyword),
+      providerCostUsd: strategicKeywords.providerCostUsd,
+    };
+  } else if (strategicKeywords.available !== false) {
+    strategicKeywords = { available: true, totalCount: 0, items: [], providerCostUsd: strategicKeywords.providerCostUsd };
+  }
+
+  if (backlinks.result) {
+    const item = backlinks.result.items?.[0] || backlinks.result;
+    backlinks = {
+      available: true,
+      rank: item.rank ?? null,
+      backlinks: item.backlinks ?? 0,
+      referringDomains: item.referring_domains ?? 0,
+      referringMainDomains: item.referring_main_domains ?? 0,
+      referringPages: item.referring_pages ?? 0,
+      nofollow: item.backlinks_nofollow ?? 0,
+      brokenBacklinks: item.broken_backlinks ?? 0,
+      spamScore: item.backlinks_spam_score ?? null,
+      providerCostUsd: backlinks.providerCostUsd,
+    };
+  } else if (backlinks.available !== false) {
+    backlinks = { available: true, rank: 0, backlinks: 0, referringDomains: 0, referringMainDomains: 0, referringPages: 0, nofollow: 0, brokenBacklinks: 0, spamScore: null, providerCostUsd: backlinks.providerCostUsd };
+  }
+
+  if (aiMentions.result) {
+    const items = Array.isArray(aiMentions.result.items) ? aiMentions.result.items : [];
+    const platforms = items.map(item => ({
+      platform: item.platform || "inconnue",
+      location: item.location_name || (Number(item.location) === 2124 ? "Canada" : Number(item.location) === 2840 ? "États-Unis" : item.location || "Portée DataForSEO"),
+      language: item.language === "fr" ? "français" : item.language === "en" ? "anglais" : item.language || "langue disponible",
+      mentions: Number(item.metrics?.mentions ?? item.mentions ?? 0),
+      aiSearchVolume: Number(item.metrics?.ai_search_volume ?? item.ai_search_volume ?? 0),
+    }));
+    const scope = [...new Set(platforms.map(item => `${item.location} · ${item.language}`))].join(" + ") || "Portée DataForSEO disponible";
+    aiMentions = {
+      available: true,
+      mentions: platforms.reduce((sum, item) => sum + item.mentions, 0),
+      aiSearchVolume: platforms.reduce((sum, item) => sum + item.aiSearchVolume, 0),
+      platforms,
+      scope,
+      databaseMeasurement: true,
+      providerCostUsd: aiMentions.providerCostUsd,
+    };
+  } else if (aiMentions.available !== false) {
+    aiMentions = { available: true, mentions: 0, aiSearchVolume: 0, platforms: [], scope: "Portée DataForSEO disponible", databaseMeasurement: true, providerCostUsd: aiMentions.providerCostUsd };
+  }
+
+  const sections = [traffic, strategicKeywords, backlinks, aiMentions];
+  const providerCostUsd = sections.reduce((sum, section) => sum + Number(section.providerCostUsd || 0), 0);
   return {
-    configured: true, available: true, source: "DataForSEO", target, location, language,
-    organic: Math.round(organic.etv ?? organic.estimated_traffic_volume ?? item.organic_etv ?? 0),
-    paid: Math.round(paid.etv ?? paid.estimated_traffic_volume ?? item.paid_etv ?? 0),
-    organicKeywords: organic.count ?? item.organic_count ?? null,
-    paidKeywords: paid.count ?? item.paid_count ?? null,
-    estimated: true, providerCostUsd: payload.cost ?? payload.tasks?.[0]?.cost ?? null,
+    configured: true,
+    available: traffic.available,
+    source: "DataForSEO",
+    target,
+    location,
+    language,
+    organic: traffic.organic ?? 0,
+    paid: traffic.paid ?? 0,
+    organicKeywords: traffic.organicKeywords ?? null,
+    paidKeywords: traffic.paidKeywords ?? null,
+    estimated: true,
+    reason: traffic.reason,
+    error: traffic.error,
+    strategicKeywords,
+    backlinks,
+    aiMentions,
+    providerCostUsd: Number(providerCostUsd.toFixed(6)),
+    providerCosts: {
+      traffic: traffic.providerCostUsd || 0,
+      strategicKeywords: strategicKeywords.providerCostUsd || 0,
+      backlinks: backlinks.providerCostUsd || 0,
+      aiMentions: aiMentions.providerCostUsd || 0,
+    },
   };
 }
 
@@ -716,7 +876,7 @@ export default async (req) => {
       let site = (q.get("site") || "").trim();
       if (!/^https?:\/\//i.test(site)) site = "https://" + site;
       if (!isSafeUrl(site)) return json({ error: "Adresse invalide." }, 400);
-      return json(await trafficEstimate(site, q.get("location") || "Canada", q.get("language") || "fr"));
+      return json(await externalIntelligence(site, q.get("location") || "Canada", q.get("language") || "fr"));
     }
 
     if (mode === "page") {
