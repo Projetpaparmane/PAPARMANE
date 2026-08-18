@@ -573,7 +573,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
       origin,disc,pages,deadPages,barrier:auditBarrier,
       clientName:options.clientName||"",contactName:options.contactName||"",
       linksChecked:0,previous:null,global:null,scores:null,counts:null,
-      auditMeta:{scoreVersion:"2.3",requested:pagesAll.length,successful:pages.length,transient:deadPages.filter(p=>p.transient).length,confidence:"non concluante",conclusive:false},
+      auditMeta:{scoreVersion:"2.4",requested:pagesAll.length,successful:pages.length,transient:deadPages.filter(p=>p.transient).length,confidence:"non concluante",conclusive:false},
     };
   }
   const n = Math.max(1,pages.length);
@@ -656,6 +656,17 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
     steps:["Ouvrir la page dans l'éditeur.","Ajouter un <b>bloc Titre</b> en haut du contenu, réglé sur <b>H1</b>.","Y écrire le sujet réel de la page."],
     effort:"~5 min / page", gain:"moyen"});
 
+  const emptyHeadingPages=pages.filter(p=>(p.emptyHeadings||[]).length);
+  const skippedHeadingPages=pages.filter(p=>(p.headingSkips||[]).length);
+  if(emptyHeadingPages.length) issues.push({sev:"info",cat:"structure",title:emptyHeadingPages.length+" page(s) contiennent des titres H1–H6 vides",
+    body:"Un titre vide crée une étape sans nom dans la structure de la page. Les lecteurs d'écran et les moteurs reçoivent une section qui n'annonce aucun sujet.",
+    where:emptyHeadingPages.slice(0,15).map(p=>"<code>"+esc(sh(p.url))+"</code> — "+p.emptyHeadings.map(level=>"H"+level).join(", ")),
+    steps:["Ouvrir la page et repérer les blocs Titre sans texte.","Supprimer le bloc s'il ne sert qu'à créer un espace; utiliser plutôt les marges du bloc ou de la section.","S'il annonce une vraie section, lui donner un titre descriptif."],effort:"~3 min / page",gain:"accessibilité + structure"});
+  if(skippedHeadingPages.length) issues.push({sev:"info",cat:"structure",title:skippedHeadingPages.length+" page(s) sautent un niveau dans la hiérarchie des titres",
+    body:"Passer directement d'un H2 à un H4 donne l'impression qu'un niveau de section manque. Ce n'est pas toujours une erreur SEO grave, mais une hiérarchie continue est plus claire pour les visiteurs, les lecteurs d'écran et les moteurs.",
+    where:skippedHeadingPages.slice(0,15).flatMap(p=>(p.headingSkips||[]).slice(0,3).map(x=>"<code>"+esc(sh(p.url))+"</code> — H"+x.from+" → H"+x.to+" devant « "+esc(x.text)+" »")),
+    steps:["Relire les titres comme un plan de document.","Conserver un seul H1, puis utiliser H2 pour les grandes sections et H3 pour leurs sous-sections.","Changer seulement le niveau HTML; garder l'apparence avec les réglages de style."],effort:"5-15 min / page",gain:"clarté + accessibilité"});
+
   // ---- Images ----
   const imgPages=[]; let contentTotal=0, contentBad=0, techCount=0, decoCount=0;
   for(const p of pages){
@@ -668,12 +679,34 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
     if(bad.length) imgPages.push({url:p.url, files:[...new Set(bad)]});
   }
   const uniqFiles = new Set(imgPages.flatMap(g=>g.files));
+  const strictAltPages=pages.map(p=>{
+    const audited=(p.images||[]).filter(im=>im.cls!=="tech");
+    const flagged=audited.filter(im=>im.alt===null||im.alt==="");
+    return {page:p,total:audited.length,flagged,content:flagged.filter(im=>im.cls==="content").length,deco:flagged.filter(im=>im.cls==="deco").length,tech:0};
+  }).filter(x=>x.flagged.length);
+  const strictAltMissing=strictAltPages.reduce((sum,x)=>sum+x.flagged.length,0);
+  if(strictAltMissing>0) issues.push({sev:"info",cat:"images",title:"Contrôle ALT strict : "+strictAltMissing+" image(s) ont un attribut absent ou vide",
+    body:"Ce contrôle reproduit la lecture stricte de SEOptimer : toute image visuelle sans texte ALT, y compris <code>alt=\"\"</code>, est affichée; les pixels de suivi techniques sont exclus. Paparmane ajoute ensuite le contexte : un ALT vide est correct pour une image purement décorative, tandis qu'une vraie photo de contenu doit être décrite. Seules les vraies photos manquantes réduisent le score SEO.",
+    where:strictAltPages.slice(0,20).map(x=>"<a href='"+esc(x.page.url)+"' target='_blank'>"+esc(sh(x.page.url))+"</a> — <b>"+x.flagged.length+"/"+x.total+" signalée(s)</b> · "+x.content+" contenu · "+x.deco+" décorative(s) · "+x.tech+" technique(s) · "+x.flagged.slice(0,8).map(im=>"<code>"+esc(im.file)+"</code>").join(", ")+(x.flagged.length>8?"…":"")),
+    steps:["Ouvrir chaque page et repérer les fichiers signalés.","Pour une photo qui apporte de l'information, écrire un ALT court qui décrit ce qu'on voit.","Pour une décoration, conserver <code>alt=\"\"</code>; pour un pixel de suivi, ne pas inventer de description.","Vérifier ensuite la ligne « photos de contenu » : c'est elle qui indique les corrections réellement nécessaires."],effort:"2 min / vraie photo",gain:"SEO Images + accessibilité"});
   if(contentBad>0) issues.push({sev: contentBad>=15?"crit":"warn", cat:"images", title:uniqFiles.size+" photo(s) invisibles pour Google Images",
     body:"Google lit la <b>description texte</b> d'une image (le « texte alternatif »), pas l'image elle-même. Sans elle, ces photos n'apparaîtront jamais dans Google Images. Note : notre robot a trié — les images techniques ("+techCount+") et décoratives ("+decoCount+") sont exclues, il ne reste que les vraies photos de contenu.",
     where:imgPages.slice(0,10).map(g=>"<a href='"+esc(g.url)+"' target='_blank'>"+esc(sh(g.url))+"</a> — <b>"+g.files.length+" photo(s)</b>"),
     steps: isWP?["Aller dans <b>WordPress → Médias → Bibliothèque</b>.","Chercher chaque fichier (liste complète en bas du rapport).","Remplir <b>Texte alternatif</b> : décrire ce qu'on voit, en une phrase naturelle, avec le lieu si pertinent.","Éviter « photo » ou « IMG_1234 » : écrire par ex. « Intérieur de la yourte avec poêle à bois, en hiver »."]
     :["Ouvrir le code HTML de chaque page listée.","Sur chaque balise <code>&lt;img&gt;</code> concernée, ajouter <code>alt=\"…\"</code>.","Décrire ce que montre l'image, en une phrase naturelle."],
     effort:"~2 min / photo", gain:"élevé (Google Images + accessibilité)"});
+
+  const webImages=pages.flatMap(p=>(p.images||[]).filter(im=>im.cls!=="tech").map(im=>({page:p,...im})));
+  const hasImageDimensions=im=>Number.parseInt(im.width,10)>0&&Number.parseInt(im.height,10)>0;
+  const imagesMissingDimensions=webImages.filter(im=>!hasImageDimensions(im));
+  const dimensionPages=pages.map(p=>({page:p,missing:(p.images||[]).filter(im=>im.cls!=="tech"&&!hasImageDimensions(im))})).filter(x=>x.missing.length);
+  const formatKnown=webImages.filter(im=>/^(?:avif|webp|jpe?g|png|gif)$/i.test(im.format||""));
+  const modernImages=formatKnown.filter(im=>im.modern);
+  const lazyImages=webImages.filter(im=>im.loading==="lazy");
+  if(imagesMissingDimensions.length) issues.push({sev:"info",cat:"qualite",title:imagesMissingDimensions.length+" image(s) n'annoncent pas leurs dimensions dans le HTML",
+    body:"Les attributs <code>width</code> et <code>height</code> permettent au navigateur de réserver l'espace avant le téléchargement. Sans eux, la mise en page peut bouger pendant le chargement — un signal lié à la stabilité visuelle.",
+    where:dimensionPages.slice(0,15).map(x=>"<code>"+esc(sh(x.page.url))+"</code> — "+x.missing.length+" image(s), dont "+x.missing.slice(0,3).map(im=>esc(im.file)).join(", ")),
+    steps:[isWP?"Vérifier que les images sont insérées avec les blocs WordPress natifs et qu'un plugin d'optimisation ne retire pas leurs dimensions.":"Ajouter les dimensions intrinsèques sur chaque balise, par exemple <code>width=\"1200\" height=\"800\"</code>.","Conserver un CSS responsive comme <code>max-width:100%; height:auto</code>.","Confirmer ensuite la stabilité avec PageSpeed Insights et la métrique CLS."],effort:"30-90 min / modèle",gain:"stabilité visuelle"});
 
   // ---- Meta descriptions manquantes / longueurs ----
   const noDesc = pages.filter(p=>!p.desc);
@@ -723,11 +756,48 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
     steps:["Remplacer chaque lien par son adresse finale (colonne de droite)."],
     effort:"~2 min / lien", gain:"faible"});
 
+  const crawlKey=value=>{try{const u=new URL(value,origin);u.hash="";u.search="";if(u.pathname!=="/")u.pathname=u.pathname.replace(/\/+$/,"");return u.origin+u.pathname;}catch{return "";}};
+  const auditedKeys=new Map(pages.map(p=>[crawlKey(p.finalUrl||p.url),p]));
+  const inbound=new Map([...auditedKeys.keys()].map(key=>[key,0]));
+  for(const p of pages){
+    const targets=new Set((p.links||[]).map(crawlKey).filter(key=>key&&auditedKeys.has(key)&&key!==crawlKey(p.finalUrl||p.url)));
+    for(const key of targets) inbound.set(key,(inbound.get(key)||0)+1);
+  }
+  const orphanPages=pages.filter(p=>{
+    const key=crawlKey(p.finalUrl||p.url);
+    try{if(new URL(p.finalUrl||p.url).pathname.replace(/\/+$/,"")==="")return false;}catch{}
+    return !isUtilityPage(p)&&!p.indexability?.noindex&&(inbound.get(key)||0)===0;
+  });
+  if(orphanPages.length) issues.push({sev:"warn",cat:"liens",title:orphanPages.length+" page(s) du sitemap semblent orphelines",
+    body:"Ces pages ont été découvertes dans le sitemap, mais aucune autre page auditée ne pointe vers elles. Google peut les trouver, mais elles reçoivent peu de contexte et d'autorité interne — et les visiteurs ont du mal à les atteindre.",
+    where:orphanPages.slice(0,20).map(p=>"<a href='"+esc(p.url)+"' target='_blank'>"+esc(sh(p.url))+"</a> — 0 lien entrant interne détecté"),
+    steps:["Confirmer que la page doit rester publique et indexable.","Ajouter au moins un lien descriptif depuis une page proche du même sujet.","Pour une page stratégique, ajouter plusieurs liens contextuels depuis l'accueil, une catégorie ou des articles connexes.","Si la page n'a plus d'utilité, la retirer du sitemap et la rediriger vers l'alternative pertinente."],effort:"10-30 min / page",gain:"exploration + autorité interne"});
+
   // ---- Fondations ----
   const noCanon = pages.filter(p=>!p.canonical);
+  const canonicalMismatch = pages.filter(p=>p.canonical&&p.canonicalMatches===false);
+  const noindexPages = pages.filter(p=>p.indexability?.noindex);
+  const nofollowPages = pages.filter(p=>p.indexability?.nofollow);
+  const searchBlocked = !!disc.robots?.searchBlocked;
   const noViewport = pages.filter(p=>!p.viewport);
   const noLang = pages.filter(p=>!p.lang);
   const noHttps = pages.filter(p=>!p.https);
+  if(searchBlocked) issues.push({sev:"crit",cat:"indexation",title:"Le fichier robots.txt bloque l'ensemble du site pour les moteurs",
+    body:"La directive <code>User-agent: * / Disallow: /</code> empêche Google et les autres moteurs d'explorer toutes les pages. C'est un blocage d'indexation majeur, sauf s'il s'agit volontairement d'un environnement privé.",
+    where:["<code>"+esc(origin)+"/robots.txt</code> — blocage global détecté"],
+    steps:["Confirmer que le site doit être public.","Retirer <code>Disallow: /</code> du groupe <code>User-agent: *</code> ou remplacer cette règle par des exclusions ciblées.","Tester le fichier, puis demander une nouvelle exploration dans Google Search Console."],effort:"10 min",gain:"critique"});
+  if(noindexPages.length) issues.push({sev:"crit",cat:"indexation",title:noindexPages.length+" page(s) du sitemap demandent de ne pas être indexées",
+    body:"Ces URL sont annoncées dans le sitemap tout en envoyant <code>noindex</code> par balise META ou par en-tête HTTP <code>X-Robots-Tag</code>. Les deux consignes se contredisent et Google finira normalement par retirer ces pages de ses résultats.",
+    where:noindexPages.slice(0,20).map(p=>"<code>"+esc(sh(p.url))+"</code> — "+(p.indexability.xRobotsTag?"en-tête X-Robots-Tag : "+esc(p.indexability.xRobotsTag):"balise robots : "+esc(p.indexability.robotsDirectives||"noindex"))),
+    steps:["Décider si chaque page doit apparaître dans Google.","Si oui, retirer <code>noindex</code> dans l'extension SEO, le modèle ou l'en-tête serveur.","Si non, la retirer du sitemap et éviter de la présenter comme page stratégique.","Relancer l'audit après purge du cache WordPress/CDN."],effort:"5-20 min / page",gain:"indexation"});
+  if(nofollowPages.length) issues.push({sev:"warn",cat:"indexation",title:nofollowPages.length+" page(s) demandent aux moteurs de ne suivre aucun lien",
+    body:"La directive <code>nofollow</code> au niveau de la page coupe le chemin d'exploration de tous ses liens. Sur une page publique normale, elle peut empêcher Google de découvrir ou de renforcer les destinations internes.",
+    where:nofollowPages.slice(0,20).map(p=>"<code>"+esc(sh(p.url))+"</code> — "+esc(p.indexability.xRobotsTag||p.indexability.robotsDirectives||"nofollow")),
+    steps:["Vérifier le réglage avancé Robots dans l'extension SEO.","Retirer <code>nofollow</code> si la page fait partie de la navigation publique.","Pour un lien particulier à ne pas cautionner, appliquer plutôt <code>rel=\"nofollow\"</code> uniquement à ce lien."],effort:"5 min / page",gain:"exploration interne"});
+  if(canonicalMismatch.length) issues.push({sev:"warn",cat:"indexation",title:canonicalMismatch.length+" page(s) déclarent une autre URL comme version officielle",
+    body:"La balise canonique ne correspond pas à l'adresse auditée. Cela peut être volontaire pour une copie, mais sur une page du sitemap cela demande à Google d'indexer une autre URL.",
+    where:canonicalMismatch.slice(0,20).map(p=>"<code>"+esc(sh(p.url))+"</code> → canonique <code>"+esc(p.canonical)+"</code>"),
+    steps:["Confirmer quelle URL doit réellement être indexée.","Si la page est unique, utiliser une canonique auto-référente vers son URL finale HTTPS.","Si c'est une copie volontaire, retirer la copie du sitemap et lier la version canonique."],effort:"10 min / page",gain:"indexation + consolidation"});
   if(noHttps.length) issues.push({sev:"crit",cat:"fondations",title:"Le site n'est pas (entièrement) en HTTPS",
     body:"Google pénalise les sites non sécurisés et les navigateurs affichent un avertissement.",
     where:noHttps.map(p=>"<code>"+esc(sh(p.url))+"</code>"),
@@ -744,6 +814,45 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
     body:"Le sitemap aide Google à découvrir toutes les pages. Sans lui, certaines pages peuvent rester invisibles.",
     where:["<code>"+esc(origin)+"/sitemap.xml</code> — introuvable"],
     steps:[isWP?"Activer le sitemap dans l'extension SEO (Yoast : réglé par défaut).":"Générer un sitemap.xml et le déposer à la racine du site.","Le déclarer dans robots.txt et dans Google Search Console."], effort:"30 min", gain:"moyen"});
+
+  // ---- Qualité web et signaux techniques observables sans donnée payante ----
+  const measuredResponses=pages.filter(p=>Number.isFinite(p.response?.elapsedMs)&&p.response.elapsedMs>0);
+  const avgResponseMs=measuredResponses.length?Math.round(measuredResponses.reduce((sum,p)=>sum+p.response.elapsedMs,0)/measuredResponses.length):null;
+  const slowPages=measuredResponses.filter(p=>p.response.elapsedMs>=1500);
+  const compressedPages=pages.filter(p=>/\b(?:br|gzip|deflate|zstd)\b/i.test(p.response?.contentEncoding||""));
+  const uncompressedLargePages=pages.filter(p=>(p.sizeKB||0)>=80&&!p.response?.contentEncoding);
+  const resourceHeavyPages=pages.filter(p=>(p.resources?.total||0)>=100);
+  const iframeMissingPages=pages.filter(p=>(p.iframes?.missingTitle||0)>0);
+  const obsoletePages=pages.filter(p=>(p.obsoleteElements||0)>0);
+  const homepage=pages.find(p=>{try{return new URL(p.finalUrl||p.url).pathname.replace(/\/+$/,"")==="";}catch{return false;}})||pages[0];
+  const faviconReady=!!(homepage?.faviconDeclared||disc.favicon?.fallbackExists);
+  const analyticsTools=[...new Set(pages.flatMap(p=>p.analytics||[]))];
+  const hreflangLinks=pages.reduce((sum,p)=>sum+(p.hreflang||[]).length,0);
+  const inlineStyleCount=pages.reduce((sum,p)=>sum+(p.inlineStyles||0),0);
+  if(slowPages.length>=Math.max(2,Math.ceil(measuredResponses.length*.2))) issues.push({sev:"info",cat:"qualite",title:slowPages.length+" page(s) ont répondu lentement au robot d'audit",
+    body:"Paparmane a attendu au moins 1,5 seconde avant de recevoir et lire la réponse HTML de ces pages. C'est un indicateur réseau ponctuel — pas un Core Web Vital — mais il aide à repérer un serveur, un cache ou une page dynamique à examiner.",
+    where:slowPages.slice(0,15).map(p=>"<code>"+esc(sh(p.url))+"</code> — "+p.response.elapsedMs+" ms"),
+    steps:["Tester les mêmes URL dans PageSpeed Insights à plusieurs moments.","Vérifier le cache pleine page, le CDN, les requêtes WordPress lentes et la taille du HTML.","Ne conclure à un problème serveur que si plusieurs mesures indépendantes restent lentes."],effort:"1-3 h de diagnostic",gain:"vitesse"});
+  if(uncompressedLargePages.length>=Math.max(2,Math.ceil(pages.length*.5))) issues.push({sev:"info",cat:"qualite",title:uncompressedLargePages.length+" réponses HTML volumineuses ne déclarent aucune compression",
+    body:"Aucun en-tête <code>Content-Encoding</code> n'a été observé sur ces pages de 80 Ko ou plus. Gzip ou Brotli réduit habituellement le transfert du HTML, du CSS et du JavaScript.",
+    where:uncompressedLargePages.slice(0,15).map(p=>"<code>"+esc(sh(p.url))+"</code> — "+p.sizeKB+" Ko HTML"),
+    steps:["Vérifier les en-têtes avec l'hébergeur ou le CDN.","Activer Brotli ou gzip pour HTML, CSS, JavaScript, SVG et JSON.","Purger le cache puis confirmer avec PageSpeed Insights ou WebPageTest."],effort:"30-60 min",gain:"transfert plus léger"});
+  if(resourceHeavyPages.length) issues.push({sev:"info",cat:"qualite",title:resourceHeavyPages.length+" page(s) déclarent au moins 100 ressources dans leur HTML",
+    body:"Paparmane additionne les scripts, feuilles de style, images et iFrames visibles dans le code source. Ce n'est pas encore le poids complet après rendu, mais un nombre élevé annonce souvent trop d'extensions, de variantes ou de dépendances.",
+    where:resourceHeavyPages.slice(0,15).map(p=>"<code>"+esc(sh(p.url))+"</code> — "+p.resources.total+" ressources ("+p.resources.scripts+" JS, "+p.resources.stylesheets+" CSS, "+p.resources.images+" images, "+p.resources.iframes+" iFrames)"),
+    steps:["Mesurer la cascade complète dans PageSpeed Insights ou WebPageTest.","Retirer les extensions et scripts inutiles sur ce modèle de page.","Charger les composants lourds seulement sur les pages qui les utilisent."],effort:"2-6 h",gain:"vitesse + stabilité"});
+  if(iframeMissingPages.length) issues.push({sev:"info",cat:"qualite",title:iframeMissingPages.length+" page(s) contiennent une iFrame sans titre accessible",
+    body:"Une iFrame peut être légitime (carte, vidéo, réservation), mais elle doit avoir un attribut <code>title</code> qui explique son contenu aux personnes utilisant un lecteur d'écran.",
+    where:iframeMissingPages.slice(0,15).map(p=>"<code>"+esc(sh(p.url))+"</code> — "+p.iframes.missingTitle+" iFrame(s) sans titre sur "+p.iframes.total),
+    steps:["Identifier chaque intégration concernée.","Ajouter un titre descriptif, par exemple <code>title=\"Carte pour se rendre aux Côteaux Missisquoi\"</code>.","Ne pas supprimer une iFrame utile uniquement pour faire disparaître l'alerte."],effort:"5 min / iFrame",gain:"accessibilité"});
+  if(!faviconReady) issues.push({sev:"info",cat:"qualite",title:"Aucun favicon déclaré ou servi à la racine",
+    body:"Le favicon aide à reconnaître le site dans les onglets, les favoris et certains résultats mobiles. Paparmane a vérifié la déclaration HTML et l'adresse conventionnelle <code>/favicon.ico</code>.",
+    where:["Accueil — aucune balise <code>rel=\"icon\"</code> et aucun fichier image valide à <code>"+esc(origin)+"/favicon.ico</code>"],
+    steps:["Créer une icône carrée lisible en petite taille.","La déclarer dans le <code>&lt;head&gt;</code> avec <code>rel=\"icon\"</code> et fournir idéalement plusieurs tailles.",isWP?"Dans WordPress : Apparence → Personnaliser → Identité du site → Icône du site.":"Vérifier son affichage après purge du cache."],effort:"15 min",gain:"image de marque"});
+  if(obsoletePages.length) issues.push({sev:"info",cat:"qualite",title:obsoletePages.length+" page(s) utilisent encore des éléments HTML obsolètes",
+    body:"Des balises comme <code>&lt;font&gt;</code> ou <code>&lt;center&gt;</code> appartiennent à d'anciens standards. Elles compliquent l'entretien et peuvent produire un rendu moins prévisible.",
+    where:obsoletePages.slice(0,15).map(p=>"<code>"+esc(sh(p.url))+"</code> — "+p.obsoleteElements+" élément(s)"),
+    steps:["Repérer le modèle ou le bloc qui génère ces balises.","Remplacer la présentation HTML par des styles CSS.","Valider le modèle sur mobile après la correction."],effort:"30-90 min / modèle",gain:"qualité technique"});
 
   // ---- Open Graph ----
   const noOg = pages.filter(p=>!(p.og&&p.og.title&&p.og.image));
@@ -877,13 +986,22 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   if(dead.length===0&&linkResults.length) wins.push(["Aucun lien interne brisé",linkResults.length+" liens vérifiés."]);
   if(deadPages.length===0) wins.push(["Toutes les pages répondent",pages.length+"/"+pagesAll.length+" en code 200."]);
   if(noCanon.length===0) wins.push(["URL canoniques","pas de duplicata technique."]);
+  if(!searchBlocked&&noindexPages.length===0) wins.push(["Pages indexables","aucun blocage global ou noindex dans le sitemap."]);
+  if(orphanPages.length===0) wins.push(["Maillage interne","chaque page publique du sitemap reçoit au moins un lien interne."]);
   if(noOg.length===0) wins.push(["Aperçu de partage complet","belle vignette sur les réseaux."]);
   if(dupT.length===0&&pages.every(p=>p.title)) wins.push(["Titres uniques","chaque page a son propre titre."]);
+  if(contentBad===0) wins.push(["ALT des vraies photos","toutes les images de contenu sont décrites; les décorations muettes sont exclues."]);
+  if(imagesMissingDimensions.length===0&&webImages.length) wins.push(["Dimensions d'images","espace réservé pour chaque image non technique."]);
+  if(!iframeMissingPages.length) wins.push(["iFrames accessibles","toutes les intégrations détectées possèdent un titre, ou aucune iFrame n'est utilisée."]);
+  if(faviconReady) wins.push(["Favicon présent","identité visuelle déclarée ou servie à la racine."]);
   const avgWords = Math.round(pages.reduce((a,p)=>a+(p.words||0),0)/n);
   if(avgWords>500) wins.push(["Contenu substantiel","~"+avgWords+" mots par page en moyenne."]);
 
   // ---- Scores ----
   const ratio=(bad,tot)=>tot?1-bad/tot:1;
+  const iframeTotal=pages.reduce((sum,p)=>sum+(p.iframes?.total||0),0);
+  const iframeMissingTotal=pages.reduce((sum,p)=>sum+(p.iframes?.missingTitle||0),0);
+  const homepageBlocked=!!homepage?.indexability?.noindex;
   const scores = {
     fondations: Math.round(100*( (pages.every(p=>p.https)?0.3:0) + 0.2*ratio(noViewport.length,n) + 0.1*ratio(noLang.length,n) + 0.2*ratio(noCanon.length,n) + (disc.sitemapFound?0.2:0.05) )/1*100)/100,
     balises: Math.round(100*(0.5*ratio(pages.filter(p=>!p.title||p.titleLen>60||dupT.some(g=>g.includes(p))).length,n) + 0.5*ratio(pages.filter(p=>!p.desc||p.descLen>165||dupD.some(g=>g.includes(p))).length,n))),
@@ -897,10 +1015,12 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
       .2*(identityReady?1:0)
     )))),
     ia: Math.max(0,Math.round(100 - majorBlocked.length*11 - (!identityReady?18:0) - (disc.llms?.exists? (llmsLinkResults.some(r=>r.status>=400||r.finalUrl.replace(/\/$/,"")===origin&&r.url.replace(/\/$/,"")!==origin)?18:0) : 12))),
-    liens: Math.round(100*ratio(dead.length+deadPages.filter(p=>!p.transient).length*2, Math.max(1,linkResults.length+pagesAll.length)))
+    liens: Math.round(100*ratio(dead.length+deadPages.filter(p=>!p.transient).length*2+orphanPages.length*.5, Math.max(1,linkResults.length+pagesAll.length))),
+    indexation: searchBlocked||homepageBlocked?0:Math.max(0,Math.round(100-noindexPages.length/Math.max(1,n)*80-nofollowPages.length/Math.max(1,n)*15-canonicalMismatch.length/Math.max(1,n)*20)),
+    qualite: Math.round(100*(.55*ratio(imagesMissingDimensions.length,webImages.length)+.2*ratio(iframeMissingTotal,iframeTotal)+.15*ratio(obsoletePages.length,n)+.1*(faviconReady?1:0)))
   };
   scores.fondations = Math.max(0,Math.min(100,scores.fondations));
-  const W={fondations:.13,balises:.17,structure:.08,images:.12,social:.04,schema:.1,ia:.14,keywords:.12,liens:.1};
+  const W={fondations:.11,balises:.14,structure:.07,images:.09,social:.03,schema:.09,ia:.12,keywords:.10,liens:.07,indexation:.11,qualite:.07};
   const global = Math.round(Object.entries(W).reduce((a,[k,w])=>a+scores[k]*w,0)/Object.values(W).reduce((a,b)=>a+b,0));
 
   const order={crit:0,warn:1,info:2};
@@ -924,12 +1044,23 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
     hasForm:pages.some(p=>p.contact?.hasForm),
     ctas:[...new Set(pages.flatMap(p=>p.contact?.ctas||[]))].slice(0,15),
   };
-  const pagesNeedingWork=pages.filter(p=>!p.title||p.titleLen>60||!p.desc||p.descLen>165||p.h1Count!==1||!p.viewport||(p.images||[]).some(im=>im.cls==="content"&&(im.alt===null||im.alt===""))||!p.schemaTypes?.length||p.schema?.invalidBlocks||p.schema?.problems?.length).length;
+  const pagesNeedingWork=pages.filter(p=>!p.title||p.titleLen>60||!p.desc||p.descLen>165||p.h1Count!==1||!p.viewport||p.indexability?.noindex||p.canonicalMatches===false||(p.images||[]).some(im=>im.cls==="content"&&(im.alt===null||im.alt===""))||!p.schemaTypes?.length||p.schema?.invalidBlocks||p.schema?.problems?.length).length;
   const quickWins=issues.filter(i=>/\b(?:3|5|10|15|20|30) min|~(?:3|5|10|15|20|30) min/i.test(i.effort||"")).length;
   const proofCount=issues.reduce((sum,i)=>sum+(i.where?.length||0),0);
   const opportunityScore=Math.max(0,Math.min(100,Math.round((100-global)*1.05+counts.crit*4+counts.warn*1.5)));
-  const auditMeta={scoreVersion:"2.3",requested:pagesAll.length,successful:pages.length,transient:transientPages.length,confidence:transientPages.length?"provisoire":"élevée",conclusive:true};
-  return {origin, disc, pages, keywordPages, deadPages, issues, wins, scores, global, imgPages, uniqFiles, isWP, aiReadiness, siteKeywords, cannibalization, targetMap, clientName:options.clientName||"",contactName:options.contactName||"",publicContacts,pagesNeedingWork,quickWins,proofCount,opportunityScore,schemaAudit:{inventory:schemaInventory,expectedMissing,entityNames,entityIds},auditMeta,
+  const auditMeta={scoreVersion:"2.4",requested:pagesAll.length,successful:pages.length,transient:transientPages.length,confidence:transientPages.length?"provisoire":"élevée",conclusive:true};
+  const avgResources=pages.length?Math.round(pages.reduce((sum,p)=>sum+(p.resources?.total||0),0)/pages.length):0;
+  const homepageStrictImages=(homepage?.images||[]).filter(im=>im.cls!=="tech");
+  const homepageStrictMissing=homepageStrictImages.filter(im=>im.alt===null||im.alt==="").length;
+  const advancedAudit={
+    indexable:pages.length-noindexPages.length,searchBlocked,noindex:noindexPages.length,nofollow:nofollowPages.length,canonicalMismatch:canonicalMismatch.length,
+    emptyHeadings:emptyHeadingPages.length,headingSkips:skippedHeadingPages.length,
+    strictAltMissing,strictAltPages:strictAltPages.length,homepageStrictMissing,homepageStrictTotal:homepageStrictImages.length,images:webImages.length,dimensionCoverage:webImages.length?Math.round(100*(1-imagesMissingDimensions.length/webImages.length)):100,
+    modernCoverage:formatKnown.length?Math.round(100*modernImages.length/formatKnown.length):null,lazyCoverage:webImages.length?Math.round(100*lazyImages.length/webImages.length):null,
+    avgResponseMs,slowPages:slowPages.length,compressedPages:compressedPages.length,avgResources,heavyPages:resourceHeavyPages.length,
+    orphanPages:orphanPages.length,iframeTotal,iframeMissing:iframeMissingTotal,faviconReady,analyticsTools,hreflangLinks,inlineStyleCount,obsoletePages:obsoletePages.length,
+  };
+  return {origin, disc, pages, keywordPages, deadPages, issues, wins, scores, global, imgPages, uniqFiles, isWP, aiReadiness, siteKeywords, cannibalization, targetMap, clientName:options.clientName||"",contactName:options.contactName||"",publicContacts,pagesNeedingWork,quickWins,proofCount,opportunityScore,schemaAudit:{inventory:schemaInventory,expectedMissing,entityNames,entityIds},advancedAudit,auditMeta,
           counts,
           linksChecked: linkResults.length};
 }
@@ -989,6 +1120,7 @@ function renderReport(m){
   const brokenCount=m.issues.filter(i=>i.cat==="liens"&&i.sev==="crit").length;
   const observedKeywordCount=m.siteKeywords.length;
   const targetCovered=m.targetMap.filter(x=>x.covered).length;
+  const advanced=m.advancedAudit||{};
   const traffic=m.disc.traffic||{};
   const trafficUnavailable=(()=>{
     if(traffic.reason==="server_protection_missing") return ["Activer la protection privée du module trafic","configuration Paparmane requise","bad"];
@@ -1007,6 +1139,8 @@ function renderReport(m){
     ["Données structurées",m.scores.schema+"/100",schemaCovered+" page(s) balisée(s) · "+m.schemaAudit.expectedMissing.length+" suggestion(s)","Schema Studio",scoreClass(m.scores.schema)],
     ["Préparation IA",m.scores.ia+"/100",aiBlocked+" robot(s) explicitement bloqué(s)","technique — pas des mentions",scoreClass(m.scores.ia)],
     ["Liens",m.scores.liens+"/100",m.linksChecked+" vérifiés · "+brokenCount+" groupe(s) critique(s)","échantillon déterministe",scoreClass(m.scores.liens)],
+    ["Indexabilité",m.scores.indexation+"/100",advanced.indexable+"/"+m.pages.length+" pages indexables","META + en-têtes HTTP",scoreClass(m.scores.indexation)],
+    ["ALT strict — accueil",(advanced.homepageStrictMissing||0)+"/"+(advanced.homepageStrictTotal||0),(advanced.homepageStrictMissing||0)+" ALT absent(s) ou vide(s) sur l'accueil · pixels techniques exclus","contrôle compatible SEOptimer",advanced.homepageStrictMissing?"warn":"good"],
     ["Trafic organique",traffic.available?traffic.organic.toLocaleString("fr-CA"):"—",traffic.available?"visites mensuelles organiques estimées · Canada":trafficUnavailable[0],traffic.available?"estimation DataForSEO":trafficUnavailable[1],traffic.available?"good":trafficUnavailable[2]],
     ["Trafic payant",traffic.available?traffic.paid.toLocaleString("fr-CA"):"—",traffic.available?"visites mensuelles payantes estimées · Canada":trafficUnavailable[0],traffic.available?"estimation DataForSEO":trafficUnavailable[1],traffic.available&&traffic.paid>0?"warn":trafficUnavailable[2]],
     ["Backlinks","—","Nécessite une base de liens externe","non mesuré",""],
@@ -1014,8 +1148,20 @@ function renderReport(m){
     ["Évolution",delta===null?"—":(delta>0?"+":"")+delta,delta===null?"Un deuxième audit fiable activera la comparaison":"points depuis le dernier audit","historique local",delta>0?"good":delta<0?"bad":""],
   ];
 
+  const advancedCards=[
+    ["Indexation",advanced.indexable+"/"+m.pages.length,(advanced.searchBlocked?"robots.txt bloque le site · ":"")+(advanced.noindex||0)+" noindex · "+(advanced.canonicalMismatch||0)+" canonique(s) divergente(s)",m.scores.indexation],
+    ["Attributs ALT — test strict",(advanced.strictAltMissing||0)+" signalée(s)",(advanced.strictAltPages||0)+" page(s) · inclut les ALT vides décoratifs; seules les photos de contenu sont pénalisées",m.scores.images],
+    ["Plan des titres H1–H6",(advanced.emptyHeadings||0)+(advanced.headingSkips||0)+" alerte(s)",(advanced.emptyHeadings||0)+" page(s) avec titre vide · "+(advanced.headingSkips||0)+" avec saut de niveau",m.scores.structure],
+    ["Images Web",(advanced.dimensionCoverage??100)+"% dimensions","formats modernes "+(advanced.modernCoverage==null?"non déterminés":advanced.modernCoverage+"%")+" · chargement différé "+(advanced.lazyCoverage==null?"non déterminé":advanced.lazyCoverage+"%"),m.scores.qualite],
+    ["Réponse et ressources",advanced.avgResponseMs?advanced.avgResponseMs+" ms":"—","moyenne du crawl · "+(advanced.avgResources||0)+" ressources HTML/page · "+(advanced.compressedPages||0)+" réponse(s) compressée(s)",advanced.slowPages?65:90],
+    ["Maillage interne",(advanced.orphanPages||0)+" orpheline(s)",advanced.orphanPages?"pages du sitemap sans lien entrant détecté":"toutes les pages publiques reçoivent un lien",advanced.orphanPages?55:100],
+    ["iFrames et favicon",(advanced.iframeMissing||0)+" iFrame(s) sans titre",(advanced.iframeTotal||0)+" iFrame(s) · favicon "+(advanced.faviconReady?"présent":"absent"),m.scores.qualite],
+    ["Mesure et international",advanced.analyticsTools?.length?advanced.analyticsTools.join(" + "):"aucun outil détecté",(advanced.hreflangLinks||0)+" lien(s) hreflang · "+(advanced.inlineStyleCount||0)+" style(s) en ligne",""],
+  ];
+
   const catRows = [
     ["Fondations techniques","HTTPS, mobile, plan de site","fondations"],
+    ["Indexation","robots, noindex, canoniques","indexation"],
     ["Balises & descriptions","ce que Google affiche","balises"],
     ["Structure des titres","hiérarchie H1/H2","structure"],
     ["Images","descriptions pour Google","images"],
@@ -1024,6 +1170,7 @@ function renderReport(m){
     ["Données structurées","fiches enrichies Google","schema"],
     ["Visibilité IA","ChatGPT, Claude, Gemini…","ia"],
     ["Santé des liens","liens brisés, redirections","liens"],
+    ["Qualité web","images, iFrames, HTML","qualite"],
   ].map(([nm,sub,k])=>{
     const v=m.scores[k];
     return `<div class="cat"><div class="cat-name">${nm}<small>${sub}</small></div>
@@ -1058,14 +1205,20 @@ function renderReport(m){
     const tOk = p.title&&p.titleLen<=60&&p.titleLen>=25, dOk=p.desc&&p.descLen<=165;
     const h1Ok = p.h1Count===1;
     const badImgs = (p.images||[]).filter(im=>im.cls==="content"&&(im.alt===null||im.alt==="")).length;
+    const strictImages = (p.images||[]).filter(im=>im.cls!=="tech");
+    const strictAlt = strictImages.filter(im=>im.alt===null||im.alt==="").length;
+    const indexOk = !p.indexability?.noindex&&p.canonicalMatches!==false;
+    const headingAlerts = (p.emptyHeadings||[]).length+(p.headingSkips||[]).length;
     const schemaBad = p.schema?.invalidBlocks||p.schema?.problems?.length;
     const schemaLabel = schemaBad?"Erreur":p.schemaTypes?.length?p.schemaTypes.filter(t=>!GENERIC_SCHEMA.has(t)).slice(0,2).join(", ")||"Générique":"Absent";
     const dotFor = ok=>ok?"ok":"no";
     return `<tr><td class="pg">${esc(sh(p.url))}</td>
       <td class="c"><span class="dot ${p.title?(tOk?"ok":"mid"):"no"}"></span>${p.title?(tOk?"":" "+p.titleLen):" —"}</td>
       <td class="c"><span class="dot ${p.desc?(dOk?"ok":"mid"):"no"}"></span>${p.desc?(dOk?"":" "+p.descLen):" —"}</td>
-      <td class="c"><span class="dot ${dotFor(h1Ok)}"></span> ${p.h1Count}</td>
+      <td class="c"><span class="dot ${dotFor(h1Ok&&!headingAlerts)}"></span> ${p.h1Count}${headingAlerts?" +"+headingAlerts:""}</td>
+      <td class="c"><span class="tag ${indexOk?"ok":"no"}">${indexOk?"Indexable":"À vérifier"}</span></td>
       <td class="c"><span class="tag ${schemaBad?"no":p.schemaTypes?.length?"ok":"mid"}">${esc(schemaLabel)}</span></td>
+      <td class="c"><span class="tag ${strictAlt?"mid":"ok"}">${strictAlt}/${strictImages.length}</span></td>
       <td class="c">${badImgs?`<span class="tag ${badImgs>5?"no":"mid"}">${badImgs}</span>`:`<span class="tag ok">0</span>`}</td>
       <td class="c tnum">${p.words||"—"}</td>
       <td class="c tnum">${p.sizeKB||"—"} Ko</td></tr>`;
@@ -1140,6 +1293,13 @@ function renderReport(m){
       <div class="overview-grid">${overviewCards.map(([label,value,detail,state,cls])=>`<div class="ov"><div class="ov-label">${esc(label)}</div><div class="ov-value ${cls}">${esc(value)}</div><div class="ov-detail">${esc(detail)}</div><span class="ov-state">${esc(state)}</span></div>`).join("")}</div>
     </section>
 
+    <div class="sec-h"><h3>Contrôles techniques avancés</h3><div class="rule"></div></div>
+    <p class="sec-intro">Lecture approfondie inspirée des meilleurs contrôles de SEOptimer, avec la preuve exacte et les nuances nécessaires pour éviter les faux positifs.</p>
+    <div class="ai-grid">${advancedCards.map(([label,value,detail,score])=>`<div class="ai-card">
+      <div class="ai-card-head"><span>${esc(label)}</span><span class="ai-card-score">${esc(value)}</span></div>
+      ${typeof score==="number"?`<div class="track"><div class="fill" style="width:${Math.max(0,Math.min(100,score))}%;background:${barColor(score)}"></div></div>`:""}
+      <p>${esc(detail)}</p></div>`).join("")}</div>
+
     <div class="cats">${catRows}</div>
 
     ${m.previous?`<div class="sec-h"><h3>Évolution depuis le dernier audit</h3><div class="rule"></div></div>
@@ -1199,10 +1359,10 @@ function renderReport(m){
 
     <div class="sec-h"><h3>Détail page par page</h3><span class="cnt">${m.pages.length}</span><div class="rule"></div></div>
     <div class="tbl-wrap"><table>
-      <thead><tr><th>Page</th><th class="c">Titre</th><th class="c">Desc.</th><th class="c">H1</th><th class="c">Schéma</th><th class="c">Photos ✗</th><th class="c">Mots</th><th class="c">Poids</th></tr></thead>
+      <thead><tr><th>Page</th><th class="c">Titre</th><th class="c">Desc.</th><th class="c">Titres</th><th class="c">Index</th><th class="c">Schéma</th><th class="c">ALT strict</th><th class="c">Photos ✗</th><th class="c">Mots</th><th class="c">Poids</th></tr></thead>
       <tbody>${m.pages.map(pgRow).join("")}</tbody>
     </table></div>
-    <div class="legend"><span><span class="dot ok"></span> Conforme</span><span><span class="dot mid"></span> À ajuster (le chiffre = longueur)</span><span><span class="dot no"></span> Manquant / à corriger</span><span>« Photos ✗ » = photos de contenu sans description</span></div>
+    <div class="legend"><span><span class="dot ok"></span> Conforme</span><span><span class="dot mid"></span> À ajuster (le chiffre = longueur)</span><span><span class="dot no"></span> Manquant / à corriger</span><span>« ALT strict » = absent ou vide / total, comme SEOptimer</span><span>« Photos ✗ » = vraies photos de contenu sans description</span></div>
 
     ${m.imgPages.length?`
     <div class="sec-h"><h3>Photos à décrire</h3><span class="cnt">${m.uniqFiles.size} fichiers</span><div class="rule"></div></div>
@@ -1218,7 +1378,7 @@ function renderReport(m){
 
     <div class="note"><b>Méthodologie — score v${esc(m.auditMeta.scoreVersion)}, confiance ${esc(m.auditMeta.confidence)}.</b> Rapport produit par le moteur d'analyse Paparmane :
       ${m.pages.length} pages crawlées, ${m.pages.reduce((a,p)=>a+(p.images||[]).length,0)} images inspectées,
-      ${m.linksChecked} liens vérifiés, robots.txt et llms.txt analysés. Les URL et les liens sont triés avant échantillonnage pour rendre deux audits comparables; les erreurs réseau sont relancées une fois. Les mots-clés sont extraits du contenu du site; aucun volume, coût par clic ou niveau de concurrence n'est inventé. Aucune donnée tierce payante.</div>
+      ${m.linksChecked} liens vérifiés, robots.txt, indexabilité META/HTTP, canoniques, hiérarchie H1–H6, ALT strict et sémantique, ressources HTML, iFrames, favicon, hreflang, données structurées et llms.txt analysés. Les URL et les liens sont triés avant échantillonnage pour rendre deux audits comparables; les erreurs réseau sont relancées une fois. Le temps de réponse est un indicateur ponctuel et ne modifie pas le score. Les mots-clés sont extraits du contenu du site; aucun volume, coût par clic, backlink ou niveau de concurrence n'est inventé. Aucune donnée tierce payante.</div>
 
     <div class="toolbar">
       <button class="btn ghost" onclick="window.print()">Imprimer / PDF client</button>

@@ -48,6 +48,7 @@ function isSafeUrl(u) {
 async function grab(url, { asText = true, cacheBust = false } = {}) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT);
+  const startedAt = Date.now();
   try {
     const requested = new URL(url);
     if (cacheBust) requested.searchParams.set("_paparmane_audit", Date.now().toString());
@@ -62,9 +63,23 @@ async function grab(url, { asText = true, cacheBust = false } = {}) {
       signal: ctrl.signal,
     });
     const body = asText ? await res.text() : "";
-    return { ok: true, status: res.status, finalUrl: res.url, body, redirected: res.redirected };
+    return {
+      ok: true,
+      status: res.status,
+      finalUrl: res.url,
+      body,
+      redirected: res.redirected,
+      elapsedMs: Date.now() - startedAt,
+      headers: {
+        xRobotsTag: res.headers.get("x-robots-tag") || "",
+        contentEncoding: res.headers.get("content-encoding") || "",
+        contentType: res.headers.get("content-type") || "",
+        cacheControl: res.headers.get("cache-control") || "",
+        server: res.headers.get("server") || "",
+      },
+    };
   } catch (e) {
-    return { ok: false, status: 0, finalUrl: url, body: "", redirected: false, error: String(e.message || e) };
+    return { ok: false, status: 0, finalUrl: url, body: "", redirected: false, elapsedMs: Date.now() - startedAt, error: String(e.message || e) };
   } finally { clearTimeout(t); }
 }
 
@@ -138,6 +153,22 @@ function cleanAuditUrl(value) {
 
 function one(re, s) { const m = s.match(re); return m ? decode(m[1].trim()) : null; }
 function all(re, s) { return [...s.matchAll(re)].map(m => m[1]); }
+
+function tagAttr(tag, name) {
+  const safe = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = String(tag || "").match(new RegExp(`(?:^|\\s)${safe}\\s*=\\s*(?:(["'])([\\s\\S]*?)\\1|([^\\s>]+))`, "i"));
+  return match ? decode((match[2] ?? match[3] ?? "").trim()) : null;
+}
+
+function cleanComparableUrl(value) {
+  try {
+    const url = new URL(value);
+    url.hash = "";
+    url.searchParams.delete("_paparmane_audit");
+    if (url.pathname !== "/") url.pathname = url.pathname.replace(/\/+$/, "");
+    return url.href;
+  } catch { return ""; }
+}
 
 function inspectStructuredData(blocks) {
   const types = new Set(), problems = [], entities = [];
@@ -269,14 +300,31 @@ function classifyImg(srcRaw) {
 }
 
 // ---------- MODE: page ----------
-function analyzePage(url, html, finalUrl) {
+function analyzePage(url, html, finalUrl, response = {}) {
   const head = html.slice(0, 200000);
+  const contentHtml = usefulContentHtml(html);
   const title = one(/<title[^>]*>([\s\S]*?)<\/title>/i, head);
   const desc = one(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)/i, head)
             ?? one(/<meta[^>]*content=["']([^"']*)["'][^>]*name=["']description["']/i, head);
 
   const h1 = all(/<h1[^>]*>([\s\S]*?)<\/h1>/gi, html).map(x => decode(strip(x))).filter(Boolean);
   const h2 = all(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, html).map(x => decode(strip(x))).filter(Boolean);
+  const headings = [...contentHtml.matchAll(/<h([1-6])\b([^>]*)>([\s\S]*?)<\/h\1>/gi)]
+    .filter(match => !/\b(?:hidden|aria-hidden\s*=\s*["']?true)|display\s*:\s*none/i.test(match[2] || ""))
+    .map(match => ({ level: Number(match[1]), text: decode(strip(match[3])) }));
+  const headingCounts = [1, 2, 3, 4, 5, 6].reduce((out, level) => {
+    out[level] = headings.filter(item => item.level === level).length;
+    return out;
+  }, {});
+  const emptyHeadings = headings.filter(item => !item.text).map(item => item.level);
+  const headingSkips = [];
+  let previousHeading = null;
+  for (const heading of headings.filter(item => item.text)) {
+    if (previousHeading && heading.level > previousHeading.level + 1) {
+      headingSkips.push({ from: previousHeading.level, to: heading.level, text: heading.text.slice(0, 100) });
+    }
+    previousHeading = heading;
+  }
 
   const imgs = [...html.matchAll(/<img\b[^>]*>/gi)].map(m => m[0]);
   const images = imgs.map(tag => {
@@ -285,13 +333,70 @@ function analyzePage(url, html, finalUrl) {
     const srcset = one(/\b(?:data-srcset|srcset)=["']([^"']+)/i, tag);
     const srcsetFirst = srcset ? srcset.split(",")[0].trim().split(/\s+/)[0] : "";
     const src = lazySrc || (rawSrc && !rawSrc.startsWith("data:") ? rawSrc : "") || srcsetFirst || rawSrc || "";
-    const altM = tag.match(/\balt=(["'])([\s\S]*?)\1/i);
+    const altValue = tagAttr(tag, "alt");
+    const file = (src.split("/").pop() || "?").split("?")[0].slice(0, 90);
+    const extension = (file.match(/\.([a-z0-9]+)$/i)?.[1] || "").toLowerCase();
     return {
-      file: (src.split("/").pop() || "?").split("?")[0].slice(0, 90),
+      src,
+      file,
       cls: classifyImg(src),
-      alt: altM ? altM[2].trim() : null,   // null = pas d'attribut, "" = vide
+      alt: altValue,   // null = pas d'attribut, "" = vide
+      width: tagAttr(tag, "width"),
+      height: tagAttr(tag, "height"),
+      loading: (tagAttr(tag, "loading") || "").toLowerCase(),
+      format: extension || "inconnu",
+      modern: /^(?:webp|avif)$/.test(extension),
     };
   });
+
+  const linkTags = [...head.matchAll(/<link\b[^>]*>/gi)].map(match => match[0]);
+  const hasRel = (tag, value) => (tagAttr(tag, "rel") || "").toLowerCase().split(/\s+/).includes(value);
+  const canonicalRaw = linkTags.find(tag => hasRel(tag, "canonical"));
+  const canonicalHref = canonicalRaw ? tagAttr(canonicalRaw, "href") : null;
+  let canonical = canonicalHref;
+  try { if (canonicalHref) canonical = new URL(canonicalHref, finalUrl).href; } catch { /* signalé par canonicalMatches */ }
+  const canonicalMatches = canonical ? cleanComparableUrl(canonical) === cleanComparableUrl(finalUrl) : null;
+
+  const metaTags = [...head.matchAll(/<meta\b[^>]*>/gi)].map(match => match[0]);
+  const robotsDirectives = metaTags
+    .filter(tag => /^(?:robots|googlebot|bingbot)$/i.test(tagAttr(tag, "name") || ""))
+    .map(tag => tagAttr(tag, "content") || "")
+    .join(", ")
+    .toLowerCase();
+  const xRobotsTag = String(response.headers?.xRobotsTag || "").toLowerCase();
+  const allRobotDirectives = `${robotsDirectives}, ${xRobotsTag}`;
+  const noindex = /(?:^|[\s,])(?:noindex|none)(?:[\s,]|$)/i.test(allRobotDirectives);
+  const nofollow = /(?:^|[\s,])(?:nofollow|none)(?:[\s,]|$)/i.test(allRobotDirectives);
+
+  const hreflang = linkTags
+    .filter(tag => hasRel(tag, "alternate") && tagAttr(tag, "hreflang"))
+    .map(tag => {
+      const href = tagAttr(tag, "href") || "";
+      let resolved = href;
+      try { resolved = new URL(href, finalUrl).href; } catch { /* conserver la preuve brute */ }
+      return { language: tagAttr(tag, "hreflang"), href: resolved };
+    });
+  const faviconDeclared = linkTags.some(tag => hasRel(tag, "icon") || hasRel(tag, "shortcut") || hasRel(tag, "apple-touch-icon"));
+
+  const iframes = [...html.matchAll(/<iframe\b[^>]*>/gi)].map(match => match[0]);
+  const iframeMissingTitle = iframes.filter(tag => !tagAttr(tag, "title")).length;
+  const scripts = [...html.matchAll(/<script\b[^>]*>/gi)].map(match => tagAttr(match[0], "src")).filter(Boolean);
+  const stylesheets = linkTags.filter(tag => hasRel(tag, "stylesheet")).map(tag => tagAttr(tag, "href")).filter(Boolean);
+  const uniqueResource = values => new Set(values.map(value => {
+    try { return new URL(value, finalUrl).href; } catch { return value; }
+  })).size;
+  const resources = {
+    scripts: uniqueResource(scripts),
+    stylesheets: uniqueResource(stylesheets),
+    images: uniqueResource(images.map(image => image.src).filter(Boolean)),
+    iframes: iframes.length,
+  };
+  resources.total = resources.scripts + resources.stylesheets + resources.images + resources.iframes + 1;
+  const analytics = [
+    /googletagmanager\.com\/gtm\.js|\bGTM-[A-Z0-9]+\b/i.test(html) ? "Google Tag Manager" : null,
+    /googletagmanager\.com\/gtag\/js|google-analytics\.com|\bG-[A-Z0-9]{5,}\b/i.test(html) ? "Google Analytics" : null,
+    /matomo\.js|piwik\.js/i.test(html) ? "Matomo" : null,
+  ].filter(Boolean);
 
   const ld = all(/<script[^>]*application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi, html);
   const schema = inspectStructuredData(ld);
@@ -354,10 +459,10 @@ function analyzePage(url, html, finalUrl) {
     https: finalUrl.startsWith("https:"),
     title, titleLen: title ? title.length : 0,
     desc, descLen: desc ? desc.length : 0,
-    canonical: one(/<link[^>]*rel=["']canonical["'][^>]*href=["']([^"']+)/i, head),
+    canonical, canonicalMatches,
     viewport: /name=["']viewport["']/i.test(head),
     lang: one(/<html[^>]*\blang=["']([^"']+)/i, head),
-    h1, h1Count: h1.length, h2Count: h2.length,
+    h1, h1Count: h1.length, h2Count: h2.length, headings, headingCounts, emptyHeadings, headingSkips,
     images, og, schemaTypes, schema, expectedSchema: inferExpectedSchema(finalUrl, title, h1, bodyText),
     isWordPress: /wp-content|wp-json/i.test(html),
     words: bodyText ? bodyText.split(" ").length : 0,
@@ -367,6 +472,20 @@ function analyzePage(url, html, finalUrl) {
     keywordAlignment: { title: inField(title), h1: inField(h1.join(" ")), desc: inField(desc) },
     contact: { emails, phones, socials, hasForm: /<form\b/i.test(html), ctas: [...new Set(ctas)].slice(0, 10) },
     sizeKB: Math.round(html.length / 1024),
+    indexability: { noindex, nofollow, robotsDirectives, xRobotsTag },
+    hreflang,
+    faviconDeclared,
+    iframes: { total: iframes.length, missingTitle: iframeMissingTitle },
+    resources,
+    analytics: [...new Set(analytics)],
+    inlineStyles: (html.match(/\sstyle\s*=\s*["']/gi) || []).length,
+    obsoleteElements: (html.match(/<(?:font|center|marquee|frameset|frame)\b/gi) || []).length,
+    response: {
+      elapsedMs: response.elapsedMs || null,
+      contentEncoding: response.headers?.contentEncoding || "",
+      contentType: response.headers?.contentType || "",
+      cacheControl: response.headers?.cacheControl || "",
+    },
     links,
   };
 }
@@ -431,12 +550,19 @@ async function discover(site) {
   // 1. robots.txt
   const rb = await grab(origin + "/robots.txt");
   const robotsTxt = rb.ok && rb.status === 200 && !/<html/i.test(rb.body.slice(0, 300)) ? rb.body : "";
-  out.robots = { exists: !!robotsTxt };
   const rules = robotsTxt ? parseRobots(robotsTxt) : {};
+  out.robots = { exists: !!robotsTxt, searchBlocked: !!rules["*"]?.disallowAll };
   out.aiBots = AI_BOTS.map(([agent, role, cost]) => {
     const r = rules[agent.toLowerCase()];
     return { agent, role, cost, state: r ? (r.disallowAll ? "blocked" : "allowed") : "default" };
   });
+
+  // Un favicon peut être déclaré dans le HTML ou servi implicitement à la
+  // racine. Ce second cas évite un faux positif dans le rapport client.
+  const favicon = await grab(origin + "/favicon.ico", { asText: false });
+  out.favicon = {
+    fallbackExists: !!(favicon.ok && favicon.status === 200 && /^image\//i.test(favicon.headers?.contentType || "")),
+  };
 
   // 2. sitemaps (déclarés dans robots.txt, sinon /sitemap.xml et /sitemap_index.xml)
   const declared = all(/sitemap:\s*(\S+)/gi, robotsTxt);
@@ -600,7 +726,7 @@ export default async (req) => {
       const r = await grab(url, { cacheBust: true });
       if (!r.ok) return json({ url, dead: true, status: 0, error: r.error });
       if (r.status >= 400) return json({ url, dead: true, status: r.status });
-      return json(analyzePage(url, r.body, cleanAuditUrl(r.finalUrl)));
+      return json(analyzePage(url, r.body, cleanAuditUrl(r.finalUrl), r));
     }
 
     if (mode === "verify" && req.method === "POST") {
