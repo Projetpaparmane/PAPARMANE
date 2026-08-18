@@ -1051,11 +1051,14 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   const auditMeta={scoreVersion:"2.4",requested:pagesAll.length,successful:pages.length,transient:transientPages.length,confidence:transientPages.length?"provisoire":"élevée",conclusive:true};
   const avgResources=pages.length?Math.round(pages.reduce((sum,p)=>sum+(p.resources?.total||0),0)/pages.length):0;
   const homepageStrictImages=(homepage?.images||[]).filter(im=>im.cls!=="tech");
-  const homepageStrictMissing=homepageStrictImages.filter(im=>im.alt===null||im.alt==="").length;
+  const homepageStrictFlagged=homepageStrictImages.filter(im=>im.alt===null||im.alt==="");
+  const homepageStrictMissing=homepageStrictFlagged.length;
+  const homepageContentAltMissing=homepageStrictFlagged.filter(im=>im.cls==="content").length;
+  const homepageDecorativeAltEmpty=homepageStrictFlagged.filter(im=>im.cls==="deco").length;
   const advancedAudit={
     indexable:pages.length-noindexPages.length,searchBlocked,noindex:noindexPages.length,nofollow:nofollowPages.length,canonicalMismatch:canonicalMismatch.length,
     emptyHeadings:emptyHeadingPages.length,headingSkips:skippedHeadingPages.length,
-    strictAltMissing,strictAltPages:strictAltPages.length,homepageStrictMissing,homepageStrictTotal:homepageStrictImages.length,images:webImages.length,dimensionCoverage:webImages.length?Math.round(100*(1-imagesMissingDimensions.length/webImages.length)):100,
+    strictAltMissing,strictAltPages:strictAltPages.length,contentAltMissing:contentBad,decorativeAltEmpty:Math.max(0,strictAltMissing-contentBad),homepageStrictMissing,homepageStrictTotal:homepageStrictImages.length,homepageContentAltMissing,homepageDecorativeAltEmpty,images:webImages.length,dimensionCoverage:webImages.length?Math.round(100*(1-imagesMissingDimensions.length/webImages.length)):100,
     modernCoverage:formatKnown.length?Math.round(100*modernImages.length/formatKnown.length):null,lazyCoverage:webImages.length?Math.round(100*lazyImages.length/webImages.length):null,
     avgResponseMs,slowPages:slowPages.length,compressedPages:compressedPages.length,avgResources,heavyPages:resourceHeavyPages.length,
     orphanPages:orphanPages.length,iframeTotal,iframeMissing:iframeMissingTotal,faviconReady,analyticsTools,hreflangLinks,inlineStyleCount,obsoletePages:obsoletePages.length,
@@ -1151,7 +1154,7 @@ function renderReport(m){
     ["Préparation IA",m.scores.ia+"/100",aiBlocked+" robot(s) explicitement bloqué(s)","technique — pas des mentions",scoreClass(m.scores.ia)],
     ["Liens",m.scores.liens+"/100",m.linksChecked+" vérifiés · "+brokenCount+" groupe(s) critique(s)","échantillon déterministe",scoreClass(m.scores.liens)],
     ["Indexabilité",m.scores.indexation+"/100",advanced.indexable+"/"+m.pages.length+" pages indexables","META + en-têtes HTTP",scoreClass(m.scores.indexation)],
-    ["ALT strict — accueil",(advanced.homepageStrictMissing||0)+"/"+(advanced.homepageStrictTotal||0),(advanced.homepageStrictMissing||0)+" ALT absent(s) ou vide(s) sur l'accueil · pixels techniques exclus","contrôle compatible SEOptimer",advanced.homepageStrictMissing?"warn":"good"],
+    ["ALT vides — accueil",(advanced.homepageStrictMissing||0)+"/"+(advanced.homepageStrictTotal||0),(advanced.homepageDecorativeAltEmpty||0)+" décoratif(s) correct(s) · "+(advanced.homepageContentAltMissing||0)+" photo(s) de contenu à corriger","lecture expliquée",advanced.homepageContentAltMissing?"warn":"good"],
     ["Trafic organique",traffic.available?traffic.organic.toLocaleString("fr-CA"):"—",traffic.available?"visites mensuelles organiques estimées · Canada":trafficUnavailable[0],traffic.available?"estimation DataForSEO":trafficUnavailable[1],traffic.available?"good":trafficUnavailable[2]],
     ["Trafic payant",traffic.available?traffic.paid.toLocaleString("fr-CA"):"—",traffic.available?"visites mensuelles payantes estimées · Canada":trafficUnavailable[0],traffic.available?"estimation DataForSEO":trafficUnavailable[1],traffic.available&&traffic.paid>0?"warn":trafficUnavailable[2]],
     ["Backlinks",backlinkData.available?fmt(backlinkData.backlinks):"—",backlinkData.available?fmt(backlinkData.referringDomains)+" domaines référents · rang "+(backlinkData.rank??"—"):providerFailure(backlinkData),backlinkData.available?"mesure DataForSEO":"non mesuré",backlinkData.available?(backlinkData.backlinks?"good":"warn"):""],
@@ -1161,7 +1164,7 @@ function renderReport(m){
 
   const advancedCards=[
     ["Indexation",advanced.indexable+"/"+m.pages.length,(advanced.searchBlocked?"robots.txt bloque le site · ":"")+(advanced.noindex||0)+" noindex · "+(advanced.canonicalMismatch||0)+" canonique(s) divergente(s)",m.scores.indexation],
-    ["Attributs ALT — test strict",(advanced.strictAltMissing||0)+" signalée(s)",(advanced.strictAltPages||0)+" page(s) · inclut les ALT vides décoratifs; seules les photos de contenu sont pénalisées",m.scores.images],
+    ["Attributs ALT — contrôle brut",(advanced.strictAltMissing||0)+" vide(s)",(advanced.decorativeAltEmpty||0)+" décoratif(s) autorisé(s) · "+(advanced.contentAltMissing||0)+" vraie(s) photo(s) à corriger sur "+(advanced.strictAltPages||0)+" page(s)",m.scores.images],
     ["Plan des titres H1–H6",(advanced.emptyHeadings||0)+(advanced.headingSkips||0)+" alerte(s)",(advanced.emptyHeadings||0)+" page(s) avec titre vide · "+(advanced.headingSkips||0)+" avec saut de niveau",m.scores.structure],
     ["Images Web",(advanced.dimensionCoverage??100)+"% dimensions","formats modernes "+(advanced.modernCoverage==null?"non déterminés":advanced.modernCoverage+"%")+" · chargement différé "+(advanced.lazyCoverage==null?"non déterminé":advanced.lazyCoverage+"%"),m.scores.qualite],
     ["Réponse et ressources",advanced.avgResponseMs?advanced.avgResponseMs+" ms":"—","moyenne du crawl · "+(advanced.avgResources||0)+" ressources HTML/page · "+(advanced.compressedPages||0)+" réponse(s) compressée(s)",advanced.slowPages?65:90],
