@@ -110,7 +110,7 @@
   .overview-grid{display:grid;grid-template-columns:repeat(4,1fr)}
   @media(max-width:760px){.overview-grid{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:430px){.overview-grid{grid-template-columns:1fr}}
-  .ov{min-height:116px;padding:15px 17px;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .ov{min-height:142px;padding:15px 17px;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
   .ov:nth-child(4n){border-right:none}
   @media(max-width:760px){.ov:nth-child(2n){border-right:none}.ov:nth-child(4n){border-right:none}}
   @media(max-width:430px){.ov{border-right:none}}
@@ -118,6 +118,11 @@
   .ov-value{font-family:var(--serif);font-size:30px;font-weight:800;line-height:1.15;margin:5px 0 1px;color:var(--ink)}
   .ov-value.good{color:var(--good)}.ov-value.warn{color:var(--warn)}.ov-value.bad{color:var(--crit)}
   .ov-detail{font-size:11.5px;color:var(--ink-soft);line-height:1.35}
+  .ov-why{margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-size:10.5px;line-height:1.4;color:var(--ink-soft)}
+  .ov-why b{display:block;margin-bottom:2px;color:var(--ink);font-size:9.5px;text-transform:uppercase;letter-spacing:.07em}
+  .ov-why code{display:block;margin-top:5px;padding:5px 6px;border-radius:6px;background:var(--surface-2);color:var(--ink-soft);font-family:var(--mono);font-size:9.5px;white-space:normal}
+  .ov-where{margin-top:5px;color:var(--ink-faint)}
+  .ov-where code{display:inline;padding:0;background:none;color:inherit}
   .ov-state{display:inline-block;margin-top:7px;padding:2px 7px;border-radius:999px;background:var(--surface-3);font-size:9.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-faint);font-weight:750}
 
   .cats{margin-top:26px;display:grid;gap:11px}
@@ -436,6 +441,42 @@ async function api(params, body){
   throw out;
 }
 
+async function loadKeywordGap(button){
+  const site=button.dataset.site||"", competitor=button.dataset.competitor||"";
+  const out=button.closest(".gap-module")?.querySelector(".gap-results");
+  if(!site||!competitor||!out) return;
+  button.disabled=true;
+  const original=button.textContent;
+  button.textContent="Analyse en cours…";
+  out.innerHTML='<p class="sec-intro">Recherche des mots-clés manquants dans la base Google DataForSEO…</p>';
+  try{
+    const cacheKey="pap_gap_v1_"+new URL(site).hostname+"_"+competitor+"_canada_fr";
+    let data=null;
+    try{const saved=JSON.parse(localStorage.getItem(cacheKey)||"null");if(saved&&Date.now()-saved.cachedAt<604800000)data={...saved.data,cached:true};}catch{}
+    if(!data){
+      data=await api({mode:"gap",site,competitor,location:"Canada",language:"fr"});
+      if(data.available) localStorage.setItem(cacheKey,JSON.stringify({cachedAt:Date.now(),data}));
+    }
+    if(!data.available){
+      out.innerHTML='<div class="note"><b>Analyse impossible.</b> '+esc(data.error||"Donnée concurrentielle indisponible.")+'</div>';
+      return;
+    }
+    const items=Array.isArray(data.items)?data.items:[];
+    const fmtGap=value=>Number(value||0).toLocaleString("fr-CA");
+    const shortGap=url=>{try{const parsed=new URL(url,/^https?:/i.test(url)?undefined:"https://"+competitor);return parsed.pathname+parsed.search;}catch{return url||"—";}};
+    out.innerHTML=`<p class="sec-intro"><b>${fmtGap(data.totalCount)} occasion(s) détectée(s).</b> Le tableau montre les 25 plus forts volumes où ${esc(competitor)} est visible et le site analysé absent. Données hebdomadaires; volumes, positions et visites sont des estimations.</p>
+      <div class="tbl-wrap"><table><thead><tr><th>Mot-clé manquant</th><th class="c">Volume/mois</th><th class="c">Position concurrent</th><th class="c">Visites estimées</th><th class="c">CPC</th><th>Page concurrente</th><th>Action</th></tr></thead><tbody>
+      ${items.length?items.map(item=>{const rank=Number(item.competitorRank)||null;const action=(item.searchVolume>=100&&rank&&rank<=20)?"Priorité haute":item.searchVolume>=20?"Évaluer l'intention":"Longue traîne";return `<tr><td><b>${esc(item.keyword)}</b></td><td class="c tnum">${fmtGap(item.searchVolume)}</td><td class="c tnum">${rank?"#"+rank:"—"}</td><td class="c tnum">${fmtGap(item.competitorVisits)}</td><td class="c tnum">${item.cpc==null?"—":Number(item.cpc).toLocaleString("fr-CA",{style:"currency",currency:"USD"})}</td><td class="pg">${esc(shortGap(item.competitorUrl))}</td><td><span class="tag ${action==="Priorité haute"?"no":action==="Évaluer l'intention"?"mid":""}">${action}</span></td></tr>`}).join(""):`<tr><td colspan="7">Aucun mot-clé manquant trouvé pour cette comparaison.</td></tr>`}
+      </tbody></table></div>
+      <div class="note"><b>À valider avant de créer une page.</b> Un mot-clé de concurrent n'est pertinent que s'il correspond aux services, au territoire et à l'intention commerciale du client.${data.cached?" Résultat chargé depuis le cache de sept jours.":""}</div>`;
+  }catch(error){
+    out.innerHTML='<div class="note"><b>Analyse impossible.</b> '+esc(error.message||String(error))+'</div>';
+  }finally{
+    button.disabled=false;
+    button.textContent=original;
+  }
+}
+
 // --- Orchestration ---
 async function runAudit(){
   const raw = $("#siteUrl").value.trim();
@@ -451,10 +492,10 @@ async function runAudit(){
     log("Découverte du site (robots.txt, sitemap, llms.txt)…");
     const disc = await api({mode:"discover", site:raw});
     const origin = disc.origin;
-    const trafficCacheKey="pap_intelligence_v1_"+new URL(origin).hostname+"_canada_fr";
+    const trafficCacheKey="pap_intelligence_v2_"+new URL(origin).hostname+"_canada_fr";
     let cachedTraffic=null;
     try{const saved=JSON.parse(localStorage.getItem(trafficCacheKey)||"null");if(saved&&Date.now()-saved.cachedAt<604800000)cachedTraffic=saved.data;}catch{}
-    const trafficPromise=cachedTraffic?Promise.resolve({...cachedTraffic,cached:true}):api({mode:"traffic",site:origin,location:"Canada",language:"fr"}).then(data=>{if(data.available||data.strategicKeywords?.available||data.backlinks?.available||data.aiMentions?.available)localStorage.setItem(trafficCacheKey,JSON.stringify({cachedAt:Date.now(),data}));return data;}).catch(e=>({configured:false,available:false,reason:e.code||"request_error",error:e.message}));
+    const trafficPromise=cachedTraffic?Promise.resolve({...cachedTraffic,cached:true}):api({mode:"traffic",site:origin,location:"Canada",language:"fr"}).then(data=>{if(data.available||data.strategicKeywords?.available||data.competitors?.available||data.topPages?.available||data.backlinks?.available||data.aiMentions?.available)localStorage.setItem(trafficCacheKey,JSON.stringify({cachedAt:Date.now(),data}));return data;}).catch(e=>({configured:false,available:false,reason:e.code||"request_error",error:e.message}));
     // Un index de sitemap peut référencer plusieurs sous-sitemaps. On les lit
     // séparément pour éviter les délais d'expiration des fonctions Netlify.
     if(disc.sitemapFound && disc.sitemapQueue?.length){
@@ -573,7 +614,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
       origin,disc,pages,deadPages,barrier:auditBarrier,
       clientName:options.clientName||"",contactName:options.contactName||"",
       linksChecked:0,previous:null,global:null,scores:null,counts:null,
-      auditMeta:{scoreVersion:"2.4",requested:pagesAll.length,successful:pages.length,transient:deadPages.filter(p=>p.transient).length,confidence:"non concluante",conclusive:false},
+      auditMeta:{scoreVersion:"2.5",requested:pagesAll.length,successful:pages.length,transient:deadPages.filter(p=>p.transient).length,confidence:"non concluante",conclusive:false},
     };
   }
   const n = Math.max(1,pages.length);
@@ -1002,6 +1043,16 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   const iframeTotal=pages.reduce((sum,p)=>sum+(p.iframes?.total||0),0);
   const iframeMissingTotal=pages.reduce((sum,p)=>sum+(p.iframes?.missingTitle||0),0);
   const homepageBlocked=!!homepage?.indexability?.noindex;
+  const llmsHasInvalidLinks=!!disc.llms?.exists&&llmsLinkResults.some(r=>r.status>=400||(r.finalUrl.replace(/\/$/,"")===origin&&r.url.replace(/\/$/,"")!==origin));
+  const aiDeductions=[
+    ...(majorBlocked.length?[{points:majorBlocked.length*11,label:majorBlocked.length+" robot(s) de recherche/citation bloqué(s)",locations:majorBlocked.map(b=>b.agent)}]:[]),
+    ...(!identityReady?[{points:18,label:"identité d’entreprise précise absente",locations:[]}]:[]),
+    ...(!disc.llms?.exists?[{points:12,label:"fichier llms.txt absent",locations:[origin+"/llms.txt"]}]:llmsHasInvalidLinks?[{points:18,label:"liens invalides dans llms.txt",locations:llmsLinkResults.filter(r=>r.status>=400||(r.finalUrl.replace(/\/$/,"")===origin&&r.url.replace(/\/$/,"")!==origin)).map(r=>r.url)}]:[]),
+  ];
+  const aiPenalty=aiDeductions.reduce((sum,item)=>sum+item.points,0);
+  const inaccessiblePublicPages=deadPages.filter(p=>!p.transient);
+  const linkPenaltyUnits=dead.length+inaccessiblePublicPages.length*2+orphanPages.length*.5;
+  const linkPopulation=Math.max(1,linkResults.length+pagesAll.length);
   const scores = {
     fondations: Math.round(100*( (pages.every(p=>p.https)?0.3:0) + 0.2*ratio(noViewport.length,n) + 0.1*ratio(noLang.length,n) + 0.2*ratio(noCanon.length,n) + (disc.sitemapFound?0.2:0.05) )/1*100)/100,
     balises: Math.round(100*(0.5*ratio(pages.filter(p=>!p.title||p.titleLen>60||dupT.some(g=>g.includes(p))).length,n) + 0.5*ratio(pages.filter(p=>!p.desc||p.descLen>165||dupD.some(g=>g.includes(p))).length,n))),
@@ -1014,12 +1065,28 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
       .5*ratio(pagesSchemaInvalid.length,n)+
       .2*(identityReady?1:0)
     )))),
-    ia: Math.max(0,Math.round(100 - majorBlocked.length*11 - (!identityReady?18:0) - (disc.llms?.exists? (llmsLinkResults.some(r=>r.status>=400||r.finalUrl.replace(/\/$/,"")===origin&&r.url.replace(/\/$/,"")!==origin)?18:0) : 12))),
-    liens: Math.round(100*ratio(dead.length+deadPages.filter(p=>!p.transient).length*2+orphanPages.length*.5, Math.max(1,linkResults.length+pagesAll.length))),
+    ia: Math.max(0,Math.min(100,Math.round(100-aiPenalty))),
+    liens: Math.max(0,Math.min(100,Math.round(100*ratio(linkPenaltyUnits,linkPopulation)))),
     indexation: searchBlocked||homepageBlocked?0:Math.max(0,Math.round(100-noindexPages.length/Math.max(1,n)*80-nofollowPages.length/Math.max(1,n)*15-canonicalMismatch.length/Math.max(1,n)*20)),
     qualite: Math.round(100*(.55*ratio(imagesMissingDimensions.length,webImages.length)+.2*ratio(iframeMissingTotal,iframeTotal)+.15*ratio(obsoletePages.length,n)+.1*(faviconReady?1:0)))
   };
   scores.fondations = Math.max(0,Math.min(100,scores.fondations));
+  const scoreEvidence={
+    ia:{
+      deductions:aiDeductions,
+      formula:"max(0, 100 − "+(aiDeductions.length?aiDeductions.map(item=>item.points).join(" − "):"0")+") = "+scores.ia,
+      checks:{searchAgents:searchAgents.length,blockedSearchAgents:majorBlocked.length,identityReady,llmsExists:!!disc.llms?.exists,llmsHasInvalidLinks,rawPenalty:aiPenalty},
+    },
+    liens:{
+      deductions:[
+        ...(dead.length?[{label:dead.length+" lien(s) interne(s) brisé(s)",locations:dead.map(r=>r.url)}]:[]),
+        ...(inaccessiblePublicPages.length?[{label:inaccessiblePublicPages.length+" page(s) publique(s) inaccessible(s)",locations:inaccessiblePublicPages.map(p=>p.url)}]:[]),
+        ...(orphanPages.length?[{label:orphanPages.length+" page(s) du sitemap sans lien entrant",locations:orphanPages.map(p=>p.url)}]:[]),
+      ],
+      formula:"max(0, 100 × [1 − ("+dead.length+" + 2×"+inaccessiblePublicPages.length+" + 0,5×"+orphanPages.length+") ÷ ("+linkResults.length+" + "+pagesAll.length+")]) = "+scores.liens,
+      checks:{verifiedLinks:linkResults.length,sitemapPages:pagesAll.length,brokenLinks:dead.length,inaccessiblePages:inaccessiblePublicPages.length,orphanPages:orphanPages.length},
+    },
+  };
   const W={fondations:.11,balises:.14,structure:.07,images:.09,social:.03,schema:.09,ia:.12,keywords:.10,liens:.07,indexation:.11,qualite:.07};
   const global = Math.round(Object.entries(W).reduce((a,[k,w])=>a+scores[k]*w,0)/Object.values(W).reduce((a,b)=>a+b,0));
 
@@ -1048,7 +1115,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   const quickWins=issues.filter(i=>/\b(?:3|5|10|15|20|30) min|~(?:3|5|10|15|20|30) min/i.test(i.effort||"")).length;
   const proofCount=issues.reduce((sum,i)=>sum+(i.where?.length||0),0);
   const opportunityScore=Math.max(0,Math.min(100,Math.round((100-global)*1.05+counts.crit*4+counts.warn*1.5)));
-  const auditMeta={scoreVersion:"2.4",requested:pagesAll.length,successful:pages.length,transient:transientPages.length,confidence:transientPages.length?"provisoire":"élevée",conclusive:true};
+  const auditMeta={scoreVersion:"2.5",requested:pagesAll.length,successful:pages.length,transient:transientPages.length,confidence:transientPages.length?"provisoire":"élevée",conclusive:true};
   const avgResources=pages.length?Math.round(pages.reduce((sum,p)=>sum+(p.resources?.total||0),0)/pages.length):0;
   const homepageStrictImages=(homepage?.images||[]).filter(im=>im.cls!=="tech");
   const homepageStrictFlagged=homepageStrictImages.filter(im=>im.alt===null||im.alt==="");
@@ -1063,7 +1130,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
     avgResponseMs,slowPages:slowPages.length,compressedPages:compressedPages.length,avgResources,heavyPages:resourceHeavyPages.length,
     orphanPages:orphanPages.length,iframeTotal,iframeMissing:iframeMissingTotal,faviconReady,analyticsTools,hreflangLinks,inlineStyleCount,obsoletePages:obsoletePages.length,
   };
-  return {origin, disc, pages, keywordPages, deadPages, issues, wins, scores, global, imgPages, uniqFiles, isWP, aiReadiness, siteKeywords, cannibalization, targetMap, clientName:options.clientName||"",contactName:options.contactName||"",publicContacts,pagesNeedingWork,quickWins,proofCount,opportunityScore,schemaAudit:{inventory:schemaInventory,expectedMissing,entityNames,entityIds},advancedAudit,auditMeta,
+  return {origin, disc, pages, keywordPages, deadPages, issues, wins, scores, scoreEvidence, global, imgPages, uniqFiles, isWP, aiReadiness, siteKeywords, cannibalization, targetMap, clientName:options.clientName||"",contactName:options.contactName||"",publicContacts,pagesNeedingWork,quickWins,proofCount,opportunityScore,schemaAudit:{inventory:schemaInventory,expectedMissing,entityNames,entityIds},advancedAudit,auditMeta,
           counts,
           linksChecked: linkResults.length};
 }
@@ -1119,19 +1186,83 @@ function renderReport(m){
   const schemaValid=m.pages.filter(p=>p.schemaTypes?.length&&!p.schema?.invalidBlocks&&!p.schema?.problems?.length).length;
   const schemaUse=type=>GOOGLE_RICH_SCHEMA.has(type)?"Fonction Google documentée":"Compréhension Schema.org";
   const scoreClass=v=>v>=80?"good":v>=55?"warn":"bad";
-  const aiBlocked=m.disc.aiBots.filter(b=>b.state==="blocked").length;
-  const brokenCount=m.issues.filter(i=>i.cat==="liens"&&i.sev==="crit").length;
   const observedKeywordCount=m.siteKeywords.length;
   const targetCovered=m.targetMap.filter(x=>x.covered).length;
   const advanced=m.advancedAudit||{};
   const traffic=m.disc.traffic||{};
   const externalKeywords=traffic.strategicKeywords||{};
   const rankedKeywords=Array.isArray(externalKeywords.items)?externalKeywords.items:[];
+  const competitorData=traffic.competitors||{};
+  const marketCompetitors=Array.isArray(competitorData.items)?competitorData.items:[];
+  const topPagesData=traffic.topPages||{};
+  const marketTopPages=Array.isArray(topPagesData.items)?topPagesData.items:[];
   const backlinkData=traffic.backlinks||{};
   const aiMentionData=traffic.aiMentions||{};
   const fmt=value=>Number(value||0).toLocaleString("fr-CA");
+  const scoreProof=(score,evidence,perfectText)=>{
+    const deductions=Array.isArray(evidence?.deductions)?evidence.deductions:[];
+    const locations=[...new Set(deductions.flatMap(item=>item.locations||[]))].slice(0,3);
+    return {
+      title:score===100?"Pourquoi 100/100":"Pourquoi "+score+"/100",
+      summary:score===100?(perfectText||"Aucun point retiré."):(100-score)+" point(s) retiré(s) : "+(deductions.map(item=>item.label).join(" · ")||"voir les contrôles détaillés"),
+      formula:evidence?.formula||"",
+      locations,
+    };
+  };
+  const iaEvidence=m.scoreEvidence?.ia||{};
+  const linkEvidence=m.scoreEvidence?.liens||{};
+  const iaProof=scoreProof(m.scores.ia,iaEvidence,"Robots de recherche accessibles, identité précise et llms.txt valide.");
+  if((iaEvidence.checks?.rawPenalty||0)>100) iaProof.summary="Pénalité brute de "+iaEvidence.checks.rawPenalty+" points, plafonnée à 100 : "+iaProof.summary.replace(/^100 point\(s\) retiré\(s\) : /,"");
+  const linkProof=scoreProof(m.scores.liens,linkEvidence,"Aucun lien brisé, aucune page inaccessible et aucune page orpheline.");
+  const aiSearchBlocked=iaEvidence.checks?.blockedSearchAgents??0;
+  const aiLlmsExists=iaEvidence.checks?.llmsExists??!!m.disc.llms?.exists;
+  const orphanCount=linkEvidence.checks?.orphanPages??advanced.orphanPages??0;
+  const brokenLinkCount=linkEvidence.checks?.brokenLinks??0;
+  const globalWeightTerms=[
+    ["fondations","Fondations",11],["balises","Balises",14],["structure","Titres",7],
+    ["images","Images",9],["social","Social",3],["schema","Schéma",9],
+    ["ia","IA",12],["keywords","Mots-clés",10],["liens","Liens",7],
+    ["indexation","Indexation",11],["qualite","Qualité",7],
+  ];
+  const globalProof={
+    title:m.global===100?"Pourquoi 100/100":"Pourquoi "+m.global+"/100",
+    summary:m.global===100?"Toutes les catégories pondérées atteignent 100.":(100-m.global)+" point(s) sous 100 selon la moyenne pondérée des catégories techniques.",
+    formula:globalWeightTerms.map(([key,label,weight])=>label+" "+weight+"%×"+m.scores[key]).join(" + ")+" = "+m.global,
+    locations:[],
+  };
+  const scoredBusinessTypes=new Set(["Organization","Corporation","LocalBusiness","LodgingBusiness","Store","ProfessionalService","Hotel","Restaurant"]);
+  const scoredIdentityReady=m.pages.some(p=>p.schemaTypes?.some(type=>scoredBusinessTypes.has(type)));
+  const schemaInvalidPages=m.pages.filter(p=>p.schema?.invalidBlocks||p.schema?.problems?.length);
+  const schemaMissingPages=m.pages.filter(p=>!p.schemaTypes?.length);
+  const schemaCauses=[
+    ...(schemaMissingPages.length?[schemaMissingPages.length+" page(s) sans donnée structurée"]:[]),
+    ...(schemaInvalidPages.length?[schemaInvalidPages.length+" page(s) avec schéma invalide ou incomplet"]:[]),
+    ...(!scoredIdentityReady?["identité d’entreprise précise absente"]:[]),
+  ];
+  const schemaProof={
+    title:m.scores.schema===100?"Pourquoi 100/100":"Pourquoi "+m.scores.schema+"/100",
+    summary:m.scores.schema===100?"Aucun facteur noté ne retire de point; les suggestions restent des améliorations non pénalisées.":(100-m.scores.schema)+" point(s) retiré(s) : "+schemaCauses.join(" · "),
+    formula:"100 × [0,30×"+(m.pages.length-schemaMissingPages.length)+"/"+m.pages.length+" + 0,50×"+(m.pages.length-schemaInvalidPages.length)+"/"+m.pages.length+" + 0,20×"+(scoredIdentityReady?1:0)+"] = "+m.scores.schema,
+    locations:[...schemaMissingPages,...schemaInvalidPages].map(p=>p.url).slice(0,3),
+  };
+  const noindexScorePages=m.pages.filter(p=>p.indexability?.noindex);
+  const nofollowScorePages=m.pages.filter(p=>p.indexability?.nofollow);
+  const canonicalScorePages=m.pages.filter(p=>p.canonicalMatches===false);
+  const indexCauses=[
+    ...(advanced.searchBlocked?["exploration bloquée par robots.txt"]:[]),
+    ...(noindexScorePages.length?[noindexScorePages.length+" page(s) en noindex"]:[]),
+    ...(nofollowScorePages.length?[nofollowScorePages.length+" page(s) en nofollow"]:[]),
+    ...(canonicalScorePages.length?[canonicalScorePages.length+" canonique(s) divergente(s)"]:[]),
+  ];
+  const indexProof={
+    title:m.scores.indexation===100?"Pourquoi 100/100":"Pourquoi "+m.scores.indexation+"/100",
+    summary:m.scores.indexation===100?"Aucun blocage global, noindex, nofollow ou canonique divergente.":(100-m.scores.indexation)+" point(s) retiré(s) : "+indexCauses.join(" · "),
+    formula:advanced.searchBlocked||m.pages[0]?.indexability?.noindex?"Blocage global ou accueil en noindex = 0":"100 − 80×"+noindexScorePages.length+"/"+m.pages.length+" − 15×"+nofollowScorePages.length+"/"+m.pages.length+" − 20×"+canonicalScorePages.length+"/"+m.pages.length+" = "+m.scores.indexation,
+    locations:[...noindexScorePages,...nofollowScorePages,...canonicalScorePages].map(p=>p.url).slice(0,3),
+  };
   const providerFailure=data=>data?.error||(
     data?.reason==="provider_timeout"?"Délai dépassé — réessayer plus tard":
+    data?.reason==="provider_payment_required"?"Solde DataForSEO insuffisant — ajouter des crédits API":
     data?.reason==="provider_unauthorized"?"Accès DataForSEO non autorisé pour ce module":
     "Donnée temporairement indisponible"
   );
@@ -1140,20 +1271,29 @@ function renderReport(m){
     if(traffic.reason==="server_protection_missing") return ["Activer la protection privée du module trafic","configuration Paparmane requise","bad"];
     if(traffic.reason==="access_key_invalid") return ["Se reconnecter avec le code d'accès privé","accès au trafic refusé","bad"];
     if(traffic.reason==="provider_credentials_missing") return ["Connecter la source de données trafic","DataForSEO non configuré","warn"];
+    if(traffic.reason==="provider_payment_required") return ["Ajouter des crédits au compte DataForSEO","solde API insuffisant","warn"];
     if(traffic.reason==="provider_error") return [traffic.error||"La source trafic a retourné une erreur","erreur DataForSEO","bad"];
     if(traffic.reason==="no_data") return ["Aucune estimation trouvée pour ce domaine","aucune donnée disponible",""];
     return [traffic.error||"Estimation temporairement indisponible","connexion à vérifier","warn"];
   })();
+  const scoreProofHtml=proof=>proof?`<div class="ov-why">
+    <b>${esc(proof.title)}</b>
+    <span>${esc(proof.summary)}</span>
+    ${proof.formula?`<code>Calcul : ${esc(proof.formula)}</code>`:""}
+    ${proof.locations?.length?`<div class="ov-where">Où : ${proof.locations.map(url=>`<code>${esc(sh(url))}</code>`).join(" · ")}</div>`:""}
+  </div>`:"";
   const overviewCards=[
-    ["Santé SEO",m.global+"/100","Score global Paparmane v"+m.auditMeta.scoreVersion,"mesuré",scoreClass(m.global)],
+    ["Santé SEO",m.global+"/100","Score global Paparmane v"+m.auditMeta.scoreVersion,"mesuré",scoreClass(m.global),globalProof],
     ["Pages analysées",m.pages.length,m.auditMeta.successful+" réussies · "+m.auditMeta.transient+" provisoires","crawl complet",m.auditMeta.transient?"warn":"good"],
     ["Problèmes prioritaires",m.counts.crit,m.counts.warn+" importants · "+m.counts.info+" opportunités","audit interne",m.counts.crit?"bad":m.counts.warn?"warn":"good"],
     ["Mots-clés organiques",m.disc.traffic?.available&&m.disc.traffic.organicKeywords!=null?m.disc.traffic.organicKeywords.toLocaleString("fr-CA"):observedKeywordCount,m.disc.traffic?.available?"classements Google estimés · Canada":m.cannibalization.length+" chevauchement(s) potentiel(s)",m.disc.traffic?.available?"estimation DataForSEO":"contenu observé",scoreClass(m.scores.keywords)],
     ["Mots-clés stratégiques",m.targetMap.length?targetCovered+"/"+m.targetMap.length:externalKeywords.available?fmt(externalKeywords.totalCount):"—",m.targetMap.length?(m.targetMap.length-targetCovered)+" sans cible claire":externalKeywords.available?rankedKeywords.length+" meilleures positions et occasions chargées":providerFailure(externalKeywords),m.targetMap.length?"fourni par le client":externalKeywords.available?"DataForSEO · Canada":"non mesuré",m.targetMap.length&&targetCovered===m.targetMap.length?"good":m.targetMap.length?"warn":externalKeywords.available?(rankedKeywords.length?"good":"warn"):""],
-    ["Données structurées",m.scores.schema+"/100",schemaCovered+" page(s) balisée(s) · "+m.schemaAudit.expectedMissing.length+" suggestion(s)","Schema Studio",scoreClass(m.scores.schema)],
-    ["Préparation IA",m.scores.ia+"/100",aiBlocked+" robot(s) explicitement bloqué(s)","technique — pas des mentions",scoreClass(m.scores.ia)],
-    ["Liens",m.scores.liens+"/100",m.linksChecked+" vérifiés · "+brokenCount+" groupe(s) critique(s)","échantillon déterministe",scoreClass(m.scores.liens)],
-    ["Indexabilité",m.scores.indexation+"/100",advanced.indexable+"/"+m.pages.length+" pages indexables","META + en-têtes HTTP",scoreClass(m.scores.indexation)],
+    ["Concurrents organiques",competitorData.available?marketCompetitors.length:"—",competitorData.available?(marketCompetitors.length?(marketCompetitors[0].domain+" · "+fmt(marketCompetitors[0].intersections)+" mots-clés communs"):"aucun concurrent significatif détecté"):providerFailure(competitorData),competitorData.available?"DataForSEO · Canada":"non mesuré",competitorData.available?(marketCompetitors.length?"good":"warn"):""],
+    ["Pages qui attirent",topPagesData.available?marketTopPages.length:"—",topPagesData.available?(marketTopPages.length?(sh(marketTopPages[0].url)+" · "+fmt(marketTopPages[0].organicTraffic)+" visites estimées"):"aucune page classée détectée"):providerFailure(topPagesData),topPagesData.available?"DataForSEO · mise à jour hebdomadaire":"non mesuré",topPagesData.available?(marketTopPages.length?"good":"warn"):""],
+    ["Données structurées",m.scores.schema+"/100",schemaCovered+" page(s) balisée(s) · "+m.schemaAudit.expectedMissing.length+" suggestion(s)","Schema Studio",scoreClass(m.scores.schema),schemaProof],
+    ["Préparation IA",m.scores.ia+"/100",aiSearchBlocked+" robot(s) de recherche bloqué(s) · llms.txt "+(aiLlmsExists?"présent":"absent"),"score technique expliqué",scoreClass(m.scores.ia),iaProof],
+    ["Liens",m.scores.liens+"/100",m.linksChecked+" vérifiés · "+brokenLinkCount+" brisé(s) · "+orphanCount+" orpheline(s)","score technique expliqué",scoreClass(m.scores.liens),linkProof],
+    ["Indexabilité",m.scores.indexation+"/100",advanced.indexable+"/"+m.pages.length+" pages indexables","META + en-têtes HTTP",scoreClass(m.scores.indexation),indexProof],
     ["ALT vides — accueil",(advanced.homepageStrictMissing||0)+"/"+(advanced.homepageStrictTotal||0),(advanced.homepageDecorativeAltEmpty||0)+" décoratif(s) correct(s) · "+(advanced.homepageContentAltMissing||0)+" photo(s) de contenu à corriger","lecture expliquée",advanced.homepageContentAltMissing?"warn":"good"],
     ["Trafic organique",traffic.available?traffic.organic.toLocaleString("fr-CA"):"—",traffic.available?"visites mensuelles organiques estimées · Canada":trafficUnavailable[0],traffic.available?"estimation DataForSEO":trafficUnavailable[1],traffic.available?"good":trafficUnavailable[2]],
     ["Trafic payant",traffic.available?traffic.paid.toLocaleString("fr-CA"):"—",traffic.available?"visites mensuelles payantes estimées · Canada":trafficUnavailable[0],traffic.available?"estimation DataForSEO":trafficUnavailable[1],traffic.available&&traffic.paid>0?"warn":trafficUnavailable[2]],
@@ -1303,8 +1443,8 @@ function renderReport(m){
     </div>
 
     <section class="overview" aria-labelledby="overview-title">
-      <div class="overview-head"><h3 id="overview-title">Vue d'ensemble</h3><span>Mesures actuelles et connexions disponibles</span></div>
-      <div class="overview-grid">${overviewCards.map(([label,value,detail,state,cls])=>`<div class="ov"><div class="ov-label">${esc(label)}</div><div class="ov-value ${cls}">${esc(value)}</div><div class="ov-detail">${esc(detail)}</div><span class="ov-state">${esc(state)}</span></div>`).join("")}</div>
+      <div class="overview-head"><h3 id="overview-title">Vue d'ensemble</h3><span>Chaque score inférieur à 100 doit expliquer les points retirés</span></div>
+      <div class="overview-grid">${overviewCards.map(([label,value,detail,state,cls,proof])=>`<div class="ov"><div class="ov-label">${esc(label)}</div><div class="ov-value ${cls}">${esc(value)}</div><div class="ov-detail">${esc(detail)}</div>${scoreProofHtml(proof)}<span class="ov-state">${esc(state)}</span></div>`).join("")}</div>
     </section>
 
     <div class="sec-h"><h3>Contrôles techniques avancés</h3><div class="rule"></div></div>
@@ -1346,14 +1486,28 @@ function renderReport(m){
       ${m.targetMap.map(x=>`<tr><td><b>${esc(x.keyword)}</b></td><td class="pg">${x.best?esc(sh(x.best.url)):"—"}</td><td class="c"><span class="tag ${x.score>=60?"ok":x.covered?"mid":"no"}">${Math.min(100,x.score)}%</span></td><td>${x.score>=60?"Conserver et renforcer":x.covered?"Clarifier la cible":"Créer ou refondre une page"}</td></tr>`).join("")}
     </tbody></table></div>`:""}
 
-    ${traffic.available||externalKeywords.available||backlinkData.available||aiMentionData.available?`
+    ${traffic.available||externalKeywords.available||competitorData.available||topPagesData.available||backlinkData.available||aiMentionData.available?`
     <div class="sec-h"><h3>Intelligence de marché DataForSEO</h3><div class="rule"></div></div>
-    <p class="sec-intro">Mesures externes comparables à un outil de marché : positions Google au Canada en français, profil de liens et mentions observées dans la base IA. Les résultats sont conservés sept jours pour maîtriser les frais de collecte.</p>
+    <p class="sec-intro">Mesures externes comparables à un outil de marché : positions Google au Canada en français, concurrents dans les mêmes résultats, profil de liens et mentions observées dans la base IA. Les résultats sont conservés sept jours pour maîtriser les frais de collecte.</p>
 
     ${externalKeywords.available?`<h4>Mots-clés Google classés et occasions</h4>
     <p class="sec-intro">Ce sont des requêtes sur lesquelles le domaine est déjà visible. Elles servent à choisir les gains rapides; elles ne remplacent pas les objectifs d'affaires fournis par le client.</p>
     <div class="tbl-wrap"><table><thead><tr><th>Mot-clé</th><th class="c">Position</th><th class="c">Volume/mois</th><th class="c">Visites estimées</th><th class="c">CPC</th><th>Page classée</th><th>Décision</th></tr></thead><tbody>
       ${rankedKeywords.length?rankedKeywords.map(k=>{const rank=Number(k.rank)||null;const decision=rank&&rank<=3?"Défendre":rank&&rank<=20?"Gain rapide":rank?"Faire progresser":"À vérifier";return `<tr><td><b>${esc(k.keyword)}</b></td><td class="c tnum">${rank?"#"+rank:"—"}</td><td class="c tnum">${fmt(k.searchVolume)}</td><td class="c tnum">${fmt(k.estimatedVisits)}</td><td class="c tnum">${k.cpc==null?"—":Number(k.cpc).toLocaleString("fr-CA",{style:"currency",currency:"USD"})}</td><td class="pg">${k.url?esc(sh(k.url)):"—"}</td><td><span class="tag ${decision==="Gain rapide"?"ok":decision==="Faire progresser"?"mid":""}">${decision}</span></td></tr>`}).join(""):`<tr><td colspan="7">Aucun mot-clé classé trouvé dans cette base pour le marché Canada/français.</td></tr>`}
+    </tbody></table></div>`:""}
+
+    ${competitorData.available?`<div class="sec-h"><h3>Concurrents organiques</h3><span class="cnt">${marketCompetitors.length}</span><div class="rule"></div></div>
+    <p class="sec-intro"><b>Concurrents dans Google, pas nécessairement concurrents commerciaux.</b> Ces domaines apparaissent sur les mêmes requêtes que le site analysé. Le chevauchement indique le nombre de mots-clés communs; les volumes et le trafic sont des estimations hebdomadaires DataForSEO pour le Canada en français.</p>
+    <div class="tbl-wrap"><table><thead><tr><th>Domaine</th><th class="c">Mots-clés communs</th><th class="c">Position moyenne</th><th class="c">Mots-clés organiques</th><th class="c">Trafic organique estimé</th><th>Lecture</th></tr></thead><tbody>
+      ${marketCompetitors.length?marketCompetitors.map((competitor,index)=>{const stronger=competitor.organicTraffic>(traffic.organic||0);const reading=index===0?"Concurrent le plus proche":stronger?"Visibilité estimée supérieure":"Concurrent à surveiller";return `<tr><td><b>${esc(competitor.domain)}</b></td><td class="c tnum">${fmt(competitor.intersections)}</td><td class="c tnum">${competitor.averagePosition==null?"—":Number(competitor.averagePosition).toLocaleString("fr-CA",{maximumFractionDigits:1})}</td><td class="c tnum">${fmt(competitor.organicKeywords)}</td><td class="c tnum">${fmt(competitor.organicTraffic)}</td><td><span class="tag ${index===0?"mid":stronger?"no":""}">${reading}</span></td></tr>`}).join(""):`<tr><td colspan="6">Aucun domaine concurrent significatif trouvé dans cette base pour le marché Canada/français.</td></tr>`}
+    </tbody></table></div>
+    ${marketCompetitors.length?`<div class="gap-module note"><b>Keyword Gap — mots-clés manquants</b><br>Comparer le site à <b>${esc(marketCompetitors[0].domain)}</b> et repérer les requêtes où ce concurrent est classé, mais pas le client. Cet appel est lancé uniquement sur demande et conservé sept jours.
+      <div class="pitch-actions"><button class="btn ghost" data-site="${esc(m.origin)}" data-competitor="${esc(marketCompetitors[0].domain)}" onclick="loadKeywordGap(this)">Trouver les mots-clés manquants</button></div><div class="gap-results"></div></div>`:""}`:""}
+
+    ${topPagesData.available?`<div class="sec-h"><h3>Pages qui génèrent la visibilité</h3><span class="cnt">${marketTopPages.length}</span><div class="rule"></div></div>
+    <p class="sec-intro"><b>Pages classées par trafic organique mensuel estimé.</b> Les positions et le trafic sont issus de la base Google DataForSEO, mise à jour chaque semaine. Une valeur de trafic n'est pas une session Analytics; elle est calculée à partir des positions, des volumes de recherche et d'un taux de clic estimé.</p>
+    <div class="tbl-wrap"><table><thead><tr><th>Page</th><th class="c">Trafic estimé/mois</th><th class="c">Mots-clés classés</th><th class="c">Top 3</th><th class="c">Top 10</th><th class="c">Valeur trafic</th><th>Décision</th></tr></thead><tbody>
+      ${marketTopPages.length?marketTopPages.map((page,index)=>{const decision=index<3?"Page stratégique":page.top10Keywords?"Renforcer le top 10":"Développer la page";return `<tr><td class="pg"><b>${esc(sh(page.url))}</b></td><td class="c tnum">${fmt(page.organicTraffic)}</td><td class="c tnum">${fmt(page.organicKeywords)}</td><td class="c tnum">${fmt(page.top3Keywords)}</td><td class="c tnum">${fmt(page.top10Keywords)}</td><td class="c tnum">${Number(page.estimatedTrafficValueUsd||0).toLocaleString("fr-CA",{style:"currency",currency:"USD",maximumFractionDigits:0})}</td><td><span class="tag ${index<3?"ok":page.top10Keywords?"mid":""}">${decision}</span></td></tr>`}).join(""):`<tr><td colspan="7">Aucune page classée trouvée dans cette base pour le marché Canada/français.</td></tr>`}
     </tbody></table></div>`:""}
 
     ${backlinkData.available?`<div class="sec-h"><h3>Profil de backlinks</h3><div class="rule"></div></div>
@@ -1417,7 +1571,7 @@ function renderReport(m){
 
     <div class="note"><b>Méthodologie — score v${esc(m.auditMeta.scoreVersion)}, confiance ${esc(m.auditMeta.confidence)}.</b> Rapport produit par le moteur d'analyse Paparmane :
       ${m.pages.length} pages crawlées, ${m.pages.reduce((a,p)=>a+(p.images||[]).length,0)} images inspectées,
-      ${m.linksChecked} liens internes vérifiés, robots.txt, indexabilité META/HTTP, canoniques, hiérarchie H1–H6, ALT strict et sémantique, ressources HTML, iFrames, favicon, hreflang, données structurées et llms.txt analysés. Les URL et les liens sont triés avant échantillonnage pour rendre deux audits comparables; les erreurs réseau sont relancées une fois. Le temps de réponse est un indicateur ponctuel et ne modifie pas le score. Les volumes Google, estimations de trafic, backlinks et mentions IA affichés comme tels proviennent de DataForSEO; Paparmane ne fabrique jamais ces chiffres et les données externes ne modifient pas le score technique.</div>
+      ${m.linksChecked} liens internes vérifiés, robots.txt, indexabilité META/HTTP, canoniques, hiérarchie H1–H6, ALT strict et sémantique, ressources HTML, iFrames, favicon, hreflang, données structurées et llms.txt analysés. Les URL et les liens sont triés avant échantillonnage pour rendre deux audits comparables; les erreurs réseau sont relancées une fois. Le temps de réponse est un indicateur ponctuel et ne modifie pas le score. Les volumes Google, estimations de trafic, pages les plus visibles, concurrents organiques, backlinks et mentions IA affichés comme tels proviennent de DataForSEO; Paparmane ne fabrique jamais ces chiffres et les données externes ne modifient pas le score technique.</div>
 
     <div class="toolbar">
       <button class="btn ghost" onclick="window.print()">Imprimer / PDF client</button>

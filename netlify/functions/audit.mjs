@@ -642,10 +642,11 @@ async function dataForSeoPost(path, taskBody, authorization, timeoutMs = 8000) {
 }
 
 function unavailableProviderResult(error) {
+  const paymentRequired = /payment required|insufficient balance|not enough funds/i.test(error?.message || "");
   return {
     available: false,
-    reason: error?.reason || "provider_error",
-    error: error?.message || "La source DataForSEO a retourné une erreur.",
+    reason: paymentRequired ? "provider_payment_required" : error?.reason || "provider_error",
+    error: paymentRequired ? "Solde DataForSEO insuffisant — ajouter des crédits API." : error?.message || "La source DataForSEO a retourné une erreur.",
     providerCostUsd: Number(error?.providerCostUsd || 0),
   };
 }
@@ -697,13 +698,34 @@ async function externalIntelligence(site, location = "Canada", language = "fr") 
       }],
       limit: 20,
     }, authorization),
+    dataForSeoPost("/v3/dataforseo_labs/google/competitors_domain/live", {
+      target,
+      location_name: location,
+      language_code: language,
+      item_types: ["organic", "paid"],
+      exclude_top_domains: true,
+      ignore_synonyms: true,
+      limit: 10,
+    }, authorization),
+    dataForSeoPost("/v3/dataforseo_labs/google/relevant_pages/live", {
+      target,
+      location_name: location,
+      language_code: language,
+      item_types: ["organic", "featured_snippet", "local_pack"],
+      historical_serp_mode: "live",
+      ignore_synonyms: true,
+      limit: 10,
+      order_by: ["metrics.organic.etv,desc"],
+    }, authorization),
   ]);
 
-  const [trafficRequest, keywordRequest, backlinkRequest, aiRequest] = requests;
+  const [trafficRequest, keywordRequest, backlinkRequest, aiRequest, competitorRequest, topPagesRequest] = requests;
   let traffic = trafficRequest.status === "fulfilled" ? trafficRequest.value : unavailableProviderResult(trafficRequest.reason);
   let strategicKeywords = keywordRequest.status === "fulfilled" ? keywordRequest.value : unavailableProviderResult(keywordRequest.reason);
   let backlinks = backlinkRequest.status === "fulfilled" ? backlinkRequest.value : unavailableProviderResult(backlinkRequest.reason);
   let aiMentions = aiRequest.status === "fulfilled" ? aiRequest.value : unavailableProviderResult(aiRequest.reason);
+  let competitors = competitorRequest.status === "fulfilled" ? competitorRequest.value : unavailableProviderResult(competitorRequest.reason);
+  let topPages = topPagesRequest.status === "fulfilled" ? topPagesRequest.value : unavailableProviderResult(topPagesRequest.reason);
 
   if (traffic.result) {
     const item = traffic.result.items?.[0] || traffic.result;
@@ -788,7 +810,62 @@ async function externalIntelligence(site, location = "Canada", language = "fr") 
     aiMentions = { available: true, mentions: 0, aiSearchVolume: 0, platforms: [], scope: "Portée DataForSEO disponible", databaseMeasurement: true, providerCostUsd: aiMentions.providerCostUsd };
   }
 
-  const sections = [traffic, strategicKeywords, backlinks, aiMentions];
+  if (competitors.result) {
+    const items = Array.isArray(competitors.result.items) ? competitors.result.items : [];
+    competitors = {
+      available: true,
+      totalCount: competitors.result.total_count ?? items.length,
+      items: items.filter(item => item.domain && item.domain.replace(/^www\./, "") !== target).map(item => {
+        const organic = item.full_domain_metrics?.organic || {};
+        const paid = item.full_domain_metrics?.paid || {};
+        const sharedTarget = item.metrics?.organic || {};
+        const sharedCompetitor = item.competitor_metrics?.organic || {};
+        return {
+          domain: item.domain,
+          intersections: Number(item.intersections || 0),
+          averagePosition: item.avg_position == null ? null : Number(item.avg_position),
+          organicKeywords: Number(organic.count || 0),
+          organicTraffic: Math.round(organic.etv || 0),
+          paidKeywords: Number(paid.count || 0),
+          paidTraffic: Math.round(paid.etv || 0),
+          targetSharedTraffic: Math.round(sharedTarget.etv || 0),
+          competitorSharedTraffic: Math.round(sharedCompetitor.etv || 0),
+        };
+      }).slice(0, 10),
+      weeklyData: true,
+      providerCostUsd: competitors.providerCostUsd,
+    };
+  } else if (competitors.available !== false) {
+    competitors = { available: true, totalCount: 0, items: [], weeklyData: true, providerCostUsd: competitors.providerCostUsd };
+  }
+
+  if (topPages.result) {
+    const items = Array.isArray(topPages.result.items) ? topPages.result.items : [];
+    topPages = {
+      available: true,
+      totalCount: topPages.result.total_count ?? items.length,
+      items: items.map(item => {
+        const organic = item.metrics?.organic || {};
+        return {
+          url: item.page_address || "",
+          organicKeywords: Number(organic.count || 0),
+          organicTraffic: Math.round(organic.etv || 0),
+          estimatedTrafficValueUsd: Number(organic.estimated_paid_traffic_cost || 0),
+          top3Keywords: Number(organic.pos_1 || 0) + Number(organic.pos_2_3 || 0),
+          top10Keywords: Number(organic.pos_1 || 0) + Number(organic.pos_2_3 || 0) + Number(organic.pos_4_10 || 0),
+          positionsUp: Number(organic.is_up || 0),
+          positionsDown: Number(organic.is_down || 0),
+          newPositions: Number(organic.is_new || 0),
+        };
+      }).filter(item => item.url).slice(0, 10),
+      weeklyData: true,
+      providerCostUsd: topPages.providerCostUsd,
+    };
+  } else if (topPages.available !== false) {
+    topPages = { available: true, totalCount: 0, items: [], weeklyData: true, providerCostUsd: topPages.providerCostUsd };
+  }
+
+  const sections = [traffic, strategicKeywords, backlinks, aiMentions, competitors, topPages];
   const providerCostUsd = sections.reduce((sum, section) => sum + Number(section.providerCostUsd || 0), 0);
   return {
     configured: true,
@@ -807,13 +884,90 @@ async function externalIntelligence(site, location = "Canada", language = "fr") 
     strategicKeywords,
     backlinks,
     aiMentions,
+    competitors,
+    topPages,
     providerCostUsd: Number(providerCostUsd.toFixed(6)),
     providerCosts: {
       traffic: traffic.providerCostUsd || 0,
       strategicKeywords: strategicKeywords.providerCostUsd || 0,
       backlinks: backlinks.providerCostUsd || 0,
       aiMentions: aiMentions.providerCostUsd || 0,
+      competitors: competitors.providerCostUsd || 0,
+      topPages: topPages.providerCostUsd || 0,
     },
+  };
+}
+
+async function keywordGapIntelligence(site, competitor, location = "Canada", language = "fr") {
+  const login = process.env.DATAFORSEO_LOGIN;
+  const password = process.env.DATAFORSEO_PASSWORD;
+  if (!login || !password) return {
+    configured: false,
+    available: false,
+    reason: "provider_credentials_missing",
+    error: "Les identifiants DataForSEO ne sont pas configurés sur le serveur.",
+  };
+  const target = new URL(site).hostname.replace(/^www\./, "");
+  const competitorUrl = /^https?:\/\//i.test(competitor) ? competitor : "https://" + competitor;
+  if (!isSafeUrl(competitorUrl)) return {
+    configured: true,
+    available: false,
+    reason: "invalid_competitor",
+    error: "Le domaine concurrent est invalide.",
+  };
+  const competitorDomain = new URL(competitorUrl).hostname.replace(/^www\./, "");
+  if (competitorDomain === target) return {
+    configured: true,
+    available: false,
+    reason: "same_domain",
+    error: "Le concurrent doit être différent du site analysé.",
+  };
+  const authorization = "Basic " + btoa(`${login}:${password}`);
+  let response;
+  try {
+    // target1 = concurrent, target2 = client, intersections=false : mots-clés
+    // où le concurrent est présent et le client absent.
+    response = await dataForSeoPost("/v3/dataforseo_labs/google/domain_intersection/live", {
+      target1: competitorDomain,
+      target2: target,
+      location_name: location,
+      language_code: language,
+      intersections: false,
+      item_types: ["organic", "featured_snippet", "local_pack"],
+      limit: 25,
+      order_by: ["keyword_data.keyword_info.search_volume,desc"],
+    }, authorization, 12000);
+  } catch (error) {
+    return { configured: true, target, competitor: competitorDomain, ...unavailableProviderResult(error) };
+  }
+  const result = response.result;
+  const items = Array.isArray(result?.items) ? result.items : [];
+  return {
+    configured: true,
+    available: true,
+    source: "DataForSEO",
+    target,
+    competitor: competitorDomain,
+    location,
+    language,
+    totalCount: result?.total_count ?? items.length,
+    items: items.map(entry => {
+      const keyword = entry.keyword_data || {};
+      const info = keyword.keyword_info || {};
+      const serp = entry.first_domain_serp_element?.serp_item || entry.first_domain_serp_element || {};
+      return {
+        keyword: keyword.keyword || entry.keyword || "",
+        searchVolume: Math.round(info.search_volume || 0),
+        cpc: info.cpc ?? null,
+        competition: info.competition ?? null,
+        competitorRank: serp.rank_group ?? serp.rank_absolute ?? null,
+        competitorUrl: serp.url || serp.relative_url || "",
+        competitorVisits: Math.round(serp.etv || 0),
+      };
+    }).filter(item => item.keyword),
+    estimated: true,
+    weeklyData: true,
+    providerCostUsd: response.providerCostUsd || 0,
   };
 }
 
@@ -879,6 +1033,25 @@ export default async (req) => {
       return json(await externalIntelligence(site, q.get("location") || "Canada", q.get("language") || "fr"));
     }
 
+    if (mode === "gap") {
+      if (!accessKey) return json({
+        configured: false,
+        available: false,
+        reason: "server_protection_missing",
+        error: "La protection privée du module concurrentiel n'est pas configurée sur le serveur.",
+      }, 503);
+      if (req.headers.get("x-paparmane-key") !== accessKey) return json({
+        configured: false,
+        available: false,
+        reason: "access_key_invalid",
+        error: "Le code d'accès courant ne permet pas d'utiliser le module concurrentiel.",
+      }, 401);
+      let site = (q.get("site") || "").trim();
+      if (!/^https?:\/\//i.test(site)) site = "https://" + site;
+      if (!isSafeUrl(site)) return json({ error: "Adresse invalide." }, 400);
+      return json(await keywordGapIntelligence(site, q.get("competitor") || "", q.get("location") || "Canada", q.get("language") || "fr"));
+    }
+
     if (mode === "page") {
       const url = q.get("url") || "";
       if (!isSafeUrl(url)) return json({ error: "Adresse invalide." }, 400);
@@ -895,7 +1068,7 @@ export default async (req) => {
       return json({ results: await verify(urls) });
     }
 
-    return json({ error: "Mode inconnu. Utiliser mode=auth|discover|sitemap|page|verify|traffic." }, 400);
+    return json({ error: "Mode inconnu. Utiliser mode=auth|discover|sitemap|page|verify|traffic|gap." }, 400);
   } catch (e) {
     return json({ error: String(e.message || e) }, 500);
   }
