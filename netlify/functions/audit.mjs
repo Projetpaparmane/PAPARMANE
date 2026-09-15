@@ -933,6 +933,11 @@ async function externalIntelligence(site, location = "Canada", language = "fr") 
     backlinks = { available: true, rank: 0, backlinks: 0, referringDomains: 0, referringMainDomains: 0, referringPages: 0, nofollow: 0, brokenBacklinks: 0, spamScore: null, providerCostUsd: backlinks.providerCostUsd };
   }
 
+  // Règle d'honnêteté : ne JAMAIS afficher « 0 mention » quand rien n'a pu être
+  // mesuré. Un zéro fabriqué se lit « vous êtes invisible dans les IA », ce qui
+  // est une affirmation que l'outil n'a pas les moyens de faire. DataForSEO
+  // limite aujourd'hui ChatGPT aux États-Unis et à l'anglais : pour une PME
+  // québécoise, l'absence de couverture est le cas NORMAL, pas un résultat.
   if (aiMentions.result) {
     const items = Array.isArray(aiMentions.result.items) ? aiMentions.result.items : [];
     const platforms = items.map(item => ({
@@ -942,18 +947,38 @@ async function externalIntelligence(site, location = "Canada", language = "fr") 
       mentions: Number(item.metrics?.mentions ?? item.mentions ?? 0),
       aiSearchVolume: Number(item.metrics?.ai_search_volume ?? item.ai_search_volume ?? 0),
     }));
-    const scope = [...new Set(platforms.map(item => `${item.location} · ${item.language}`))].join(" + ") || "Portée DataForSEO disponible";
+    const scope = [...new Set(platforms.map(item => `${item.location} · ${item.language}`))].join(" + ");
+    if (!platforms.length) {
+      // La requête a abouti, mais la base ne couvre pas ce domaine pour ce
+      // marché. Ce n'est pas un zéro : c'est une absence de mesure.
+      aiMentions = {
+        available: false,
+        measured: false,
+        reason: "provider_no_coverage",
+        error: "Aucune couverture DataForSEO pour ce domaine — la mesure de mentions IA est limitée aux États-Unis et à l'anglais.",
+        providerCostUsd: aiMentions.providerCostUsd,
+      };
+    } else {
+      aiMentions = {
+        available: true,
+        measured: true,
+        mentions: platforms.reduce((sum, item) => sum + item.mentions, 0),
+        aiSearchVolume: platforms.reduce((sum, item) => sum + item.aiSearchVolume, 0),
+        platforms,
+        scope: scope || "Portée DataForSEO disponible",
+        databaseMeasurement: true,
+        providerCostUsd: aiMentions.providerCostUsd,
+      };
+    }
+  } else if (aiMentions.available !== false) {
+    // Réponse vide du fournisseur : on ne prétend rien avoir mesuré.
     aiMentions = {
-      available: true,
-      mentions: platforms.reduce((sum, item) => sum + item.mentions, 0),
-      aiSearchVolume: platforms.reduce((sum, item) => sum + item.aiSearchVolume, 0),
-      platforms,
-      scope,
-      databaseMeasurement: true,
+      available: false,
+      measured: false,
+      reason: "provider_empty_response",
+      error: "La source n'a retourné aucune donnée de mentions IA pour ce domaine.",
       providerCostUsd: aiMentions.providerCostUsd,
     };
-  } else if (aiMentions.available !== false) {
-    aiMentions = { available: true, mentions: 0, aiSearchVolume: 0, platforms: [], scope: "Portée DataForSEO disponible", databaseMeasurement: true, providerCostUsd: aiMentions.providerCostUsd };
   }
 
   if (competitors.result) {

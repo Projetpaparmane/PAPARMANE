@@ -1543,11 +1543,15 @@ function renderReport(m){
     formula:advanced.searchBlocked||m.pages[0]?.indexability?.noindex?"Blocage global ou accueil en noindex = 0":"100 − 80×"+noindexScorePages.length+"/"+m.pages.length+" − 15×"+nofollowScorePages.length+"/"+m.pages.length+" − 20×"+canonicalScorePages.length+"/"+m.pages.length+" = "+m.scores.indexation,
     locations:[...noindexScorePages,...nofollowScorePages,...canonicalScorePages].map(p=>p.url).slice(0,3),
   };
-  const providerFailure=data=>data?.error||(
-    data?.reason==="provider_timeout"?"Délai dépassé — réessayer plus tard":
-    data?.reason==="provider_payment_required"?"Solde DataForSEO insuffisant — ajouter des crédits API":
-    data?.reason==="provider_unauthorized"?"Accès DataForSEO non autorisé pour ce module":
-    "Donnée temporairement indisponible"
+  const providerFailure=data=>(
+    data?.reason==="provider_no_coverage"?"Marché non couvert par la base — aucune mesure possible":
+    data?.reason==="provider_empty_response"?"Aucune donnée retournée — rien n'a été mesuré":
+    data?.error||(
+      data?.reason==="provider_timeout"?"Délai dépassé — réessayer plus tard":
+      data?.reason==="provider_payment_required"?"Solde DataForSEO insuffisant — ajouter des crédits API":
+      data?.reason==="provider_unauthorized"?"Accès DataForSEO non autorisé pour ce module":
+      "Donnée temporairement indisponible"
+    )
   );
   const platformLabel=platform=>platform==="chat_gpt"?"ChatGPT":platform==="google"?"Google IA":String(platform||"IA").replaceAll("_"," ");
   const trafficUnavailable=(()=>{
@@ -1581,7 +1585,9 @@ function renderReport(m){
     ["Trafic organique",traffic.available?traffic.organic.toLocaleString("fr-CA"):"—",traffic.available?"visites mensuelles organiques estimées · Canada":trafficUnavailable[0],traffic.available?"estimation DataForSEO":trafficUnavailable[1],traffic.available?"good":trafficUnavailable[2]],
     ["Trafic payant",traffic.available?traffic.paid.toLocaleString("fr-CA"):"—",traffic.available?"visites mensuelles payantes estimées · Canada":trafficUnavailable[0],traffic.available?"estimation DataForSEO":trafficUnavailable[1],traffic.available&&traffic.paid>0?"warn":trafficUnavailable[2]],
     ["Backlinks",backlinkData.available?fmt(backlinkData.backlinks):"—",backlinkData.available?fmt(backlinkData.referringDomains)+" domaines référents · rang "+(backlinkData.rank??"—"):providerFailure(backlinkData),backlinkData.available?"mesure DataForSEO":"non mesuré",backlinkData.available?(backlinkData.backlinks?"good":"warn"):""],
-    ["Mentions IA réelles",aiMentionData.available?fmt(aiMentionData.mentions):"—",aiMentionData.available?(aiMentionData.platforms?.length?aiMentionData.platforms.map(x=>platformLabel(x.platform)+" "+fmt(x.mentions)).join(" · "):"aucune mention détectée")+" · "+(aiMentionData.scope||"portée externe"):providerFailure(aiMentionData),aiMentionData.available?"base DataForSEO":"non mesuré",aiMentionData.available?(aiMentionData.mentions?"good":"warn"):""],
+    // « Non mesuré » n'est jamais présenté comme un zéro : l'outil ne peut pas
+    // affirmer qu'une marque est absente des IA s'il n'a pas pu la chercher.
+    ["Mentions IA réelles",aiMentionData.available?fmt(aiMentionData.mentions):"non mesuré",aiMentionData.available?aiMentionData.platforms.map(x=>platformLabel(x.platform)+" "+fmt(x.mentions)).join(" · ")+" · "+(aiMentionData.scope||"portée externe"):providerFailure(aiMentionData),aiMentionData.available?"base DataForSEO":"aucune mesure",aiMentionData.available?(aiMentionData.mentions?"good":"warn"):""],
     ["Évolution",delta===null?"—":(delta>0?"+":"")+delta,delta===null?"Un deuxième audit fiable activera la comparaison":"points depuis le dernier audit","historique local",delta>0?"good":delta<0?"bad":""],
   ];
 
@@ -1825,8 +1831,16 @@ function renderReport(m){
     ${aiMentionData.available?`<div class="sec-h"><h3>Mentions IA mesurées</h3><div class="rule"></div></div>
     <p class="sec-intro"><b>Mesure réelle de la base DataForSEO, distincte de la préparation technique IA.</b> Elle comptabilise les mentions observées sur les plateformes couvertes pour ${esc(aiMentionData.scope||"la portée disponible")}. Il ne s'agit pas d'un test personnalisé de chaque question qu'un client pourrait poser.</p>
     <div class="tbl-wrap"><table><thead><tr><th>Plateforme</th><th>Marché</th><th class="c">Mentions</th><th class="c">Volume de recherches IA</th><th>Lecture</th></tr></thead><tbody>
-      ${aiMentionData.platforms?.length?aiMentionData.platforms.map(p=>`<tr><td><b>${esc(platformLabel(p.platform))}</b></td><td>${esc(p.location||aiMentionData.scope)} · ${esc(p.language||"")}</td><td class="c tnum">${fmt(p.mentions)}</td><td class="c tnum">${fmt(p.aiSearchVolume)}</td><td>${p.mentions?"La marque est déjà citée":"Aucune mention trouvée dans l'échantillon"}</td></tr>`).join(""):`<tr><td colspan="5">Aucune mention IA trouvée dans la base pour cette portée.</td></tr>`}
-    </tbody></table></div>`:""}
+      ${aiMentionData.platforms.map(p=>`<tr><td><b>${esc(platformLabel(p.platform))}</b></td><td>${esc(p.location||aiMentionData.scope)} · ${esc(p.language||"")}</td><td class="c tnum">${fmt(p.mentions)}</td><td class="c tnum">${fmt(p.aiSearchVolume)}</td><td>${p.mentions?"La marque est déjà citée":"Aucune mention trouvée dans l'échantillon"}</td></tr>`).join("")}
+    </tbody></table></div>`:`
+    <div class="sec-h"><h3>Mentions IA mesurées</h3><div class="rule"></div></div>
+    <div class="note"><b>Non mesuré — et ce n'est pas un zéro.</b>
+      ${aiMentionData.reason==="provider_no_coverage"
+        ? "La base de mentions IA utilisée ne couvre actuellement que les États-Unis et l'anglais. Pour une entreprise québécoise, l'absence de données est le cas normal : <b>cela ne signifie pas que la marque est absente des réponses d'IA</b>, seulement que personne ne l'a comptée."
+        : esc(providerFailure(aiMentionData))+". Aucune conclusion ne peut être tirée sur la présence réelle de la marque dans les IA."}
+      <br><br>Ce que dit ce rapport, c'est autre chose et c'est vérifiable : <b>est-ce que les assistants IA ont le droit d'entrer sur le site, comprennent-ils qui vous êtes, et qu'est-ce qui les empêche de vous citer ?</b> C'est l'objet de la section « Visibilité auprès des IA » ci-dessus.
+      <br><br>Pour une mesure réelle et personnalisée — poser 20 à 50 vraies questions de clients à ChatGPT, Claude, Perplexity et Gemini, puis compter les mentions et les concurrents qui sortent à votre place — c'est un mandat distinct que Paparmane peut réaliser.</div>
+    `}
     `:""}
 
     <div class="sec-h"><h3>Schema Studio — données structurées</h3><div class="rule"></div></div>
