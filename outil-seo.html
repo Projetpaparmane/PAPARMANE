@@ -1034,8 +1034,10 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   // décision légitime qui ne coûte aucune visibilité.
   // Claude-Web et anthropic-ai sont dépréciés : les bloquer ne coûte rien, donc
   // ils n'entrent pas dans le calcul (sinon faux positif de plusieurs points).
+  // GrokBot est volontairement exclu : xAI ne documente aucun nom d'agent et
+  // Grok récupère souvent sous un agent usurpé — le bloquer ou non ne prouve rien.
   const searchAgents = ["OAI-SearchBot","ChatGPT-User","Claude-SearchBot","Claude-User",
-    "PerplexityBot","Perplexity-User","DuckAssistBot","MistralAI-User","xAI-SearchBot","YouBot","Meta-ExternalFetcher"];
+    "PerplexityBot","Perplexity-User","DuckAssistBot","MistralAI-User","YouBot","Meta-ExternalFetcher","Applebot"];
   const majorBlocked = blocked.filter(b=>searchAgents.includes(b.agent));
   // Pénalité proportionnelle : allonger la liste des robots ne doit pas rendre
   // le score plus sévère pour un même site.
@@ -1144,7 +1146,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
     // Google a confirmé ne pas le prendre en charge. En revanche, un fichier
     // présent mais qui pointe vers de mauvaises pages induit les IA en erreur :
     // ce défaut-là reste lourdement pénalisé.
-    ...(!disc.llms?.exists?[{points:4,label:"fichier llms.txt absent (standard peu lu, pénalité minime)",locations:[origin+"/llms.txt"]}]:llmsHasInvalidLinks?[{points:18,label:"liens invalides dans llms.txt",locations:llmsLinkResults.filter(r=>r.status>=400||(r.finalUrl.replace(/\/$/,"")===origin&&r.url.replace(/\/$/,"")!==origin)).map(r=>r.url)}]:[]),
+    ...(!disc.llms?.exists?[{points:4,label:"fichier llms.txt absent (standard peu lu, pénalité minime)",locations:[origin+"/llms.txt"]}]:llmsHasInvalidLinks?[{points:5,label:"liens invalides dans llms.txt",locations:llmsLinkResults.filter(r=>r.status>=400||(r.finalUrl.replace(/\/$/,"")===origin&&r.url.replace(/\/$/,"")!==origin)).map(r=>r.url)}]:[]),
   ];
   const aiPenalty=aiDeductions.reduce((sum,item)=>sum+item.points,0);
   const inaccessiblePublicPages=deadPages.filter(p=>!p.transient);
@@ -1227,7 +1229,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
     avgResponseMs,slowPages:slowPages.length,compressedPages:compressedPages.length,avgResources,heavyPages:resourceHeavyPages.length,
     orphanPages:orphanPages.length,iframeTotal,iframeMissing:iframeMissingTotal,faviconReady,analyticsTools,hreflangLinks,inlineStyleCount,obsoletePages:obsoletePages.length,
   };
-  return {origin, disc, pages, keywordPages, deadPages, issues, wins, scores, scoreEvidence, global, imgPages, uniqFiles, isWP, aiReadiness, siteKeywords, cannibalization, targetMap, clientName:options.clientName||"",contactName:options.contactName||"",publicContacts,pagesNeedingWork,quickWins,proofCount,opportunityScore,schemaAudit:{inventory:schemaInventory,expectedMissing,entityNames,entityIds},advancedAudit,auditMeta,
+  return {origin, disc, pages, keywordPages, deadPages, issues, wins, scores, scoreEvidence, global, imgPages, uniqFiles, isWP, aiReadiness, searchAgents, siteKeywords, cannibalization, targetMap, clientName:options.clientName||"",contactName:options.contactName||"",publicContacts,pagesNeedingWork,quickWins,proofCount,opportunityScore,schemaAudit:{inventory:schemaInventory,expectedMissing,entityNames,entityIds},advancedAudit,auditMeta,
           counts,
           linksChecked: linkResults.length};
 }
@@ -1566,11 +1568,27 @@ function renderReport(m){
   };
 
   // Module IA — tableau robots
+  // Un « Bloqué » en rouge sans explication fait paniquer le client pour rien :
+  // bloquer un robot d'ENTRAÎNEMENT est une décision légitime qui ne coûte
+  // aucune visibilité. La conséquence était calculée mais jamais affichée.
+  const citationAgents = new Set(m.searchAgents||[]);
   const botRow = b=>{
-    const st = b.state==="blocked"?`<span class="tag no">Bloqué</span>`
-             : b.state==="allowed"?`<span class="tag ok">Autorisé</span>`
-             : `<span class="tag mid">Par défaut</span>`;
-    return `<tr><td><b>${esc(b.agent)}</b></td><td>${esc(b.role)}</td><td class="c">${st}</td></tr>`;
+    const citation = citationAgents.has(b.agent);
+    const deprecie = /déprécié/i.test(b.role||"");
+    const inconnu = /non documenté/i.test(b.role||"");
+    const st = b.state==="blocked"
+        ? (citation && !deprecie && !inconnu ? `<span class="tag no">Bloqué</span>` : `<span class="tag mid">Bloqué</span>`)
+      : b.state==="allowed" ? `<span class="tag ok">Autorisé</span>`
+      : `<span class="tag mid">Par défaut</span>`;
+    const role = esc(b.role) + (citation
+      ? ` <span class="tag ok" style="font-size:10px">citation</span>`
+      : (deprecie || inconnu) ? "" : ` <span class="tag mid" style="font-size:10px">entraînement</span>`);
+    // On n'affiche la conséquence que si elle change quelque chose.
+    const csq = b.state==="blocked" && b.cost
+      ? `<span style="color:${citation?"var(--crit)":"var(--ink-soft)"}">${esc(b.cost)}</span>`
+      : b.state==="blocked" ? `<span style="color:var(--ink-faint)">—</span>`
+      : `<span style="color:var(--ink-faint)">aucune restriction</span>`;
+    return `<tr><td><b>${esc(b.agent)}</b></td><td>${role}</td><td class="c">${st}</td><td style="font-size:12.5px">${csq}</td></tr>`;
   };
 
   // Photos à corriger
@@ -1737,7 +1755,7 @@ function renderReport(m){
       <p>${esc(a.detail)}</p></div>`).join("")}</div>
     <p class="sec-intro">Le tableau ci-dessous montre précisément quels robots ont le droit de lire le site et à quel usage ils servent.</p>
     <div class="tbl-wrap"><table>
-      <thead><tr><th>Robot</th><th>Ce qu'il alimente</th><th class="c">État</th></tr></thead>
+      <thead><tr><th>Robot</th><th>Ce qu'il alimente</th><th class="c">État</th><th>Conséquence si bloqué</th></tr></thead>
       <tbody>${m.disc.aiBots.map(botRow).join("")}</tbody>
     </table></div>
     <div class="legend"><span><span class="dot ok"></span> Autorisé</span><span><span class="dot mid"></span> Non mentionné (autorisé par défaut)</span><span><span class="dot no"></span> Bloqué explicitement</span></div>

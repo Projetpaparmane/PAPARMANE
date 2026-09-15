@@ -26,6 +26,7 @@ const AI_BOTS = [
   ["PerplexityBot",      "Perplexity AI — indexation",             "absent de Perplexity"],
   ["Perplexity-User",    "Perplexity — navigation",                "Perplexity ne peut pas visiter le site"],
   ["Google-Extended",    "Gemini — entraînement et grounding",     "contenu non utilisé pour Gemini; aucun effet sur Google Search"],
+  ["Applebot",           "Apple — Siri, Spotlight et Safari",      "absent de Siri, de Spotlight et de la recherche Safari"],
   ["Applebot-Extended",  "Apple — entraînement des modèles",       "contenu non utilisé pour entraîner Apple Intelligence; aucun effet sur Siri, Spotlight ni Safari, qui dépendent d'Applebot"],
   ["CCBot",              "Common Crawl — nourrit beaucoup d'IA",   "absent de nombreux modèles d'IA"],
   ["Bytespider",         "TikTok / Doubao",                        "absent des IA de ByteDance"],
@@ -37,7 +38,11 @@ const AI_BOTS = [
   ["Claude-User",        "Claude — visite à la demande",           "Claude ne peut pas ouvrir le site pour un utilisateur"],
   ["DuckAssistBot",      "DuckDuckGo AI (Duck.ai)",                "absent des réponses de DuckDuckGo"],
   ["MistralAI-User",     "Mistral (France) — navigation",          "Le Chat ne peut pas visiter le site"],
-  ["xAI-SearchBot",      "Grok (xAI) — recherche et citations",    "jamais cité par Grok"],
+  // xAI ne publie AUCUNE documentation de robot : les noms qui circulent
+  // (xAI-Bot, GrokBot, xAI-Grok) sont des suppositions, et Grok récupère
+  // souvent les pages sous un agent Safari usurpé. Informatif seulement :
+  // ce robot n'entre pas dans le calcul du score.
+  ["GrokBot",            "Grok (xAI) — nom d'agent non documenté", "indéterminé : xAI ne documente pas ses robots"],
   ["YouBot",             "You.com",                                "absent des réponses de You.com"],
   ["cohere-ai",          "Cohere — entraînement",                  "contenu exclu d'un éventuel entraînement Cohere"],
 ];
