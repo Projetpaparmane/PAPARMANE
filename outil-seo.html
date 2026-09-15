@@ -1032,7 +1032,9 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   // le CITER dans une réponse. Les robots d'entraînement (GPTBot, ClaudeBot,
   // Google-Extended, CCBot, cohere-ai) en sont exclus : les bloquer est une
   // décision légitime qui ne coûte aucune visibilité.
-  const searchAgents = ["OAI-SearchBot","ChatGPT-User","Claude-SearchBot","Claude-Web","Claude-User",
+  // Claude-Web et anthropic-ai sont dépréciés : les bloquer ne coûte rien, donc
+  // ils n'entrent pas dans le calcul (sinon faux positif de plusieurs points).
+  const searchAgents = ["OAI-SearchBot","ChatGPT-User","Claude-SearchBot","Claude-User",
     "PerplexityBot","Perplexity-User","DuckAssistBot","MistralAI-User","xAI-SearchBot","YouBot","Meta-ExternalFetcher"];
   const majorBlocked = blocked.filter(b=>searchAgents.includes(b.agent));
   // Pénalité proportionnelle : allonger la liste des robots ne doit pas rendre
