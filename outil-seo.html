@@ -1063,7 +1063,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
 
   if(!disc.llms?.exists){
     issues.push({sev:"info",cat:"ia",title:"Pas de fichier llms.txt — opportunité d'être mieux compris des IA",
-      body:"Le <code>llms.txt</code> est un standard émergent : une fiche en texte simple, à la racine du site, qui explique aux IA qui vous êtes, vos offres et vos vraies adresses de pages. Les sites qui l'ont sont plus souvent décrits correctement.",
+      body:"Le <code>llms.txt</code> est une fiche en texte simple, à la racine du site, qui explique aux IA qui vous êtes, vos offres et vos vraies adresses de pages. <b>À savoir avant d'y consacrer du temps :</b> une analyse Ahrefs portant sur 137 000 domaines (mai 2026) montre que 97 % de ces fichiers ne reçoivent jamais la moindre requête, Google a confirmé ne pas le prendre en charge et OpenAI n'en fait aucune mention. Seul Perplexity déclare le consulter. C'est donc un pari peu coûteux et sans risque, mais <b>ce n'est pas une priorité</b> : les vrais leviers de visibilité IA sont l'accès des robots de citation, la clarté de l'identité et un contenu factuel bien structuré.",
       where:["<code>"+esc(origin)+"/llms.txt</code> — n'existe pas"],
       steps:["Rédiger une fiche : présentation, offres/services avec liens exacts, infos pratiques (adresse, horaires, contact).","La déposer à la racine du site sous le nom <code>llms.txt</code>.","La tenir à jour quand les offres ou les prix changent."],
       effort:"2 h", gain:"différenciateur — peu de sites l'ont"});
@@ -1139,7 +1139,12 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   const aiDeductions=[
     ...(majorBlocked.length?[{points:Math.round(66*blockedShare),label:majorBlocked.length+" robot(s) de recherche/citation bloqué(s) sur "+searchAgents.length,locations:majorBlocked.map(b=>b.agent)}]:[]),
     ...(!identityReady?[{points:18,label:"identité d’entreprise précise absente",locations:[]}]:[]),
-    ...(!disc.llms?.exists?[{points:12,label:"fichier llms.txt absent",locations:[origin+"/llms.txt"]}]:llmsHasInvalidLinks?[{points:18,label:"liens invalides dans llms.txt",locations:llmsLinkResults.filter(r=>r.status>=400||(r.finalUrl.replace(/\/$/,"")===origin&&r.url.replace(/\/$/,"")!==origin)).map(r=>r.url)}]:[]),
+    // Pénalité volontairement faible : une analyse Ahrefs de 137 000 domaines
+    // (mai 2026) montre que 97 % des llms.txt ne reçoivent AUCUNE requête, et
+    // Google a confirmé ne pas le prendre en charge. En revanche, un fichier
+    // présent mais qui pointe vers de mauvaises pages induit les IA en erreur :
+    // ce défaut-là reste lourdement pénalisé.
+    ...(!disc.llms?.exists?[{points:4,label:"fichier llms.txt absent (standard peu lu, pénalité minime)",locations:[origin+"/llms.txt"]}]:llmsHasInvalidLinks?[{points:18,label:"liens invalides dans llms.txt",locations:llmsLinkResults.filter(r=>r.status>=400||(r.finalUrl.replace(/\/$/,"")===origin&&r.url.replace(/\/$/,"")!==origin)).map(r=>r.url)}]:[]),
   ];
   const aiPenalty=aiDeductions.reduce((sum,item)=>sum+item.points,0);
   const inaccessiblePublicPages=deadPages.filter(p=>!p.transient);
@@ -1188,7 +1193,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
     {name:"Accès des robots de citation",score:Math.max(0,Math.round(100*(1-blockedShare))),detail:majorBlocked.length?majorBlocked.length+" robot(s) de citation bloqué(s) sur "+searchAgents.length+" : "+majorBlocked.slice(0,3).map(b=>b.agent).join(", "):"ChatGPT, Claude, Perplexity, Grok, Mistral et DuckDuckGo peuvent explorer le site"},
     {name:"Identité de l'entreprise",score:identityReady?100:35,detail:identityReady?"entité d'entreprise précise détectée":"identité seulement générique ou absente"},
     {name:"Contenu facile à citer",score:Math.max(20,Math.round(100-thinPages.length/Math.max(1,n)*100)),detail:thinPages.length+" page(s) trop courtes"},
-    {name:"Fiche llms.txt",score:disc.llms?.exists?85:20,detail:disc.llms?.exists?"fichier présent":"fichier absent (standard émergent, facultatif)"},
+    {name:"Fiche llms.txt",score:disc.llms?.exists?(llmsHasInvalidLinks?45:90):70,detail:disc.llms?.exists?(llmsHasInvalidLinks?"fichier présent mais certains liens sont invalides":"fichier présent et valide"):"fichier absent — facultatif : 97 % des llms.txt publiés ne sont jamais lus (Ahrefs, mai 2026)"},
   ];
   const transientPages=deadPages.filter(p=>p.transient);
   if(transientPages.length) issues.unshift({sev:"warn",cat:"fondations",title:"Score provisoire : "+transientPages.length+" page(s) n'ont pas pu être relues après deux tentatives",
