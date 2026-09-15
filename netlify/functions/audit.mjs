@@ -29,8 +29,17 @@ const AI_BOTS = [
   ["Applebot-Extended",  "Apple Intelligence",                     "absent d'Apple Intelligence / Siri"],
   ["CCBot",              "Common Crawl — nourrit beaucoup d'IA",   "absent de nombreux modèles d'IA"],
   ["Bytespider",         "TikTok / Doubao",                        "absent des IA de ByteDance"],
-  ["meta-externalagent", "Meta AI",                                "absent de Meta AI"],
+  ["meta-externalagent", "Meta AI — entraînement",                 "absent de Meta AI"],
+  ["Meta-ExternalFetcher","Meta AI — récupération à la demande",   "Meta AI ne peut pas visiter le site"],
   ["Amazonbot",          "Amazon Alexa / Rufus",                   "absent des réponses d'Alexa"],
+  // Ajoutés après relevé des robots.txt de 14 grands sites (sept. 2026) :
+  // ces agents sont déclarés en pratique et manquaient à l'inventaire.
+  ["Claude-User",        "Claude — visite à la demande",           "Claude ne peut pas ouvrir le site pour un utilisateur"],
+  ["DuckAssistBot",      "DuckDuckGo AI (Duck.ai)",                "absent des réponses de DuckDuckGo"],
+  ["MistralAI-User",     "Mistral (France) — navigation",          "Le Chat ne peut pas visiter le site"],
+  ["xAI-SearchBot",      "Grok (xAI) — recherche et citations",    "jamais cité par Grok"],
+  ["YouBot",             "You.com",                                "absent des réponses de You.com"],
+  ["cohere-ai",          "Cohere — entraînement",                  "contenu exclu d'un éventuel entraînement Cohere"],
 ];
 
 function isSafeUrl(u) {

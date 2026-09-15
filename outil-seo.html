@@ -1028,8 +1028,16 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   const blocked = disc.aiBots.filter(b=>b.state==="blocked");
   // Les robots d'entraînement relèvent d'un choix éditorial. Seuls les
   // robots de recherche/citation bloqués réduisent directement la visibilité.
-  const searchAgents = ["OAI-SearchBot","ChatGPT-User","Claude-SearchBot","Claude-Web","PerplexityBot","Perplexity-User"];
+  // Robots qui amènent réellement de la visibilité : ils explorent le site pour
+  // le CITER dans une réponse. Les robots d'entraînement (GPTBot, ClaudeBot,
+  // Google-Extended, CCBot, cohere-ai) en sont exclus : les bloquer est une
+  // décision légitime qui ne coûte aucune visibilité.
+  const searchAgents = ["OAI-SearchBot","ChatGPT-User","Claude-SearchBot","Claude-Web","Claude-User",
+    "PerplexityBot","Perplexity-User","DuckAssistBot","MistralAI-User","xAI-SearchBot","YouBot","Meta-ExternalFetcher"];
   const majorBlocked = blocked.filter(b=>searchAgents.includes(b.agent));
+  // Pénalité proportionnelle : allonger la liste des robots ne doit pas rendre
+  // le score plus sévère pour un même site.
+  const blockedShare = majorBlocked.length/Math.max(1,searchAgents.length);
   const thinPages = keywordPages.filter(p=>(p.words||0)<180);
   // Le moteur renvoie désormais la filiation schema.org : un sous-type précis
   // (Winery, Campground, BedAndBreakfast, DaySpa…) compte comme une identité
@@ -1127,7 +1135,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   const homepageBlocked=!!homepage?.indexability?.noindex;
   const llmsHasInvalidLinks=!!disc.llms?.exists&&llmsLinkResults.some(r=>r.status>=400||(r.finalUrl.replace(/\/$/,"")===origin&&r.url.replace(/\/$/,"")!==origin));
   const aiDeductions=[
-    ...(majorBlocked.length?[{points:majorBlocked.length*11,label:majorBlocked.length+" robot(s) de recherche/citation bloqué(s)",locations:majorBlocked.map(b=>b.agent)}]:[]),
+    ...(majorBlocked.length?[{points:Math.round(66*blockedShare),label:majorBlocked.length+" robot(s) de recherche/citation bloqué(s) sur "+searchAgents.length,locations:majorBlocked.map(b=>b.agent)}]:[]),
     ...(!identityReady?[{points:18,label:"identité d’entreprise précise absente",locations:[]}]:[]),
     ...(!disc.llms?.exists?[{points:12,label:"fichier llms.txt absent",locations:[origin+"/llms.txt"]}]:llmsHasInvalidLinks?[{points:18,label:"liens invalides dans llms.txt",locations:llmsLinkResults.filter(r=>r.status>=400||(r.finalUrl.replace(/\/$/,"")===origin&&r.url.replace(/\/$/,"")!==origin)).map(r=>r.url)}]:[]),
   ];
@@ -1175,7 +1183,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   const order={crit:0,warn:1,info:2};
   issues.sort((a,b)=>order[a.sev]-order[b.sev]);
   const aiReadiness = [
-    {name:"Accès des robots de citation",score:Math.max(0,100-majorBlocked.length*17),detail:majorBlocked.length?majorBlocked.length+" robot(s) important(s) bloqué(s)":"ChatGPT, Claude et Perplexity peuvent explorer le site"},
+    {name:"Accès des robots de citation",score:Math.max(0,Math.round(100*(1-blockedShare))),detail:majorBlocked.length?majorBlocked.length+" robot(s) de citation bloqué(s) sur "+searchAgents.length+" : "+majorBlocked.slice(0,3).map(b=>b.agent).join(", "):"ChatGPT, Claude, Perplexity, Grok, Mistral et DuckDuckGo peuvent explorer le site"},
     {name:"Identité de l'entreprise",score:identityReady?100:35,detail:identityReady?"entité d'entreprise précise détectée":"identité seulement générique ou absente"},
     {name:"Contenu facile à citer",score:Math.max(20,Math.round(100-thinPages.length/Math.max(1,n)*100)),detail:thinPages.length+" page(s) trop courtes"},
     {name:"Fiche llms.txt",score:disc.llms?.exists?85:20,detail:disc.llms?.exists?"fichier présent":"fichier absent (standard émergent, facultatif)"},
