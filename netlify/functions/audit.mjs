@@ -482,6 +482,13 @@ function analyzePage(url, html, finalUrl, response = {}) {
   const allRobotDirectives = `${robotsDirectives}, ${xRobotsTag}`;
   const noindex = /(?:^|[\s,])(?:noindex|none)(?:[\s,]|$)/i.test(allRobotDirectives);
   const nofollow = /(?:^|[\s,])(?:nofollow|none)(?:[\s,]|$)/i.test(allRobotDirectives);
+  // Directives qui interdisent à Google de reprendre un extrait de la page :
+  // c'est exactement ce qui exclut des Aperçus IA et du mode IA. « noarchive »
+  // n'est PAS inclus (il ne concerne que le cache) et « max-snippet:-1 »
+  // signifie « aucune limite », donc n'est pas une restriction.
+  const nosnippet = /(?:^|[\s,])nosnippet(?:[\s,]|$)/i.test(allRobotDirectives);
+  const maxSnippetZero = /(?:^|[\s,])max-snippet\s*:\s*0(?:[\s,]|$)/i.test(allRobotDirectives);
+  const snippetBlocked = nosnippet || maxSnippetZero;
 
   const hreflang = linkTags
     .filter(tag => hasRel(tag, "alternate") && tagAttr(tag, "hreflang"))
@@ -587,7 +594,7 @@ function analyzePage(url, html, finalUrl, response = {}) {
     keywordAlignment: { title: inField(title), h1: inField(h1.join(" ")), desc: inField(desc) },
     contact: { emails, phones, socials, hasForm: /<form\b/i.test(html), ctas: [...new Set(ctas)].slice(0, 10) },
     sizeKB: Math.round(html.length / 1024),
-    indexability: { noindex, nofollow, robotsDirectives, xRobotsTag },
+    indexability: { noindex, nofollow, nosnippet, maxSnippetZero, snippetBlocked, robotsDirectives, xRobotsTag },
     hreflang,
     faviconDeclared,
     iframes: { total: iframes.length, missingTitle: iframeMissingTitle },

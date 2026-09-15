@@ -943,6 +943,96 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   const faviconReady=!!(homepage?.faviconDeclared||disc.favicon?.fallbackExists);
   const analyticsTools=[...new Set(pages.flatMap(p=>p.analytics||[]))];
   const hreflangLinks=pages.reduce((sum,p)=>sum+(p.hreflang||[]).length,0);
+
+  // ---- Validation hreflang (entièrement en mémoire, aucun appel réseau) ----
+  // Codes de langue ISO 639-1 les plus courants + codes de région ISO 3166-1.
+  // L'erreur classique de WPML/Polylang est « fr-QC » : le Québec n'est pas un
+  // pays, le code valide est fr-CA.
+  const LANGUES_ISO=new Set(("aa ab ae af ak am an ar as av ay az ba be bg bh bi bm bn bo br bs ca ce ch co cr cs cu cv cy da de dv dz ee el en eo es et eu fa ff fi fj fo fr fy ga gd gl gn gu gv ha he hi ho hr ht hu hy hz ia id ie ig ii ik io is it iu ja jv ka kg ki kj kk kl km kn ko kr ks ku kv kw ky la lb lg li ln lo lt lu lv mg mh mi mk ml mn mr ms mt my na nb nd ne ng nl nn no nr nv ny oc oj om or os pa pi pl ps pt qu rm rn ro ru rw sa sc sd se sg si sk sl sm sn so sq sr ss st su sv sw ta te tg th ti tk tl tn to tr ts tt tw ty ug uk ur uz ve vi vo wa wo xh yi yo za zh zu").split(" "));
+  const REGIONS_ISO=new Set(("ad ae af ag ai al am ao ar at au aw az ba bb bd be bf bg bh bi bj bm bn bo br bs bt bw by bz ca cd cf cg ch ci cl cm cn co cr cu cv cy cz de dj dk dm do dz ec ee eg er es et fi fj fm fo fr ga gb gd ge gh gi gl gm gn gq gr gt gu gw gy hk hn hr ht hu id ie il in iq ir is it jm jo jp ke kg kh ki km kn kp kr kw ky kz la lb lc li lk lr ls lt lu lv ly ma mc md me mg mh mk ml mm mn mo mr mt mu mv mw mx my mz na ne ng ni nl no np nr nz om pa pe pf pg ph pk pl pr pt py qa ro rs ru rw sa sb sc sd se sg si sk sl sm sn so sr ss sv sy sz td tg th tj tm tn to tr tt tw tz ua ug us uy uz va vc ve vn vu ws ye za zm zw 419").split(" "));
+  const normUrl=u=>{try{const x=new URL(u);x.hash="";x.search="";return x.href.replace(/\/$/,"").toLowerCase();}catch{return String(u||"").replace(/\/$/,"").toLowerCase();}};
+  const pagesParUrl=new Map();
+  for(const p of pages){pagesParUrl.set(normUrl(p.finalUrl||p.url),p); pagesParUrl.set(normUrl(p.url),p);}
+
+  const hreflangPages=pages.filter(p=>(p.hreflang||[]).length);
+  const hfCodesInvalides=[], hfSansAuto=[], hfNonReciproques=[], hfVersNoindex=[], hfRelatif=[];
+  let hfXDefault=false;
+  for(const p of hreflangPages){
+    const moi=normUrl(p.finalUrl||p.url);
+    let seDeclare=false;
+    for(const alt of p.hreflang){
+      const code=String(alt.language||"").trim();
+      const bas=code.toLowerCase();
+      if(bas==="x-default"){hfXDefault=true; continue;}
+      // Forme attendue : « fr » ou « fr-CA » (la sous-balise d'écriture, ex. zh-Hant, reste tolérée).
+      const m=bas.match(/^([a-z]{2,3})(?:-[a-z]{4})?(?:-([a-z]{2}|\d{3}))?$/);
+      if(!m||!LANGUES_ISO.has(m[1])||(m[2]&&!REGIONS_ISO.has(m[2]))){
+        hfCodesInvalides.push({page:p,code,href:alt.href});
+      }
+      if(!/^https?:\/\//i.test(String(alt.href||""))) hfRelatif.push({page:p,code,href:alt.href});
+      const cible=normUrl(alt.href);
+      if(cible===moi) seDeclare=true;
+      const pageCible=pagesParUrl.get(cible);
+      if(pageCible){
+        if(pageCible.indexability?.noindex) hfVersNoindex.push({page:p,code,href:alt.href});
+        // Réciprocité : la page visée doit renvoyer vers celle-ci.
+        const retour=(pageCible.hreflang||[]).some(a=>normUrl(a.href)===moi);
+        if(!retour&&pageCible!==p) hfNonReciproques.push({page:p,code,cible:pageCible});
+      }
+    }
+    if(!seDeclare) hfSansAuto.push(p);
+  }
+  const hreflangAudit={pages:hreflangPages.length,liens:hreflangLinks,xDefault:hfXDefault,
+    codesInvalides:hfCodesInvalides.length,sansAuto:hfSansAuto.length,nonReciproques:hfNonReciproques.length,
+    versNoindex:hfVersNoindex.length,relatifs:hfRelatif.length};
+
+  if(hreflangPages.length){
+    const lignes=[];
+    if(hfCodesInvalides.length) lignes.push({t:"Code de langue invalide",l:hfCodesInvalides.slice(0,8).map(x=>"<code>"+esc(sh(x.page.url))+"</code> → <b>"+esc(x.code)+"</b>"+(/^fr-qc$/i.test(x.code)?" (le Québec n'est pas un pays : utiliser <b>fr-CA</b>)":""))});
+    if(hfNonReciproques.length) lignes.push({t:"Lien non réciproque",l:hfNonReciproques.slice(0,8).map(x=>"<code>"+esc(sh(x.page.url))+"</code> pointe vers <code>"+esc(sh(x.cible.url))+"</code>, qui ne renvoie pas l'inverse")});
+    if(hfSansAuto.length) lignes.push({t:"La page ne se déclare pas elle-même",l:hfSansAuto.slice(0,8).map(p=>"<code>"+esc(sh(p.url))+"</code>")});
+    if(hfVersNoindex.length) lignes.push({t:"Pointe vers une page non indexable",l:hfVersNoindex.slice(0,6).map(x=>"<code>"+esc(sh(x.page.url))+"</code> → <code>"+esc(sh(x.href))+"</code> (noindex)")});
+    if(hfRelatif.length) lignes.push({t:"Adresse relative au lieu d'absolue",l:hfRelatif.slice(0,6).map(x=>"<code>"+esc(sh(x.page.url))+"</code> → <code>"+esc(String(x.href).slice(0,60))+"</code>")});
+    if(!hfXDefault) lignes.push({t:"Aucun x-default",l:["Aucune page ne déclare <code>x-default</code> : les visiteurs dont la langue n'est pas couverte n'ont pas de version par défaut désignée."]});
+    if(lignes.length){
+      const total=hfCodesInvalides.length+hfNonReciproques.length+hfSansAuto.length+hfVersNoindex.length+hfRelatif.length;
+      // Un x-default manquant seul n'est pas un défaut de configuration : c'est
+      // une amélioration. On ne titre « problèmes » que s'il y en a vraiment.
+      issues.push({sev: (hfCodesInvalides.length||hfNonReciproques.length)?"warn":"info", cat:"fondations",
+        title: total
+          ? "Site bilingue : "+total+" problème(s) dans les balises de langue (hreflang)"
+          : "Site bilingue : aucune version par défaut déclarée (x-default)",
+        body: (total
+          ? "Les balises <code>hreflang</code> disent à Google quelle version d'une page montrer selon la langue du visiteur. Mal posées, elles sont <b>ignorées en bloc</b> : un anglophone reçoit la page française, ou l'inverse. C'est l'erreur la plus fréquente sur les sites bilingues du Québec, et elle est invisible sans outil."
+          : "Bonne nouvelle : les balises <code>hreflang</code> de ce site sont <b>correctement posées</b> — codes de langue valides, liens réciproques, chaque page se déclare elle-même. Il ne manque que le <code>x-default</code>, qui indique quelle version servir à un visiteur dont la langue n'est couverte par aucune traduction.")
+          +(hreflangPages.length<pages.length?" Note : "+hreflangPages.length+" page(s) sur "+pages.length+" portent des balises hreflang.":""),
+        where:lignes.flatMap(x=>["<b>"+x.t+"</b>",...x.l]),
+        steps:["Un code de langue valide s'écrit <code>fr</code>, <code>en</code>, ou langue-PAYS : <code>fr-CA</code>, <code>en-CA</code>. <b>Attention : <code>fr-QC</code> n'existe pas</b> — erreur classique de WPML et Polylang.",
+               "Chaque page doit <b>se déclarer elle-même</b> en plus de ses traductions.",
+               "La réciprocité est obligatoire : si la page française pointe vers l'anglaise, l'anglaise doit pointer vers la française. Sinon Google ignore tout le groupe.",
+               "Toujours des adresses <b>absolues</b> (https://…), jamais relatives.",
+               "Ajouter un <code>x-default</code> vers la version à servir par défaut.",
+               isWP?"Dans WPML ou Polylang, vérifier que chaque page a bien une traduction liée et publiée — un lien manquant casse la réciprocité.":"Vérifier le gabarit qui génère les balises alternate."],
+        effort:"30-90 min", gain:"élevé pour un site bilingue"});
+    } else {
+      wins.push(["Balises de langue valides",hreflangPages.length+" page(s) bilingues : codes corrects, liens réciproques, x-default présent."]);
+    }
+  }
+
+  // ---- Extraits bloqués : ce qui exclut réellement des Aperçus IA de Google ----
+  const snippetBloque=pages.filter(p=>p.indexability?.snippetBlocked);
+  if(snippetBloque.length){
+    const indexables=snippetBloque.filter(p=>!p.indexability?.noindex);
+    issues.push({sev: indexables.length?"crit":"info", cat:"ia",
+      title:snippetBloque.length+" page(s) interdisent à Google d'en citer le moindre extrait",
+      body:"La directive <code>nosnippet</code> (ou <code>max-snippet:0</code>) interdit à Google d'afficher le moindre extrait de la page. Conséquence directe : <b>la page est exclue des Aperçus IA et du mode IA de Google</b>, et son résultat classique s'affiche sans description. C'est le réglage le plus coûteux pour la visibilité IA, et il est presque toujours activé par erreur — une case cochée dans une extension SEO, ou un réglage appliqué à tout un type de contenu."+(indexables.length?" Ces pages sont pourtant <b>indexables</b> : elles veulent être trouvées, mais s'interdisent d'être citées.":""),
+      where:snippetBloque.slice(0,15).map(p=>"<a href='"+esc(p.url)+"' target='_blank'>"+esc(sh(p.url))+"</a> — <code>"+esc((p.indexability.robotsDirectives||p.indexability.xRobotsTag||"").slice(0,70))+"</code>"),
+      steps:[isWP?"Dans l'extension SEO (Yoast : Avancé → « Autoriser Google à afficher un extrait » ; Rank Math : Robots Meta), décocher <code>nosnippet</code> sur ces pages.":"Retirer <code>nosnippet</code> et <code>max-snippet:0</code> de la balise meta robots et de l'en-tête X-Robots-Tag.",
+             "Vérifier aussi les réglages appliqués à tout un type de contenu, pas seulement page par page.",
+             "Pour limiter sans interdire, utiliser <code>max-snippet:160</code> plutôt que <code>0</code>.",
+             "Recontrôler ensuite dans la Search Console, section Recherche générative."],
+      effort:"15 min", gain:"critique pour la visibilité IA"});
+  }
   const inlineStyleCount=pages.reduce((sum,p)=>sum+(p.inlineStyles||0),0);
   if(slowPages.length>=Math.max(2,Math.ceil(measuredResponses.length*.2))) issues.push({sev:"info",cat:"qualite",title:slowPages.length+" page(s) ont répondu lentement au robot d'audit",
     body:"Paparmane a attendu au moins 1,5 seconde avant de recevoir et lire la réponse HTML de ces pages. C'est un indicateur réseau ponctuel — pas un Core Web Vital — mais il aide à repérer un serveur, un cache ou une page dynamique à examiner.",
@@ -1141,6 +1231,9 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   const aiDeductions=[
     ...(majorBlocked.length?[{points:Math.round(66*blockedShare),label:majorBlocked.length+" robot(s) de recherche/citation bloqué(s) sur "+searchAgents.length,locations:majorBlocked.map(b=>b.agent)}]:[]),
     ...(!identityReady?[{points:18,label:"identité d’entreprise précise absente",locations:[]}]:[]),
+    // Interdire tout extrait exclut la page des Aperçus IA : c'est le réglage
+    // le plus coûteux pour la visibilité IA, il pèse donc lourd.
+    ...(snippetBloque.length?[{points:Math.min(25,Math.round(25*snippetBloque.length/Math.max(1,n))),label:snippetBloque.length+" page(s) en nosnippet (exclues des Aperçus IA)",locations:snippetBloque.slice(0,5).map(p=>p.url)}]:[]),
     // Pénalité volontairement faible : une analyse Ahrefs de 137 000 domaines
     // (mai 2026) montre que 97 % des llms.txt ne reçoivent AUCUNE requête, et
     // Google a confirmé ne pas le prendre en charge. En revanche, un fichier
@@ -1192,9 +1285,10 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   const order={crit:0,warn:1,info:2};
   issues.sort((a,b)=>order[a.sev]-order[b.sev]);
   const aiReadiness = [
-    {name:"Accès des robots de citation",score:Math.max(0,Math.round(100*(1-blockedShare))),detail:majorBlocked.length?majorBlocked.length+" robot(s) de citation bloqué(s) sur "+searchAgents.length+" : "+majorBlocked.slice(0,3).map(b=>b.agent).join(", "):"ChatGPT, Claude, Perplexity, Grok, Mistral et DuckDuckGo peuvent explorer le site"},
+    {name:"Accès des robots de citation",score:Math.max(0,Math.round(100*(1-blockedShare))),detail:majorBlocked.length?majorBlocked.length+" robot(s) de citation bloqué(s) sur "+searchAgents.length+" : "+majorBlocked.slice(0,3).map(b=>b.agent).join(", "):"ChatGPT, Claude, Perplexity, Mistral, DuckDuckGo et Apple peuvent explorer le site"},
     {name:"Identité de l'entreprise",score:identityReady?100:35,detail:identityReady?"entité d'entreprise précise détectée":"identité seulement générique ou absente"},
     {name:"Contenu facile à citer",score:Math.max(20,Math.round(100-thinPages.length/Math.max(1,n)*100)),detail:thinPages.length+" page(s) trop courtes"},
+    {name:"Extraits citables",score:snippetBloque.length?Math.max(0,Math.round(100*(1-snippetBloque.length/Math.max(1,n)))):100,detail:snippetBloque.length?snippetBloque.length+" page(s) interdisent tout extrait (nosnippet) — exclues des Aperçus IA":"aucune page n'interdit la reprise d'extraits"},
     {name:"Fiche llms.txt",score:disc.llms?.exists?(llmsHasInvalidLinks?45:90):70,detail:disc.llms?.exists?(llmsHasInvalidLinks?"fichier présent mais certains liens sont invalides":"fichier présent et valide"):"fichier absent — facultatif : 97 % des llms.txt publiés ne sont jamais lus (Ahrefs, mai 2026)"},
   ];
   const transientPages=deadPages.filter(p=>p.transient);
