@@ -259,8 +259,50 @@
     .iss-head h4{min-width:0;overflow-wrap:anywhere}
     .sec-h{break-after:avoid-page;page-break-after:avoid}
     .tbl-wrap{overflow:visible} table{min-width:0}
-    details{open:true}
+    /* « details{open:true} » n'existe pas en CSS : c'est un attribut HTML.
+       L'ouverture réelle est faite en JS sur l'événement beforeprint, sinon
+       la liste des photos à corriger disparaissait du PDF livré au client. */
+    details>summary{list-style:none}
+    details>summary::-webkit-details-marker{display:none}
+    .screen-only{display:none!important}
+    .print-only{display:block!important}
+    .cover{display:flex!important;break-after:page;page-break-after:always}
   }
+  .print-only{display:none}
+  .cover{display:none}
+
+  /* Page de garde — visible uniquement à l'impression */
+  .cover{flex-direction:column;justify-content:space-between;min-height:232mm;padding:0}
+  .cover-top{display:flex;align-items:center;gap:14px}
+  .cover-mid{flex:1;display:flex;flex-direction:column;justify-content:center;gap:10px}
+  .cover-kicker{text-transform:uppercase;letter-spacing:.22em;font-size:11px;font-weight:700;color:var(--accent)}
+  .cover h1{font-family:var(--serif);font-size:40px;line-height:1.05;margin:0;font-weight:700;text-wrap:balance}
+  .cover .client{font-size:23px;font-weight:650;margin-top:2px}
+  .cover .dom{font-family:var(--mono);font-size:13px;color:var(--ink-soft)}
+  .cover-facts{display:flex;gap:26px;margin-top:20px;padding-top:16px;border-top:2px solid var(--ink);flex-wrap:wrap}
+  .cover-fact .v{font-family:var(--serif);font-size:27px;font-weight:800;line-height:1}
+  .cover-fact .l{font-size:10.5px;text-transform:uppercase;letter-spacing:.11em;color:var(--ink-faint);font-weight:700;margin-top:3px}
+  .cover-bot{font-size:11.5px;color:var(--ink-faint);border-top:1px solid var(--line);padding-top:12px;line-height:1.7}
+
+  /* Potentiel inexploité — le chiffre qui donne envie d'agir à côté du score */
+  .potentiel{display:flex;align-items:center;gap:14px;margin-top:14px;padding-top:13px;border-top:1px dashed var(--line)}
+  .potentiel-v{font-family:var(--serif);font-size:32px;font-weight:800;line-height:1;color:var(--accent-hi);flex:none}
+  .potentiel-v span{font-size:14px;color:var(--ink-faint);font-weight:600}
+  .potentiel-t{display:flex;flex-direction:column;gap:1px}
+  .potentiel-t b{font-size:13.5px}
+  .potentiel-t span{font-size:12px;color:var(--ink-faint);line-height:1.45}
+
+  /* Prochaine étape — l'offre, présente à l'écran ET au PDF */
+  .next{margin-top:30px;border:2px solid var(--accent);border-radius:var(--radius);overflow:hidden;break-inside:avoid-page;page-break-inside:avoid}
+  .next-h{background:var(--accent);color:#fff;padding:12px 20px;font-weight:800;font-size:15px;letter-spacing:.02em}
+  .next-b{padding:18px 20px;background:var(--surface)}
+  .next-b>p{margin:0 0 13px;font-size:14.5px;color:var(--ink-soft)}
+  .next-list{display:grid;gap:8px;margin:0 0 15px;padding:0;list-style:none}
+  .next-list li{display:flex;gap:10px;align-items:flex-start;font-size:14px}
+  .next-list .b{flex:none;width:19px;height:19px;border-radius:50%;background:var(--accent-soft);color:var(--accent-hi);display:grid;place-items:center;font-size:11px;font-weight:800;margin-top:2px}
+  .next-contact{display:flex;flex-wrap:wrap;gap:8px 22px;align-items:center;padding-top:13px;border-top:1px dashed var(--line);font-size:13.5px}
+  .next-contact a{color:var(--accent-hi);font-weight:650;text-decoration:none}
+  .next-note{margin-top:10px;font-size:11.5px;color:var(--ink-faint)}
 </style>
 </head>
 <body>
@@ -282,7 +324,10 @@
       <div class="pbadge"><div class="ring"></div><div class="lettre">P</div></div>
       <div class="brand-name">PAPARMANE<span>.</span><small>STUDIO CRÉATIF</small></div>
     </div>
-    <div class="mast-tag">Outil d'audit SEO &amp; visibilité IA<br>Usage interne</div>
+    <div class="mast-tag">
+      <span class="screen-only">Outil d'audit SEO &amp; visibilité IA<br>Usage interne</span>
+      <span class="print-only">Audit SEO &amp; visibilité IA<br><b id="printFor">Rapport préparé par Paparmane</b></span>
+    </div>
   </header>
 
   <section class="launcher">
@@ -317,7 +362,8 @@
       <div class="pbadge sm"><div class="ring"></div><div class="lettre">P</div></div>
       <div class="brand-name" style="font-size:13px">PAPARMANE<span>.</span></div>
     </div>
-    <div>Outil interne · Les rapports générés sont confidentiels</div>
+    <div class="screen-only">Outil interne · Les rapports générés sont confidentiels</div>
+    <div class="print-only" id="printFoot">Paparmane · Studio créatif · bonjour@paparmane.com · paparmane.netlify.app</div>
   </footer>
 </div>
 
@@ -352,7 +398,10 @@ const API = location.protocol === "file:"
 const MAX_AUDIT_PAGES = 1000;
 const CRAWL_WORKERS = 5;
 const $ = s => document.querySelector(s);
-const esc = s => String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+// L'apostrophe DOIT être échappée : les liens du rapport utilisent des attributs
+// en apostrophes. Sans ça, une adresse comme /l'hebergement/ casse la ligne — et
+// un site piraté pourrait injecter du code dans le tableau de bord.
+const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const short = (u,origin) => { const p = u.replace(origin,""); return p===""?"/ (accueil)":p; };
 const GENERIC_SCHEMA = new Set(["WebPage","WebSite","Organization","BreadcrumbList","ListItem","ImageObject","ReadAction","SearchAction","EntryPoint","PropertyValueSpecification","Person","Answer","Question","CollectionPage"]);
 const RICH_HINTS = ["FAQPage","LocalBusiness","LodgingBusiness","Product","Article","BlogPosting","Event","Recipe","Review","AggregateRating","Service","HowTo","Offer","Campground","Restaurant","Store","Hotel"];
@@ -814,6 +863,31 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
     where:orphanPages.slice(0,20).map(p=>"<a href='"+esc(p.url)+"' target='_blank'>"+esc(sh(p.url))+"</a> — 0 lien entrant interne détecté"),
     steps:["Confirmer que la page doit rester publique et indexable.","Ajouter au moins un lien descriptif depuis une page proche du même sujet.","Pour une page stratégique, ajouter plusieurs liens contextuels depuis l'accueil, une catégorie ou des articles connexes.","Si la page n'a plus d'utilité, la retirer du sitemap et la rediriger vers l'alternative pertinente."],effort:"10-30 min / page",gain:"exploration + autorité interne"});
 
+  // ---- Page 404 : une adresse inventée doit répondre « page introuvable » ----
+  const nf = disc.notFound;
+  if(nf && !nf.unreachable && !nf.correct){
+    const versAccueil = nf.redirectsHome;
+    // « Important » et non « critique » : c'est un vrai défaut, mais il ne coûte
+    // pas de visiteurs aujourd'hui. La crédibilité de l'outil tient à ce dosage.
+    issues.push({sev:"warn", cat:"liens",
+      title: versAccueil
+        ? "Les adresses inexistantes renvoient vers l'accueil au lieu d'une page 404"
+        : "Le site répond « tout va bien » à des adresses qui n'existent pas",
+      body: versAccueil
+        ? "Nous avons demandé une adresse totalement inventée : au lieu d'annoncer « page introuvable », le site a redirigé vers l'accueil. Google appelle ça une « soft 404 » : il croit que ces adresses existent, les explore et les indexe. Le visiteur qui clique sur un vieux lien, lui, atterrit sur l'accueil sans comprendre pourquoi."
+        : "Nous avons demandé une adresse totalement inventée et le serveur a répondu code "+esc(String(nf.status))+" — c'est-à-dire « cette page existe ». Concrètement, votre site déclare à Google qu'un nombre infini d'adresses est valide. Le budget d'exploration se dilue dans des pages fantômes, au détriment de vos vraies pages.",
+      where:["Adresse testée : <code>"+esc(sh(nf.probe))+"</code>",
+             "Réponse obtenue : <b>code "+esc(String(nf.status))+"</b>"+(versAccueil?" puis redirection vers <code>"+esc(sh(nf.finalUrl))+"</code>":""),
+             "Réponse attendue : <b>code 404</b> (ou 410)"],
+      steps:[ isWP
+                ? "Dans WordPress, vérifier qu'aucune extension de redirection ne capte les adresses inconnues pour les renvoyer à l'accueil (Redirection, Yoast Premium, Rank Math, All-in-One SEO)."
+                : "Vérifier la configuration du serveur ou du CDN : la règle « tout rediriger vers l'accueil » doit être retirée.",
+              "Créer une vraie page d'erreur qui renvoie le code 404 : un message clair, un lien vers l'accueil et vers les pages principales.",
+              "Retester en tapant une adresse inventée dans le navigateur : le site doit annoncer « page introuvable ».",
+              "Vérifier ensuite la Search Console : les « soft 404 » signalées devraient disparaître."],
+      effort:"30 min", gain: nf.softOk?"élevé — exploration Google":"moyen"});
+  }
+
   // ---- Fondations ----
   const noCanon = pages.filter(p=>!p.canonical);
   const canonicalMismatch = pages.filter(p=>p.canonical&&p.canonicalMatches===false);
@@ -957,7 +1031,13 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   const searchAgents = ["OAI-SearchBot","ChatGPT-User","Claude-SearchBot","Claude-Web","PerplexityBot","Perplexity-User"];
   const majorBlocked = blocked.filter(b=>searchAgents.includes(b.agent));
   const thinPages = keywordPages.filter(p=>(p.words||0)<180);
-  const identityReady = pages.some(p=>p.schemaTypes.some(t=>businessTypes.has(t)));
+  // Le moteur renvoie désormais la filiation schema.org : un sous-type précis
+  // (Winery, Campground, BedAndBreakfast, DaySpa…) compte comme une identité
+  // d'entreprise. On garde l'ancienne liste en repli pour les audits archivés.
+  const identityReady = pages.some(p=>
+    (p.schema?.businessTypes||[]).length>0 || p.schemaTypes.some(t=>businessTypes.has(t)));
+  // Type le plus précis trouvé sur le site — sert à féliciter le client.
+  const preciseIdentity = [...new Set(pages.flatMap(p=>p.schema?.preciseBusinessTypes||[]))];
   const gptStrat = blocked.some(b=>b.agent==="GPTBot") && disc.aiBots.some(b=>b.agent==="OAI-SearchBot"&&b.state==="allowed");
   if(majorBlocked.length){
     issues.push({sev:"warn",cat:"ia",title:majorBlocked.length+" assistant(s) IA majeurs ne peuvent pas lire le site",
@@ -1025,6 +1105,8 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   if(disc.sitemapFound) wins.push(["Plan de site présent","Google découvre facilement les pages."]);
   if(disc.robots?.exists) wins.push(["robots.txt en place","directives d'exploration définies."]);
   if(dead.length===0&&linkResults.length) wins.push(["Aucun lien interne brisé",linkResults.length+" liens vérifiés."]);
+  if(preciseIdentity.length) wins.push(["Identité d'entreprise précise",preciseIdentity.slice(0,3).join(", ")+" — le type le plus précis possible, c'est exactement ce que Google attend."]);
+  if(disc.notFound?.correct) wins.push(["Page 404 correcte","une adresse inventée renvoie bien « page introuvable »."]);
   if(deadPages.length===0) wins.push(["Toutes les pages répondent",pages.length+"/"+pagesAll.length+" en code 200."]);
   if(noCanon.length===0) wins.push(["URL canoniques","pas de duplicata technique."]);
   if(!searchBlocked&&noindexPages.length===0) wins.push(["Pages indexables","aucun blocage global ou noindex dans le sitemap."]);
@@ -1054,7 +1136,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   const linkPenaltyUnits=dead.length+inaccessiblePublicPages.length*2+orphanPages.length*.5;
   const linkPopulation=Math.max(1,linkResults.length+pagesAll.length);
   const scores = {
-    fondations: Math.round(100*( (pages.every(p=>p.https)?0.3:0) + 0.2*ratio(noViewport.length,n) + 0.1*ratio(noLang.length,n) + 0.2*ratio(noCanon.length,n) + (disc.sitemapFound?0.2:0.05) )/1*100)/100,
+    fondations: Math.round(100*( (pages.every(p=>p.https)?0.3:0) + 0.2*ratio(noViewport.length,n) + 0.1*ratio(noLang.length,n) + 0.2*ratio(noCanon.length,n) + (disc.sitemapFound?0.2:0.05) )),
     balises: Math.round(100*(0.5*ratio(pages.filter(p=>!p.title||p.titleLen>60||dupT.some(g=>g.includes(p))).length,n) + 0.5*ratio(pages.filter(p=>!p.desc||p.descLen>165||dupD.some(g=>g.includes(p))).length,n))),
     structure: Math.round(100*ratio(h1Zero.length+h1Multi.length,n)),
     images: contentTotal? Math.round(100*(1-contentBad/contentTotal)) : 100,
@@ -1169,8 +1251,98 @@ function renderInconclusiveReport(m){
     <div class="toolbar"><button class="btn ghost" onclick="window.print()">Imprimer / PDF technique</button><button class="btn" onclick="window.scrollTo({top:0,behavior:'smooth'})">Nouvel audit</button></div>`;
 }
 
+// Les services proposés découlent des catégories réellement faibles : jamais de
+// liste générique, jamais de montant inventé.
+const SERVICES=[
+  ["indexation",65,"Débloquer l'indexation Google","des pages sont invisibles dans les résultats de recherche"],
+  ["fondations",80,"Corriger les fondations techniques","HTTPS, affichage mobile, plan de site"],
+  ["balises",80,"Réécrire les titres et descriptions","ce que Google affiche de vous dans ses résultats"],
+  ["structure",80,"Remettre en ordre la structure des titres","pour que Google comprenne le sujet de chaque page"],
+  ["images",80,"Décrire vos photos pour Google Images","un canal de visibilité aujourd'hui inutilisé"],
+  ["schema",80,"Installer les données structurées","pour viser les résultats enrichis (étoiles, prix, FAQ)"],
+  ["ia",80,"Ouvrir et optimiser la visibilité IA","ChatGPT, Claude, Perplexity, Aperçus Google"],
+  ["keywords",80,"Bâtir la stratégie de mots-clés et de contenu","viser les recherches qui amènent des clients"],
+  ["liens",85,"Réparer le maillage interne","liens brisés et pages sans lien entrant"],
+  ["social",80,"Soigner les aperçus de partage","vignettes sur Facebook, Instagram, Messenger"],
+  ["qualite",80,"Optimiser la technique des pages","dimensions d'images, accessibilité, pages obsolètes"],
+];
+
+function renderNextStep(m){
+  const retenus=SERVICES.filter(([k,seuil])=>typeof m.scores?.[k]==="number"&&m.scores[k]<seuil)
+    .sort((a,b)=>m.scores[a[0]]-m.scores[b[0]]).slice(0,5);
+  const client=(m.clientName||"").trim();
+  const aQui=client?esc(client):"votre entreprise";
+  const intro=retenus.length
+    ? `Cet audit a relevé ${m.counts.crit} problème(s) critique(s) et ${m.counts.warn} point(s) important(s) sur ${m.pages.length} pages. Voici ce que Paparmane peut prendre en charge pour ${aQui}, par ordre de priorité :`
+    : `Le site de ${aQui} est en bonne santé. Paparmane peut assurer le suivi, mesurer l'évolution et faire progresser la visibilité, notamment auprès des assistants IA.`;
+  const liste=retenus.length
+    ? `<ul class="next-list">${retenus.map(([k,,titre,detail])=>
+        `<li><div class="b">→</div><div><b>${esc(titre)}</b> <span style="color:var(--ink-soft)">— ${esc(detail)}.</span></div></li>`).join("")}</ul>`
+    : "";
+  return `
+    <div class="next">
+      <div class="next-h">Prochaine étape</div>
+      <div class="next-b">
+        <p>${intro}</p>
+        ${liste}
+        <div class="next-contact">
+          <span><b>Paparmane</b> · Studio créatif</span>
+          <a href="mailto:bonjour@paparmane.com?subject=${encodeURIComponent("Audit SEO — "+(client||m.origin.replace(/^https?:\/\//,"")))}">bonjour@paparmane.com</a>
+          <a href="https://paparmane.netlify.app" target="_blank" rel="noopener">paparmane.netlify.app</a>
+        </div>
+        <div class="next-note">Rapport préparé le ${new Date().toLocaleDateString("fr-CA",{year:"numeric",month:"long",day:"numeric"})} — devis sur demande.</div>
+      </div>
+    </div>`;
+}
+
+function renderCover(m){
+  const host=m.origin.replace(/^https?:\/\//,"");
+  const client=(m.clientName||"").trim();
+  return `
+    <section class="cover">
+      <div class="cover-top">
+        <div class="pbadge"><div class="ring"></div><div class="lettre">P</div></div>
+        <div class="brand-name">PAPARMANE<span>.</span><small>STUDIO CRÉATIF</small></div>
+      </div>
+      <div class="cover-mid">
+        <div class="cover-kicker">Audit de référencement et de visibilité IA</div>
+        <h1>Où en est votre visibilité<br>dans Google et les IA&nbsp;?</h1>
+        ${client?`<div class="client">${esc(client)}</div>`:""}
+        <div class="dom">${esc(host)}</div>
+        <div class="cover-facts">
+          <div class="cover-fact"><div class="v">${m.global}<span style="font-size:15px;color:var(--ink-faint)">/100</span></div><div class="l">Score global</div></div>
+          <div class="cover-fact"><div class="v">${m.pages.length}</div><div class="l">Pages analysées</div></div>
+          <div class="cover-fact"><div class="v">${m.counts.crit}</div><div class="l">Critiques</div></div>
+          <div class="cover-fact"><div class="v">${m.counts.warn}</div><div class="l">Importants</div></div>
+          <div class="cover-fact"><div class="v">${m.opportunityScore}</div><div class="l">Potentiel inexploité</div></div>
+        </div>
+      </div>
+      <div class="cover-bot">
+        Rapport confidentiel préparé par Paparmane le ${new Date().toLocaleDateString("fr-CA",{year:"numeric",month:"long",day:"numeric"})}.<br>
+        bonjour@paparmane.com · paparmane.netlify.app
+      </div>
+    </section>`;
+}
+
+// « details{open:true} » n'est pas du CSS valide : sans cette ouverture forcée,
+// la liste des photos à corriger était absente du PDF remis au client.
+let _detailsRouverts=[];
+window.addEventListener("beforeprint",()=>{
+  _detailsRouverts=[...document.querySelectorAll("#report details:not([open])")];
+  _detailsRouverts.forEach(d=>{d.open=true;});
+});
+window.addEventListener("afterprint",()=>{
+  _detailsRouverts.forEach(d=>{d.open=false;});
+  _detailsRouverts=[];
+});
+
 function renderReport(m){
   if(m.auditMeta?.conclusive===false){renderInconclusiveReport(m);return;}
+  // L'en-tête imprimé porte le nom du client, pas la mention « usage interne ».
+  const _pf=document.getElementById("printFor");
+  if(_pf) _pf.textContent=(m.clientName||"").trim()
+    ? "Préparé pour "+(m.clientName||"").trim()
+    : "Rapport préparé par Paparmane";
   const sh=u=>short(u,m.origin);
   const today = new Date().toLocaleDateString("fr-CA",{year:"numeric",month:"long",day:"numeric"});
   const host = m.origin.replace(/^https?:\/\//,"");
@@ -1404,6 +1576,7 @@ function renderReport(m){
   planRows.push(["Continu","Publier du contenu régulier (blogue) lié aux offres.","Croissance durable"]);
 
   $("#report").innerHTML = `
+    ${renderCover(m)}
     <h2 class="doc-title">Audit SEO &amp; visibilité IA<br>${esc(m.clientName||host)}</h2>
     <div class="doc-sub">
       <span><a href="${esc(m.origin)}" target="_blank">${esc(host)}</a></span><span class="sep">•</span>
@@ -1432,6 +1605,10 @@ function renderReport(m){
            <strong>${m.counts.info}</strong> opportunité(s) — et <strong>${m.counts.wins}</strong> points déjà conformes.</p>
         <p>Chaque problème ci-dessous indique <strong>où il se trouve</strong> (page, champ, fichier) et
            <strong>comment le corriger</strong>, étape par étape${m.isWP?" — instructions adaptées à WordPress":""}.</p>
+        <div class="potentiel">
+          <div class="potentiel-v tnum">${m.opportunityScore}<span>/100</span></div>
+          <div class="potentiel-t"><b>Potentiel inexploité</b><span>Ce qu'il reste à aller chercher — plus le chiffre est haut, plus les gains rapides sont nombreux.</span></div>
+        </div>
       </div>
     </section>
 
@@ -1568,6 +1745,8 @@ function renderReport(m){
 
     <div class="sec-h"><h3>Plan d'action recommandé</h3><div class="rule"></div></div>
     <div class="plan">${planRows.map(([ph,what,gain])=>`<div class="prow"><div class="ph">${ph}</div><div class="what">${what}</div><div class="gain">${gain}</div></div>`).join("")}</div>
+
+    ${renderNextStep(m)}
 
     <div class="note"><b>Méthodologie — score v${esc(m.auditMeta.scoreVersion)}, confiance ${esc(m.auditMeta.confidence)}.</b> Rapport produit par le moteur d'analyse Paparmane :
       ${m.pages.length} pages crawlées, ${m.pages.reduce((a,p)=>a+(p.images||[]).length,0)} images inspectées,

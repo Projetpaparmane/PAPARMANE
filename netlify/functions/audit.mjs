@@ -84,9 +84,36 @@ async function grab(url, { asText = true, cacheBust = false } = {}) {
 }
 
 const strip = (s) => s.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-const decode = (s) => s
-  .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
-  .replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/&nbsp;/g, " ");
+
+// Entités nommées les plus fréquentes sur les sites francophones. Les entités
+// numériques (&#8217; &#233; &#x2019;) sont traitées par le même passage.
+const NAMED_ENTITIES = {
+  amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ", shy: "",
+  laquo: "«", raquo: "»", hellip: "…", ndash: "–", mdash: "—",
+  lsquo: "‘", rsquo: "’", ldquo: "“", rdquo: "”", sbquo: "‚", bdquo: "„",
+  eacute: "é", egrave: "è", ecirc: "ê", euml: "ë", agrave: "à", acirc: "â",
+  ccedil: "ç", ugrave: "ù", ucirc: "û", uuml: "ü", icirc: "î", iuml: "ï",
+  ocirc: "ô", ouml: "ö", oelig: "œ", aelig: "æ",
+  Eacute: "É", Egrave: "È", Ecirc: "Ê", Agrave: "À", Ccedil: "Ç", Ocirc: "Ô",
+  euro: "€", deg: "°", copy: "©", reg: "®", trade: "™", middot: "·",
+  times: "×", frac12: "½", frac14: "¼", sup2: "²", sup3: "³", bull: "•",
+};
+
+// Un seul passage : évite le double décodage (« &amp;#39; » ne doit pas devenir « ' »).
+const decode = (s) => String(s || "").replace(
+  /&(#[xX][0-9a-fA-F]+|#\d+|[a-zA-Z][a-zA-Z0-9]{1,31});/g,
+  (match, body) => {
+    if (body[0] === "#") {
+      const hex = body[1] === "x" || body[1] === "X";
+      const cp = parseInt(hex ? body.slice(2) : body.slice(1), hex ? 16 : 10);
+      if (!Number.isFinite(cp) || cp <= 0 || cp > 0x10ffff) return match;
+      try { return String.fromCodePoint(cp); } catch { return match; }
+    }
+    if (Object.prototype.hasOwnProperty.call(NAMED_ENTITIES, body)) return NAMED_ENTITIES[body];
+    const lower = body.toLowerCase();
+    return Object.prototype.hasOwnProperty.call(NAMED_ENTITIES, lower) ? NAMED_ENTITIES[lower] : match;
+  }
+);
 
 const plain = (s) => String(s || "")
   .toLocaleLowerCase("fr-CA")
@@ -170,6 +197,63 @@ function cleanComparableUrl(value) {
   } catch { return ""; }
 }
 
+// Filiation schema.org des sous-types d'entreprise locale. Sans cette table, un
+// vignoble correctement balisé « Winery » n'était contrôlé sur AUCUN champ et
+// passait « valide » même vide — or c'est exactement la clientèle de Paparmane.
+const SCHEMA_PARENT = {
+  Winery: "FoodEstablishment", Restaurant: "FoodEstablishment", Bakery: "FoodEstablishment",
+  BarOrPub: "FoodEstablishment", Brewery: "FoodEstablishment", Distillery: "FoodEstablishment",
+  CafeOrCoffeeShop: "FoodEstablishment", IceCreamShop: "FoodEstablishment", FastFoodRestaurant: "FoodEstablishment",
+  FoodEstablishment: "LocalBusiness",
+  BedAndBreakfast: "LodgingBusiness", Campground: "LodgingBusiness", Hotel: "LodgingBusiness",
+  Motel: "LodgingBusiness", Resort: "LodgingBusiness", Hostel: "LodgingBusiness",
+  VacationRental: "LodgingBusiness", LodgingBusiness: "LocalBusiness",
+  ClothingStore: "Store", GardenStore: "Store", FurnitureStore: "Store", JewelryStore: "Store",
+  BookStore: "Store", GroceryStore: "Store", HardwareStore: "Store", PetStore: "Store",
+  SportingGoodsStore: "Store", Florist: "Store", Store: "LocalBusiness",
+  BeautySalon: "HealthAndBeautyBusiness", DaySpa: "HealthAndBeautyBusiness",
+  HairSalon: "HealthAndBeautyBusiness", NailSalon: "HealthAndBeautyBusiness",
+  HealthAndBeautyBusiness: "LocalBusiness",
+  HVACBusiness: "HomeAndConstructionBusiness", GeneralContractor: "HomeAndConstructionBusiness",
+  Plumber: "HomeAndConstructionBusiness", Electrician: "HomeAndConstructionBusiness",
+  RoofingContractor: "HomeAndConstructionBusiness", HousePainter: "HomeAndConstructionBusiness",
+  Locksmith: "HomeAndConstructionBusiness", MovingCompany: "HomeAndConstructionBusiness",
+  HomeAndConstructionBusiness: "LocalBusiness",
+  AccountingService: "ProfessionalService", LegalService: "ProfessionalService",
+  Notary: "ProfessionalService", Attorney: "ProfessionalService",
+  RealEstateAgent: "ProfessionalService", InsuranceAgency: "ProfessionalService",
+  ProfessionalService: "LocalBusiness",
+  Physiotherapy: "MedicalBusiness", Dentist: "MedicalBusiness", Optician: "MedicalBusiness",
+  Pharmacy: "MedicalBusiness", VeterinaryCare: "MedicalBusiness", MedicalBusiness: "LocalBusiness",
+  ExerciseGym: "SportsActivityLocation", SportsClub: "SportsActivityLocation",
+  SkiResort: "SportsActivityLocation", GolfCourse: "SportsActivityLocation",
+  SportsActivityLocation: "LocalBusiness",
+  TouristAttraction: "LocalBusiness", TouristInformationCenter: "LocalBusiness",
+  ArtGallery: "LocalBusiness", Museum: "LocalBusiness", EventVenue: "LocalBusiness",
+  ChildCare: "LocalBusiness", Corporation: "Organization", NGO: "Organization",
+  EducationalOrganization: "Organization", SportsOrganization: "Organization",
+  LocalBusiness: "Organization",
+};
+
+// Chaîne d'héritage d'un type : [type, parent, grand-parent, …]
+function schemaLineage(type) {
+  const chain = [];
+  let cur = type;
+  let guard = 0;
+  while (cur && guard++ < 10) {
+    chain.push(cur);
+    cur = SCHEMA_PARENT[cur];
+    if (chain.includes(cur)) break;
+  }
+  return chain;
+}
+
+// Un type compte comme « identité d'entreprise précise » s'il descend de
+// LocalBusiness ou d'Organization.
+function isBusinessType(type) {
+  return schemaLineage(type).some(t => t === "LocalBusiness" || t === "Organization");
+}
+
 function inspectStructuredData(blocks) {
   const types = new Set(), problems = [], entities = [];
   let validBlocks = 0, invalidBlocks = 0;
@@ -179,6 +263,15 @@ function inspectStructuredData(blocks) {
     Article: ["headline", "author", "datePublished"], BlogPosting: ["headline", "author", "datePublished"],
     FAQPage: ["mainEntity"], Event: ["name", "startDate", "location"],
     Service: ["name", "provider"], BreadcrumbList: ["itemListElement"],
+    FoodEstablishment: ["name", "address"], Store: ["name", "address"],
+    HealthAndBeautyBusiness: ["name", "address"], HomeAndConstructionBusiness: ["name", "address"],
+    ProfessionalService: ["name", "address"], MedicalBusiness: ["name", "address"],
+    SportsActivityLocation: ["name", "address"], TouristAttraction: ["name", "address"],
+  };
+  // Un sous-type hérite des champs obligatoires de son ancêtre le plus proche.
+  const requiredFor = (type) => {
+    for (const t of schemaLineage(type)) if (required[t]) return required[t];
+    return [];
   };
   const visit = (node) => {
     if (Array.isArray(node)) return node.forEach(visit);
@@ -188,7 +281,7 @@ function inspectStructuredData(blocks) {
     if (rawTypes.length) entities.push({ types: rawTypes, id: node["@id"] || null, name: node.name || node.headline || null, url: node.url || null });
     rawTypes.forEach(type => {
       types.add(type);
-      const missing = (required[type] || []).filter(k => node[k] == null || node[k] === "" || (Array.isArray(node[k]) && !node[k].length));
+      const missing = requiredFor(type).filter(k => node[k] == null || node[k] === "" || (Array.isArray(node[k]) && !node[k].length));
       if (missing.length) problems.push(`${type} : champ(s) manquant(s) — ${missing.join(", ")}`);
     });
     for (const [key, value] of Object.entries(node)) {
@@ -212,7 +305,15 @@ function inspectStructuredData(blocks) {
     }
     catch { invalidBlocks++; problems.push(`Bloc JSON-LD ${i + 1} invalide (erreur de syntaxe)`); }
   });
-  return { types: [...types].sort(), validBlocks, invalidBlocks, problems: [...new Set(problems)], entities };
+  const allTypes = [...types].sort();
+  // Types d'entreprise reconnus, et parmi eux ceux qui sont réellement précis
+  // (un sous-type de LocalBusiness, pas le générique « Organization »).
+  const businessTypes = allTypes.filter(isBusinessType);
+  const preciseBusinessTypes = businessTypes.filter(t => schemaLineage(t).includes("LocalBusiness"));
+  return {
+    types: allTypes, validBlocks, invalidBlocks, problems: [...new Set(problems)], entities,
+    businessTypes, preciseBusinessTypes,
+  };
 }
 
 function inferExpectedSchema(url, title, h1, bodyText) {
@@ -551,17 +652,41 @@ async function discover(site) {
   const rb = await grab(origin + "/robots.txt");
   const robotsTxt = rb.ok && rb.status === 200 && !/<html/i.test(rb.body.slice(0, 300)) ? rb.body : "";
   const rules = robotsTxt ? parseRobots(robotsTxt) : {};
-  out.robots = { exists: !!robotsTxt, searchBlocked: !!rules["*"]?.disallowAll };
+  const wildcard = rules["*"];
+  out.robots = { exists: !!robotsTxt, searchBlocked: !!wildcard?.disallowAll };
   out.aiBots = AI_BOTS.map(([agent, role, cost]) => {
     const r = rules[agent.toLowerCase()];
-    return { agent, role, cost, state: r ? (r.disallowAll ? "blocked" : "allowed") : "default" };
+    // Une règle nommée l'emporte toujours sur la règle générale « * ».
+    if (r) return { agent, role, cost, state: r.disallowAll ? "blocked" : "allowed", via: "nomme" };
+    // Sans règle nommée, le robot hérite de « User-agent: * ». Sans ce repli,
+    // un site entièrement bloqué était présenté comme ouvert à toutes les IA.
+    if (wildcard?.disallowAll) return { agent, role, cost, state: "blocked", via: "general" };
+    return { agent, role, cost, state: "default", via: null };
   });
 
   // Un favicon peut être déclaré dans le HTML ou servi implicitement à la
   // racine. Ce second cas évite un faux positif dans le rapport client.
-  const favicon = await grab(origin + "/favicon.ico", { asText: false });
+  // Le test de la page 404 part en parallèle : deux requêtes indépendantes.
+  const probe404 = origin + "/paparmane-audit-" + hashText(origin) + "-page-inexistante/";
+  const [favicon, missing] = await Promise.all([
+    grab(origin + "/favicon.ico", { asText: false }),
+    grab(probe404, { asText: false }),
+  ]);
   out.favicon = {
     fallbackExists: !!(favicon.ok && favicon.status === 200 && /^image\//i.test(favicon.headers?.contentType || "")),
+  };
+  // Une adresse inventée DOIT répondre 404 (ou 410). Un site qui répond 200 dit
+  // à Google que toutes les adresses existent : pages fantômes à l'infini.
+  const finalMissing = cleanAuditUrl(missing.finalUrl || probe404);
+  out.notFound = {
+    probe: probe404,
+    status: missing.status,
+    finalUrl: finalMissing,
+    correct: missing.status === 404 || missing.status === 410,
+    redirectsHome: missing.status > 0 && missing.status < 400
+      && finalMissing.replace(/\/$/, "") === origin.replace(/\/$/, ""),
+    softOk: missing.status >= 200 && missing.status < 300,
+    unreachable: missing.status === 0,
   };
 
   // 2. sitemaps (déclarés dans robots.txt, sinon /sitemap.xml et /sitemap_index.xml)
