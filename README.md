@@ -75,13 +75,21 @@ viennent d'une autre déclinaison du template : **aucune page du site ne les cha
 fonction elle-même (`export const config = { path: "/api/audit" }`, API Netlify
 Functions v2) — il n'y a donc **pas** de redirection à ajouter dans `netlify.toml`.
 
-Trois modes :
+Sept modes :
 
 | Mode | Appel | Rôle |
 |---|---|---|
+| `auth` | `?mode=auth` | valide le code d'accès de la page |
 | `discover` | `?mode=discover&site=URL` | robots.txt, sitemap, llms.txt, robots d'IA |
+| `sitemap` | `?mode=sitemap&url=URL&origin=URL` | lit un fichier sitemap |
 | `page` | `?mode=page&url=URL` | analyse complète d'une page |
 | `verify` | `POST` avec `urls[]` | vérifie des liens (statut + redirections) |
+| `traffic` | `?mode=traffic&site=URL` | intelligence trafic (DataForSEO) |
+| `gap` | `?mode=gap&site=URL&competitor=URL` | écart de mots-clés (DataForSEO) |
+
+`traffic` et `gap` exigent le code d'accès et les identifiants DataForSEO.
+Variables d'environnement : `PAPARMANE_ACCESS_KEY`, `DATAFORSEO_LOGIN`,
+`DATAFORSEO_PASSWORD`.
 
 Le moteur connaît une trentaine de robots d'IA (GPTBot, ClaudeBot, PerplexityBot,
 Applebot, Google-Extended…) et explique, pour chacun, la conséquence concrète d'un

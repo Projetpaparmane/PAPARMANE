@@ -1,9 +1,13 @@
 // ============================================================
 // PAPARMANE SEO — moteur d'audit (fonction Netlify)
-// Trois modes :
+// Sept modes :
+//   ?mode=auth                → valide le code d'accès (en-tête X-Paparmane-Key)
 //   ?mode=discover&site=URL   → robots.txt, sitemap, llms.txt, robots IA
+//   ?mode=sitemap&url&origin  → lit un fichier sitemap
 //   ?mode=page&url=URL        → analyse complète d'une page
 //   ?mode=verify (POST urls[])→ vérifie des liens (statut + redirections)
+//   ?mode=traffic&site=URL    → intelligence trafic (DataForSEO, code d'accès requis)
+//   ?mode=gap&site&competitor → écart de mots-clés (DataForSEO, code d'accès requis)
 // ============================================================
 
 const UA = "Mozilla/5.0 (compatible; PaparmaneSEO/1.0; +https://paparmane.netlify.app)";
