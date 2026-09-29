@@ -425,6 +425,9 @@ const $ = s => document.querySelector(s);
 // un site piraté pourrait injecter du code dans le tableau de bord.
 // Accord en français : 0 et 1 au singulier.
 const plur = (n,sing,plural) => n+" "+(n>1?plural:sing);
+// 0 (délai), 401/403 (accès refusé au robot), 429 (limite de débit) et 503 viennent
+// le plus souvent d'un pare-feu : ce n'est pas une page morte prouvée.
+const isUnverifiableStatus = s => !s||s===401||s===403||s===429||s===503;
 const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const short = (u,origin) => { const p = u.replace(origin,""); return p===""?"/ (accueil)":p; };
 const GENERIC_SCHEMA = new Set(["WebPage","WebSite","Organization","BreadcrumbList","ListItem","ImageObject","ReadAction","SearchAction","EntryPoint","PropertyValueSpecification","Person","Answer","Question","CollectionPage"]);
@@ -628,7 +631,7 @@ async function runAudit(){
           done++;
           // Statut 0, 429 ou 503 = délai, erreur réseau ou limite de débit : ce n'est pas
           // une page morte prouvée, elle ne doit ni pénaliser ni être comparée.
-          if(p.dead&&(!p.status||p.status===429||p.status===503)) p.transient=true;
+          if(p.dead&&isUnverifiableStatus(p.status)) p.transient=true;
           if(p.skipped){ skippedFiles++; }
           else if(p.dead){ pages.push(p); log("✗ "+(p.status||"erreur")+" "+short(u,origin), "critl"); }
           else{
@@ -655,7 +658,7 @@ async function runAudit(){
           try{
             const p=await api({mode:"page",url:old.url});
             if(p.skipped){ pages.splice(pages.indexOf(old),1); continue; }
-            if(p.dead&&(!p.status||p.status===429||p.status===503)) continue;
+            if(p.dead&&isUnverifiableStatus(p.status)) continue;
             pages[pages.indexOf(old)]=p;
           }catch{}
         }
@@ -728,7 +731,7 @@ async function runAudit(){
 // --- Construction du modèle : scores + problèmes ---
 function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, options={}){
   // Statut 0, 429 ou 503 = délai, réseau ou limite de débit : pas une page morte prouvée.
-  for(const p of pagesAll) if(p.dead&&(!p.status||p.status===429||p.status===503)) p.transient=true;
+  for(const p of pagesAll) if(p.dead&&isUnverifiableStatus(p.status)) p.transient=true;
   const pages = pagesAll.filter(p=>!p.dead);
   const deadPages = pagesAll.filter(p=>p.dead);
   const auditBarrier=options.auditBarrier||detectAuditBarrier(pagesAll);
@@ -903,7 +906,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   // ---- Liens brisés / redirigés ----
   // 0 (délai), 403, 429 et 503 viennent le plus souvent d'un pare-feu ou d'une
   // limite de débit face au robot d'audit : ce ne sont pas des liens brisés prouvés.
-  const unverifiableStatus=s=>s===0||s===403||s===429||s===503;
+  const unverifiableStatus=isUnverifiableStatus;
   const unverifiable = linkResults.filter(r=>unverifiableStatus(r.status));
   const dead = linkResults.filter(r=>r.status>=400&&!unverifiableStatus(r.status));
   const redir = linkResults.filter(r=>r.status>0&&r.status<400&&r.redirected&&r.finalUrl.replace(/\/$/,"")!==r.url.replace(/\/$/,""));
@@ -1047,7 +1050,11 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
     body:"L'URL canonique dit à Google quelle est l'adresse « officielle » d'une page — utile contre le contenu dupliqué technique.",
     where:noCanon.slice(0,8).map(p=>"<code>"+esc(sh(p.url))+"</code>"),
     steps:[isWP?"L'extension SEO (Yoast/RankMath) la génère automatiquement — vérifier qu'elle est active sur ces pages.":"Ajouter <code>&lt;link rel=\"canonical\" href=\"…\"&gt;</code> dans le <code>&lt;head&gt;</code>."], effort:"30 min", gain:"faible"});
-  if(!disc.sitemapFound) issues.push({sev:"warn",cat:"fondations",title:"Aucun plan de site (sitemap.xml) trouvé",
+  if(!disc.sitemapFound&&disc.sitemapBlocked) issues.push({sev:"info",cat:"fondations",title:"Plan de site non vérifiable : accès refusé au robot d'audit",
+    body:"Le serveur a refusé de montrer le sitemap à notre robot (erreur "+esc(disc.sitemapBlocked)+"). C'est presque toujours un pare-feu ou une protection anti-robot, pas une absence réelle de sitemap. Ce point ne réduit pas le score.",
+    where:["<code>"+esc(origin)+"/sitemap.xml</code> — erreur "+esc(disc.sitemapBlocked)],
+    steps:["Relancer l'audit plus tard (les pare-feu bloquent souvent après plusieurs audits rapprochés).","Vérifier le sitemap dans Google Search Console, qui n'est pas bloqué.","Si le client le souhaite, autoriser l'agent « PaparmaneSEO » dans son pare-feu (Wordfence, Cloudflare…)."],effort:"5 min",gain:"fiabilité de la mesure"});
+  else if(!disc.sitemapFound) issues.push({sev:"warn",cat:"fondations",title:"Aucun plan de site (sitemap.xml) trouvé",
     body:"Le sitemap aide Google à découvrir toutes les pages. Sans lui, certaines pages peuvent rester invisibles.",
     where:["<code>"+esc(origin)+"/sitemap.xml</code> — introuvable"],
     steps:[isWP?"Activer le sitemap dans l'extension SEO (Yoast : réglé par défaut).":"Générer un sitemap.xml et le déposer à la racine du site.","Le déclarer dans robots.txt et dans Google Search Console."], effort:"30 min", gain:"moyen"});
@@ -1393,7 +1400,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   const linkPenaltyUnits=dead.length+inaccessiblePublicPages.length*2+orphanPages.length*.5;
   const linkPopulation=Math.max(1,linkResults.length+pagesAll.length);
   const scores = {
-    fondations: Math.round(100*( (pages.every(p=>p.https)?0.3:0) + 0.2*ratio(noViewport.length,n) + 0.1*ratio(noLang.length,n) + 0.2*ratio(noCanon.length,n) + (disc.sitemapFound?0.2:0.05) )),
+    fondations: Math.round(100*( (pages.every(p=>p.https)?0.3:0) + 0.2*ratio(noViewport.length,n) + 0.1*ratio(noLang.length,n) + 0.2*ratio(noCanon.length,n) + (disc.sitemapFound||disc.sitemapBlocked?0.2:0.05) )),
     balises: Math.round(100*(0.5*ratio(pages.filter(p=>!p.title||p.titleLen>60||dupT.some(g=>g.includes(p))).length,n) + 0.5*ratio(pages.filter(p=>!p.desc||p.descLen>165||dupD.some(g=>g.includes(p))).length,n))),
     structure: Math.round(100*ratio(h1Zero.length+h1Multi.length,n)),
     images: contentTotal? Math.round(100*(1-contentBad/contentTotal)) : 100,
@@ -1441,7 +1448,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   const transientPages=deadPages.filter(p=>p.transient);
   if(transientPages.length) issues.unshift({sev:"warn",cat:"fondations",title:"Score provisoire : "+transientPages.length+" page(s) n'ont pas pu être relues après deux tentatives",
     body:"Le score reste affiché pour permettre le diagnostic, mais sa comparaison avec un autre audit est suspendue. Une panne réseau ou une protection anti-robot ne doit pas être interprétée comme une baisse SEO.",
-    where:transientPages.slice(0,20).map(p=>"<code>"+esc(sh(p.url))+"</code> — réponse réseau indisponible"),
+    where:transientPages.slice(0,20).map(p=>"<code>"+esc(sh(p.url))+"</code> — "+(p.status===401||p.status===403?"accès refusé au robot ("+p.status+") — probablement un pare-feu":p.status===429?"trop de requêtes (429) — limite de débit":"réponse réseau indisponible")),
     steps:["Relancer l'audit quelques minutes plus tard.","Si les mêmes pages échouent encore, vérifier le pare-feu, le CDN ou la protection anti-robot.","Ne comparer les scores que lorsque la confiance est indiquée comme élevée."],effort:"5 min",gain:"fiabilité de la mesure"});
   const counts={crit:issues.filter(i=>i.sev==="crit").length,warn:issues.filter(i=>i.sev==="warn").length,info:issues.filter(i=>i.sev==="info").length,wins:wins.length};
   const publicContacts={
@@ -1455,7 +1462,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   const quickWins=issues.filter(i=>/\b(?:3|5|10|15|20|30) min|~(?:3|5|10|15|20|30) min/i.test(i.effort||"")).length;
   const proofCount=issues.reduce((sum,i)=>sum+(i.where?.length||0),0);
   const opportunityScore=Math.max(0,Math.min(100,Math.round((100-global)*1.05+counts.crit*4+counts.warn*1.5)));
-  const auditMeta={scoreVersion:"2.6",requested:pagesAll.length,successful:pages.length,transient:transientPages.length,confidence:transientPages.length?"provisoire":"élevée",conclusive:true};
+  const auditMeta={scoreVersion:"2.6",requested:pagesAll.length,successful:pages.length,transient:transientPages.length,confidence:transientPages.length||disc.sitemapBlocked?"provisoire":"élevée",conclusive:true};
   const avgResources=pages.length?Math.round(pages.reduce((sum,p)=>sum+(p.resources?.total||0),0)/pages.length):0;
   const homepageStrictImages=(homepage?.images||[]).filter(im=>im.cls!=="tech");
   const homepageStrictFlagged=homepageStrictImages.filter(im=>im.alt===null||im.alt==="");
