@@ -590,6 +590,8 @@ async function runAudit(){
     // Crawl (avec repli exploration si pas de sitemap)
     disc.pages=[...disc.pages].sort((a,b)=>a.localeCompare(b));
     const queue=[...disc.pages]; const seen=new Set(queue); const pages=[];
+    // Sitemap présent mais vide (ou limité à l'accueil) : on explore aussi les liens.
+    const followLinks=!disc.sitemapFound||disc.pages.length<=1;
     const CAP = MAX_AUDIT_PAGES;
     let done=0;
     async function worker(){
@@ -598,14 +600,14 @@ async function runAudit(){
         try{
           const p = await api({mode:"page", url:u});
           done++;
-          // Statut 0 = délai dépassé ou erreur réseau côté serveur : ce n'est pas
+          // Statut 0, 429 ou 503 = délai, erreur réseau ou limite de débit : ce n'est pas
           // une page morte prouvée, elle ne doit ni pénaliser ni être comparée.
-          if(p.dead&&!p.status) p.transient=true;
+          if(p.dead&&(!p.status||p.status===429||p.status===503)) p.transient=true;
           if(p.dead){ pages.push(p); log("✗ "+(p.status||"erreur")+" "+short(u,origin), "critl"); }
           else{
             pages.push(p);
             log("✓ "+short(u,origin)+" — "+p.images.length+" img, "+p.words+" mots", "okl");
-            if(!disc.sitemapFound) for(const l of p.links||[]) if(!seen.has(l)&&seen.size<CAP){seen.add(l);queue.push(l);}
+            if(followLinks) for(const l of p.links||[]) if(!seen.has(l)&&seen.size<CAP){seen.add(l);queue.push(l);}
           }
         }catch(e){ done++; pages.push({url:u,finalUrl:u,dead:true,status:0,transient:true}); log("✗ "+short(u,origin)+" : "+e.message, "critl"); }
         setBar(8 + 62*(done/Math.max(seen.size,disc.pages.length)));
@@ -676,8 +678,8 @@ async function runAudit(){
 
 // --- Construction du modèle : scores + problèmes ---
 function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, options={}){
-  // Statut 0 = délai ou erreur réseau, pas une page morte prouvée.
-  for(const p of pagesAll) if(p.dead&&!p.status) p.transient=true;
+  // Statut 0, 429 ou 503 = délai, réseau ou limite de débit : pas une page morte prouvée.
+  for(const p of pagesAll) if(p.dead&&(!p.status||p.status===429||p.status===503)) p.transient=true;
   const pages = pagesAll.filter(p=>!p.dead);
   const deadPages = pagesAll.filter(p=>p.dead);
   const auditBarrier=options.auditBarrier||detectAuditBarrier(pagesAll);
@@ -686,7 +688,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
       origin,disc,pages,deadPages,barrier:auditBarrier,
       clientName:options.clientName||"",contactName:options.contactName||"",
       linksChecked:0,previous:null,global:null,scores:null,counts:null,
-      auditMeta:{scoreVersion:"2.5",requested:pagesAll.length,successful:pages.length,transient:deadPages.filter(p=>p.transient).length,confidence:"non concluante",conclusive:false},
+      auditMeta:{scoreVersion:"2.6",requested:pagesAll.length,successful:pages.length,transient:deadPages.filter(p=>p.transient).length,confidence:"non concluante",conclusive:false},
     };
   }
   const n = Math.max(1,pages.length);
@@ -850,7 +852,11 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
     effort:"~3 min / page", gain:"moyen"});
 
   // ---- Liens brisés / redirigés ----
-  const dead = linkResults.filter(r=>r.status===0||r.status>=400);
+  // 0 (délai), 403, 429 et 503 viennent le plus souvent d'un pare-feu ou d'une
+  // limite de débit face au robot d'audit : ce ne sont pas des liens brisés prouvés.
+  const unverifiableStatus=s=>s===0||s===403||s===429||s===503;
+  const unverifiable = linkResults.filter(r=>unverifiableStatus(r.status));
+  const dead = linkResults.filter(r=>r.status>=400&&!unverifiableStatus(r.status));
   const redir = linkResults.filter(r=>r.status>0&&r.status<400&&r.redirected&&r.finalUrl.replace(/\/$/,"")!==r.url.replace(/\/$/,""));
   const sourcesOf = t => pages.filter(p=>(p.links||[]).includes(t)).map(p=>sh(p.url));
   // Les pages non relues (délai, réseau) ont leur propre avertissement « score
@@ -866,6 +872,10 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
     where:dead.map(r=>"<code>"+esc(sh(r.url))+"</code> — erreur "+(r.status||"réseau")+" · présent sur : "+esc(sourcesOf(r.url).slice(0,3).join(", "))),
     steps:["Sur chaque page source, retrouver le lien fautif.","Le corriger vers la bonne adresse, ou le retirer.","Si la page cible a déménagé : créer une redirection."],
     effort:"~5 min / lien", gain:"élevé"});
+  if(unverifiable.length) issues.push({sev:"info",cat:"liens",title:plur(unverifiable.length,"lien interne n'a pas pu être vérifié","liens internes n'ont pas pu être vérifiés"),
+    body:"Le serveur a refusé ou retardé la vérification (pare-feu, limite de requêtes ou délai dépassé). Ces liens ne sont pas comptés comme brisés : à contrôler à la main.",
+    where:unverifiable.slice(0,15).map(r=>"<code>"+esc(sh(r.url))+"</code> — "+(r.status?"réponse "+r.status:"délai dépassé")),
+    steps:["Ouvrir chaque lien dans un navigateur.","S'il fonctionne, rien à faire; sinon, le corriger comme un lien brisé."],effort:"5 min",gain:"fiabilité de la mesure"});
   if(redir.length) issues.push({sev:"info",cat:"liens",title:redir.length+" lien(s) interne(s) passent par une redirection",
     body:"Pas bloquant, mais chaque redirection ralentit la navigation et dilue un peu le « jus SEO ». Mieux vaut pointer directement vers l'adresse finale.",
     where:redir.slice(0,8).map(r=>"<code>"+esc(sh(r.url))+"</code> ⤳ <code>"+esc(sh(r.finalUrl))+"</code>"),
@@ -1265,7 +1275,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   if(pages.every(p=>p.lang)) wins.push(["Langue déclarée",(pages[0].lang||"")+" — bon signal local."]);
   if(disc.sitemapFound) wins.push(["Plan de site présent","Google découvre facilement les pages."]);
   if(disc.robots?.exists) wins.push(["robots.txt en place","directives d'exploration définies."]);
-  if(dead.length===0&&linkResults.length) wins.push(["Aucun lien interne brisé",linkResults.length+" liens vérifiés."]);
+  if(dead.length===0&&linkResults.length>unverifiable.length) wins.push(["Aucun lien interne brisé",(linkResults.length-unverifiable.length)+" liens vérifiés."]);
   if(preciseIdentity.length) wins.push(["Identité d'entreprise précise",preciseIdentity.slice(0,3).join(", ")+" — le type le plus précis possible, c'est exactement ce que Google attend."]);
   if(disc.notFound?.correct) wins.push(["Page 404 correcte","une adresse inventée renvoie bien « page introuvable »."]);
   if(deadPages.length===0) wins.push(["Toutes les pages répondent",pages.length+"/"+pagesAll.length+" en code 200."]);
@@ -1370,7 +1380,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   const quickWins=issues.filter(i=>/\b(?:3|5|10|15|20|30) min|~(?:3|5|10|15|20|30) min/i.test(i.effort||"")).length;
   const proofCount=issues.reduce((sum,i)=>sum+(i.where?.length||0),0);
   const opportunityScore=Math.max(0,Math.min(100,Math.round((100-global)*1.05+counts.crit*4+counts.warn*1.5)));
-  const auditMeta={scoreVersion:"2.5",requested:pagesAll.length,successful:pages.length,transient:transientPages.length,confidence:transientPages.length?"provisoire":"élevée",conclusive:true};
+  const auditMeta={scoreVersion:"2.6",requested:pagesAll.length,successful:pages.length,transient:transientPages.length,confidence:transientPages.length?"provisoire":"élevée",conclusive:true};
   const avgResources=pages.length?Math.round(pages.reduce((sum,p)=>sum+(p.resources?.total||0),0)/pages.length):0;
   const homepageStrictImages=(homepage?.images||[]).filter(im=>im.cls!=="tech");
   const homepageStrictFlagged=homepageStrictImages.filter(im=>im.alt===null||im.alt==="");

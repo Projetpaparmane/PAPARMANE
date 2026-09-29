@@ -6,8 +6,12 @@
 //   ?mode=verify (POST urls[])→ vérifie des liens (statut + redirections)
 // ============================================================
 
+import { lookup } from "node:dns/promises";
+import { isIP } from "node:net";
+import { gunzipSync } from "node:zlib";
+
 const UA = "Mozilla/5.0 (compatible; PaparmaneSEO/1.0; +https://paparmane.netlify.app)";
-const FETCH_TIMEOUT = 9000;
+const FETCH_TIMEOUT = 8000;
 // Garde-fou anti-abus seulement : le moteur n'échantillonne plus les 30
 // premières pages. Les sitemaps sont parcourus côté client, un fichier à la fois.
 const MAX_SITEMAP_URLS = 1000;
@@ -60,43 +64,119 @@ function isSafeUrl(u) {
   try {
     const p = new URL(u);
     if (!/^https?:$/.test(p.protocol)) return false;
-    const h = p.hostname.toLowerCase();
-    if (h === "localhost" || h.endsWith(".local") || h.endsWith(".internal")) return false;
-    if (/^(10\.|127\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.|0\.)/.test(h)) return false;
-    if (h === "[::1]" || h.startsWith("[fc") || h.startsWith("[fd") || h.startsWith("[fe80")) return false;
+    const h = p.hostname.toLowerCase().replace(/\.$/, "");
+    if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".local") || h.endsWith(".internal")) return false;
+    const bare = h.replace(/^\[|\]$/g, "");
+    if (isIP(bare) && isPrivateIp(bare)) return false;
     return true;
   } catch { return false; }
 }
 
-async function grab(url, { asText = true, cacheBust = false } = {}) {
+// Adresses qui ne doivent jamais être visitées par le moteur : réseau interne,
+// boucle locale, métadonnées du nuage (169.254.169.254), plage CGNAT…
+function isPrivateIp(ip) {
+  let v4 = null;
+  if (isIP(ip) === 4) v4 = ip;
+  else {
+    const low = ip.toLowerCase();
+    // IPv4 encapsulée dans IPv6 (::ffff:127.0.0.1 ou ::ffff:7f00:1).
+    const mapped = low.match(/^(?:0*:)*:?ffff:(.+)$/);
+    if (mapped) {
+      if (isIP(mapped[1]) === 4) v4 = mapped[1];
+      else {
+        const parts = mapped[1].split(":");
+        if (parts.length === 2) {
+          const n = parts.map(x => parseInt(x, 16));
+          if (n.every(Number.isFinite)) v4 = [n[0] >> 8, n[0] & 255, n[1] >> 8, n[1] & 255].join(".");
+        }
+      }
+    }
+    if (!v4) {
+      if (low === "::" || low === "::1") return true;
+      return /^(?:f[cd]|fe[89ab]|fec|fed|fee|fef|ff)/.test(low.replace(/^0+/, ""));
+    }
+  }
+  const [a, b] = v4.split(".").map(Number);
+  return a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31)
+    || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || a >= 224;
+}
+
+// Vérifie l'adresse RÉELLE derrière le nom de domaine : un nom public peut
+// pointer vers 127.0.0.1 (localtest.me) ou vers le réseau interne.
+async function resolvesPublic(url) {
+  if (!isSafeUrl(url)) return false;
+  try {
+    const host = new URL(url).hostname.replace(/^\[|\]$/g, "").replace(/\.$/, "");
+    const addresses = await lookup(host, { all: true, verbatim: true });
+    return addresses.length > 0 && addresses.every(item => !isPrivateIp(item.address));
+  } catch { return false; }
+}
+
+// Décode selon le jeu de caractères annoncé (en-tête, puis <meta charset>) :
+// un site en windows-1252 affichait « C�teaux » dans le rapport.
+function decodeBody(buffer, contentType) {
+  let bytes = new Uint8Array(buffer);
+  // Sitemap .xml.gz servi tel quel (sans Content-Encoding).
+  if (bytes[0] === 0x1f && bytes[1] === 0x8b) {
+    try { bytes = new Uint8Array(gunzipSync(bytes, { maxOutputLength: 50 * 1024 * 1024 })); } catch { /* laisser tel quel */ }
+  }
+  const sniff = new TextDecoder("latin1").decode(bytes.subarray(0, 2048));
+  const charset = (String(contentType || "").match(/charset\s*=\s*["']?([\w-]+)/i)?.[1]
+    || sniff.match(/<meta[^>]+charset\s*=\s*["']?([\w-]+)/i)?.[1]
+    || sniff.match(/<\?xml[^>]+encoding\s*=\s*["']([\w-]+)/i)?.[1]
+    || "utf-8").toLowerCase();
+  try { return new TextDecoder(charset).decode(bytes); }
+  catch { return new TextDecoder("utf-8").decode(bytes); }
+}
+
+const MAX_REDIRECTS = 6;
+
+async function grab(url, { asText = true, cacheBust = false, timeout = FETCH_TIMEOUT } = {}) {
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT);
+  const t = setTimeout(() => ctrl.abort(), Math.max(500, timeout));
   const startedAt = Date.now();
   try {
     const requested = new URL(url);
     if (cacheBust) requested.searchParams.set("_paparmane_audit", Date.now().toString());
-    const res = await fetch(requested, {
-      headers: {
-        "User-Agent": UA,
-        "Accept": "text/html,application/xhtml+xml,text/plain,*/*",
-        "Cache-Control": "no-cache",
-        "Pragma": "no-cache",
-      },
-      redirect: "follow",
-      signal: ctrl.signal,
-    });
-    const body = asText ? await res.text() : "";
+    // Redirections suivies une à une pour contrôler chaque destination.
+    let current = requested.href;
+    let res = null;
+    let hops = 0;
+    for (;;) {
+      if (!(await resolvesPublic(current))) throw new Error("Adresse non publique ou introuvable");
+      res = await fetch(current, {
+        headers: {
+          "User-Agent": UA,
+          "Accept": "text/html,application/xhtml+xml,text/plain,*/*",
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache",
+        },
+        redirect: "manual",
+        signal: ctrl.signal,
+      });
+      const location = res.headers.get("location");
+      if (res.status >= 300 && res.status < 400 && location && hops < MAX_REDIRECTS) {
+        res.body?.cancel().catch(() => {});
+        current = new URL(location, current).href;
+        hops++;
+        continue;
+      }
+      break;
+    }
+    const contentType = res.headers.get("content-type") || "";
+    const body = asText ? decodeBody(await res.arrayBuffer(), contentType) : "";
+    if (!asText) res.body?.cancel().catch(() => {});
     return {
       ok: true,
       status: res.status,
-      finalUrl: res.url,
+      finalUrl: current,
       body,
-      redirected: res.redirected,
+      redirected: hops > 0,
       elapsedMs: Date.now() - startedAt,
       headers: {
         xRobotsTag: res.headers.get("x-robots-tag") || "",
         contentEncoding: res.headers.get("content-encoding") || "",
-        contentType: res.headers.get("content-type") || "",
+        contentType,
         cacheControl: res.headers.get("cache-control") || "",
         server: res.headers.get("server") || "",
       },
@@ -154,16 +234,20 @@ function hashText(value) {
   return (hash >>> 0).toString(36);
 }
 
-function removePageChrome(html) {
+function removePageChrome(html, { keepHeader = false } = {}) {
   let out = String(html || "");
-  const structural = ["script", "style", "nav", "footer", "header", "aside", "noscript"];
+  // Dans <main> ou <article>, un <header> contient souvent le H1 de la page :
+  // on ne le retire que sur la page entière (en-tête du site).
+  const structural = ["script", "style", "nav", "footer", ...(keepHeader ? [] : ["header"]), "aside", "noscript"];
   for (const tag of structural) {
     out = out.replace(new RegExp(`<${tag}\\b[\\s\\S]*?<\\/${tag}>`, "gi"), " ");
   }
   // Les bannières de consentement injectent beaucoup de vocabulaire répétitif
   // (stockage, accès, préférences) qui ne décrit jamais le sujet de la page.
   const consentMarker = "(?:cmplz|cookie|consent|onetrust|cky-|gdpr|borlabs|moove[_-]gdpr|cookie-law|cc-window|tarteaucitron)";
-  const consentBlock = new RegExp(`<([a-z][a-z0-9-]*)\\b[^>]*(?:id|class)=["'][^"']*${consentMarker}[^"']*["'][^>]*>[\\s\\S]*?<\\/\\1>`, "gi");
+  // Jamais body, html, main ni article : l'extension WordPress « Cookie Notice »
+  // ajoute « cookies-not-set » au <body>, ce qui effaçait toute la page.
+  const consentBlock = new RegExp(`<((?!(?:body|html|main|article)\\b)[a-z][a-z0-9-]*)\\b[^>]*(?:id|class)=["'][^"']*${consentMarker}[^"']*["'][^>]*>[\\s\\S]*?<\\/\\1>`, "gi");
   for (let i = 0; i < 3; i++) out = out.replace(consentBlock, " ");
   return out;
 }
@@ -171,7 +255,7 @@ function removePageChrome(html) {
 function usefulContentHtml(html) {
   const mains = [...String(html || "").matchAll(/<main\b[^>]*>([\s\S]*?)<\/main>/gi)].map(m => m[1]);
   const articles = mains.length ? [] : [...String(html || "").matchAll(/<article\b[^>]*>([\s\S]*?)<\/article>/gi)].map(m => m[1]);
-  return removePageChrome((mains.length ? mains : articles.length ? articles : [html]).join(" "));
+  return removePageChrome((mains.length ? mains : articles.length ? articles : [html]).join(" "), { keepHeader: !!(mains.length || articles.length) });
 }
 
 function detectPageState(title, h1, html, bodyText) {
@@ -199,6 +283,12 @@ function cleanAuditUrl(value) {
     url.searchParams.delete("_paparmane_audit");
     return url.href;
   } catch { return value; }
+}
+
+// Même origine exacte : « https://ex.com.evil.net » commence par « https://ex.com »
+// mais n'est pas le même site.
+function sameSite(value, origin) {
+  try { return new URL(value).origin === origin; } catch { return false; }
 }
 
 function one(re, s) { const m = s.match(re); return m ? decode(m[1].trim()) : null; }
@@ -256,6 +346,7 @@ const SCHEMA_PARENT = {
   ChildCare: "LocalBusiness", Corporation: "Organization", NGO: "Organization",
   EducationalOrganization: "Organization", SportsOrganization: "Organization",
   LocalBusiness: "Organization",
+  BlogPosting: "Article", NewsArticle: "Article", TechArticle: "Article", Report: "Article",
 };
 
 // Chaîne d'héritage d'un type : [type, parent, grand-parent, …]
@@ -296,22 +387,34 @@ function inspectStructuredData(blocks) {
     for (const t of schemaLineage(type)) if (required[t]) return required[t];
     return [];
   };
-  const visit = (node) => {
-    if (Array.isArray(node)) return node.forEach(visit);
+  // primary = nœud principal (racine, @graph, mainEntity, about). Les nœuds
+  // imbriqués secondaires (auteur, éditeur, offre…) comptent pour les types
+  // détectés, mais on ne leur réclame pas les champs d'une fiche complète :
+  // un « publisher » Organization sans url n'est pas une erreur.
+  const visit = (node, primary = true, depth = 0) => {
+    if (depth > 12) return;
+    if (Array.isArray(node)) return node.forEach(child => visit(child, primary, depth + 1));
     if (!node || typeof node !== "object") return;
-    if (node["@graph"]) visit(node["@graph"]);
-    const rawTypes = Array.isArray(node["@type"]) ? node["@type"] : node["@type"] ? [node["@type"]] : [];
-    if (rawTypes.length) entities.push({ types: rawTypes, id: node["@id"] || null, name: node.name || node.headline || null, url: node.url || null });
+    if (node["@graph"]) visit(node["@graph"], true, depth + 1);
+    const rawTypes = (Array.isArray(node["@type"]) ? node["@type"] : node["@type"] ? [node["@type"]] : [])
+      .filter(type => typeof type === "string")
+      .map(type => type.replace(/^(?:https?:\/\/)?schema\.org\//i, ""));
+    if (rawTypes.length && primary) entities.push({ types: rawTypes, id: node["@id"] || null, name: node.name || node.headline || null, url: node.url || null });
     rawTypes.forEach(type => {
       types.add(type);
+      if (!primary) return;
       const missing = requiredFor(type).filter(k => node[k] == null || node[k] === "" || (Array.isArray(node[k]) && !node[k].length));
       if (missing.length) problems.push(`${type} : champ(s) manquant(s) — ${missing.join(", ")}`);
     });
     for (const [key, value] of Object.entries(node)) {
+      if (key === "@graph" || !value || typeof value !== "object") continue;
+      visit(value, /^(mainEntity|about)$/.test(key), depth + 1);
+    }
+    for (const [key, value] of Object.entries(node)) {
       // Une propriété facultative vide (par exemple WebSite.description dans
       // certains graphes Yoast) n'invalide pas le JSON-LD. Les champs requis
       // sont déjà contrôlés précisément ci-dessus.
-      if (/^(url|image|logo|sameAs)$/i.test(key)) {
+      if (primary && /^(url|image|logo|sameAs)$/i.test(key)) {
         const values = Array.isArray(value) ? value : [value];
         values.filter(v => typeof v === "string").forEach(v => {
           try { if (!/^https?:$/.test(new URL(v).protocol)) throw new Error(); }
@@ -322,8 +425,12 @@ function inspectStructuredData(blocks) {
   };
   blocks.forEach((block, i) => {
     try {
-      const parsed = JSON.parse(block.trim()); validBlocks++;
-      if (!parsed["@context"] && !parsed["@graph"]) problems.push(`Bloc JSON-LD ${i + 1} : @context manquant`);
+      const parsed = JSON.parse(block.trim());
+      if (!parsed || typeof parsed !== "object") throw new Error("bloc vide");
+      validBlocks++;
+      // Un tableau de nœuds est valide : chaque nœud porte alors son @context.
+      const roots = Array.isArray(parsed) ? parsed : [parsed];
+      if (roots.some(root => root && typeof root === "object" && !root["@context"] && !root["@graph"])) problems.push(`Bloc JSON-LD ${i + 1} : @context manquant`);
       visit(parsed);
     }
     catch { invalidBlocks++; problems.push(`Bloc JSON-LD ${i + 1} invalide (erreur de syntaxe)`); }
@@ -350,8 +457,11 @@ function inferExpectedSchema(url, title, h1, bodyText) {
   if (/\/blog|\/actualit|\/article|blogue|datepublished/.test(hay)) add("Article", "article ou actualité détecté");
   if (/\/produit|\/product|\/boutique|ajouter au panier|add to cart/.test(hay)) add("Product", "page produit ou boutique détectée");
   if (/\/services?\/[^/]+$/.test(path)) add("Service", "page de service détectée");
-  if (/faq|foire aux questions|questions fréquentes/.test(hay)) add("FAQPage", "section de questions-réponses détectée");
-  if (/\/evenement|\/event|événement|billetterie/.test(hay)) add("Event", "événement détecté");
+  // FAQ et Événement : seulement d'après l'adresse, le titre ou le H1. Le mot
+  // « événements » dans un paragraphe (« salle pour vos événements ») ne fait
+  // pas de la page un événement daté.
+  if (/faq|foire aux questions|questions fréquentes/.test(headingHay)) add("FAQPage", "section de questions-réponses détectée");
+  if (/\/evenement|\/event|billetterie/.test(headingHay)) add("Event", "événement détecté");
   return expected;
 }
 
@@ -427,9 +537,16 @@ function classifyImg(srcRaw) {
 function analyzePage(url, html, finalUrl, response = {}) {
   const head = html.slice(0, 200000);
   const contentHtml = usefulContentHtml(html);
-  const title = one(/<title[^>]*>([\s\S]*?)<\/title>/i, head);
-  const desc = one(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)/i, head)
-            ?? one(/<meta[^>]*content=["']([^"']*)["'][^>]*name=["']description["']/i, head);
+  // Retours à la ligne et indentation ne comptent pas dans la longueur affichée par Google.
+  const squash = value => value == null ? null : value.replace(/\s+/g, " ").trim();
+  const title = squash(one(/<title[^>]*>([\s\S]*?)<\/title>/i, head));
+  // Balises <meta> lues attribut par attribut : les minificateurs retirent les
+  // guillemets (name=description) et une apostrophe (« L'entreprise ») ne doit
+  // pas couper la description.
+  const metaTags = [...head.matchAll(/<meta\b[^>]*>/gi)].map(match => match[0]);
+  const metaNamed = key => metaTags.find(tag => (tagAttr(tag, "name") || tagAttr(tag, "property") || "").toLowerCase() === key);
+  const descTag = metaNamed("description");
+  const desc = descTag ? squash(tagAttr(descTag, "content") ?? "") : null;
 
   const h1 = all(/<h1[^>]*>([\s\S]*?)<\/h1>/gi, html).map(x => decode(strip(x))).filter(Boolean);
   const h2 = all(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, html).map(x => decode(strip(x))).filter(Boolean);
@@ -452,12 +569,13 @@ function analyzePage(url, html, finalUrl, response = {}) {
 
   const imgs = [...html.matchAll(/<img\b[^>]*>/gi)].map(m => m[0]);
   const images = imgs.map(tag => {
-    const lazySrc = one(/\b(?:data-src|data-lazy-src|data-original|data-litespeed-src)=["']([^"']+)/i, tag);
-    const rawSrc = one(/\bsrc=["']([^"']+)/i, tag);
-    const srcset = one(/\b(?:data-srcset|srcset)=["']([^"']+)/i, tag);
+    const lazySrc = tagAttr(tag, "data-src") || tagAttr(tag, "data-lazy-src") || tagAttr(tag, "data-original") || tagAttr(tag, "data-litespeed-src");
+    const rawSrc = tagAttr(tag, "src");
+    const srcset = tagAttr(tag, "data-srcset") || tagAttr(tag, "srcset");
     const srcsetFirst = srcset ? srcset.split(",")[0].trim().split(/\s+/)[0] : "";
     const src = lazySrc || (rawSrc && !rawSrc.startsWith("data:") ? rawSrc : "") || srcsetFirst || rawSrc || "";
-    const altValue = tagAttr(tag, "alt");
+    // « <img alt> » sans valeur équivaut à alt="" (image décorative).
+    const altValue = tagAttr(tag, "alt") ?? (/\salt(?=[\s/>])/i.test(tag) ? "" : null);
     const file = (src.split("/").pop() || "?").split("?")[0].slice(0, 90);
     const extension = (file.match(/\.([a-z0-9]+)$/i)?.[1] || "").toLowerCase();
     return {
@@ -481,14 +599,30 @@ function analyzePage(url, html, finalUrl, response = {}) {
   try { if (canonicalHref) canonical = new URL(canonicalHref, finalUrl).href; } catch { /* signalé par canonicalMatches */ }
   const canonicalMatches = canonical ? cleanComparableUrl(canonical) === cleanComparableUrl(finalUrl) : null;
 
-  const metaTags = [...head.matchAll(/<meta\b[^>]*>/gi)].map(match => match[0]);
+  // Le verdict d'indexation porte sur Google : une directive réservée à un autre
+  // robot (<meta name="bingbot">, « X-Robots-Tag: otherbot: noindex ») ne rend
+  // pas la page invisible dans Google.
   const robotsDirectives = metaTags
-    .filter(tag => /^(?:robots|googlebot|bingbot)$/i.test(tagAttr(tag, "name") || ""))
+    .filter(tag => /^(?:robots|googlebot)$/i.test(tagAttr(tag, "name") || ""))
     .map(tag => tagAttr(tag, "content") || "")
     .join(", ")
     .toLowerCase();
   const xRobotsTag = String(response.headers?.xRobotsTag || "").toLowerCase();
-  const allRobotDirectives = `${robotsDirectives}, ${xRobotsTag}`;
+  const xRobotsForGoogle = (() => {
+    const kept = [];
+    let agent = null;
+    for (const part of xRobotsTag.split(",")) {
+      const prefixed = part.match(/^\s*([a-z0-9_-]+)\s*:\s*(.*)$/i);
+      let directive = part.trim();
+      if (prefixed && !/^(?:max-snippet|max-image-preview|max-video-preview|unavailable_after)$/i.test(prefixed[1])) {
+        agent = prefixed[1].toLowerCase();
+        directive = prefixed[2].trim();
+      }
+      if (!agent || agent === "googlebot") kept.push(directive);
+    }
+    return kept.join(", ");
+  })();
+  const allRobotDirectives = `${robotsDirectives}, ${xRobotsForGoogle}`;
   const noindex = /(?:^|[\s,])(?:noindex|none)(?:[\s,]|$)/i.test(allRobotDirectives);
   const nofollow = /(?:^|[\s,])(?:nofollow|none)(?:[\s,]|$)/i.test(allRobotDirectives);
   // Directives qui interdisent à Google de reprendre un extrait de la page :
@@ -532,27 +666,29 @@ function analyzePage(url, html, finalUrl, response = {}) {
   const ld = all(/<script[^>]*application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi, html);
   const schema = inspectStructuredData(ld);
   const schemaTypes = schema.types;
+  // Un Winery couvre Organization et LocalBusiness, un BlogPosting couvre Article.
+  const schemaCovers = new Set(schemaTypes.flatMap(schemaLineage));
 
   const og = {
-    title: /property=["']og:title["']/i.test(head),
-    desc: /property=["']og:description["']/i.test(head),
-    image: /property=["']og:image["']/i.test(head),
-    twitter: /name=["']twitter:card["']/i.test(head),
+    title: !!metaNamed("og:title"),
+    desc: !!metaNamed("og:description"),
+    image: !!metaNamed("og:image"),
+    twitter: !!metaNamed("twitter:card"),
   };
 
   const origin = new URL(finalUrl).origin;
-  const rawHrefs = [...html.matchAll(/<a\b[^>]*\bhref=["']([^"']+)["'][^>]*>/gi)]
-    .filter(match => {
-      const tag = match[0];
-      const href = decode(match[1]);
+  const rawHrefs = [...html.matchAll(/<a\b[^>]*>/gi)]
+    .map(match => [match[0], tagAttr(match[0], "href")])
+    .filter(([, href]) => href)
+    .filter(([tag, href]) => {
       // Les hébergeurs injectent parfois un lien-piège invisible qui doit
       // volontairement répondre 403. Ce n'est ni une navigation pour les
       // visiteurs ni un lien que les moteurs doivent suivre.
-      const hiddenTrap = /\baria-hidden=["']true["']/i.test(tag)
-        || (/\btabindex=["']-1["']/i.test(tag) && /display\s*:\s*none/i.test(tag));
+      const hiddenTrap = tagAttr(tag, "aria-hidden") === "true"
+        || (tagAttr(tag, "tabindex") === "-1" && /display\s*:\s*none/i.test(tag));
       return !hiddenTrap && !/\/imunify-bot-check(?:[/?#]|$)/i.test(href);
     })
-    .map(match => decode(match[1]));
+    .map(([, href]) => href);
   const emails = [...new Set(rawHrefs
     .filter(h => /^mailto:/i.test(h))
     .map(h => h.replace(/^mailto:/i, "").split("?")[0].trim().toLowerCase())
@@ -569,8 +705,8 @@ function analyzePage(url, html, finalUrl, response = {}) {
     .filter(x => x && /contact|joindre|réserv|reserve|devis|soumission|appel|call|acheter|commander|prendre rendez-vous/i.test(x));
   const links = [...new Set(
     rawHrefs
-      .map(h => { try { return new URL(decode(h), finalUrl).href.split("#")[0]; } catch { return null; } })
-      .filter(h => h && h.startsWith(origin) && !/\.(jpg|jpeg|png|webp|gif|pdf|zip|css|js|xml|ico|svg|mp4|woff2?)(\?|$)/i.test(h))
+      .map(h => { try { return new URL(h, finalUrl).href.split("#")[0]; } catch { return null; } })
+      .filter(h => h && sameSite(h, origin) && !/\.(jpg|jpeg|png|webp|gif|pdf|zip|css|js|xml|ico|svg|mp4|woff2?)(\?|$)/i.test(h))
   )].slice(0, 80);
 
   const bodyText = decode(strip(usefulContentHtml(html)));
@@ -601,10 +737,11 @@ function analyzePage(url, html, finalUrl, response = {}) {
     title, titleLen: title ? title.length : 0,
     desc, descLen: desc ? desc.length : 0,
     canonical, canonicalMatches,
-    viewport: /name=["']viewport["']/i.test(head),
-    lang: one(/<html[^>]*\blang=["']([^"']+)/i, head),
+    viewport: !!metaNamed("viewport"),
+    lang: tagAttr(head.match(/<html\b[^>]*>/i)?.[0] || "", "lang") || null,
     h1, h1Count: h1.length, h2Count: h2.length, headings, headingCounts, emptyHeadings, headingSkips,
-    images, og, schemaTypes, schema, expectedSchema: inferExpectedSchema(finalUrl, title, h1, bodyText),
+    images, og, schemaTypes, schema, expectedSchema: inferExpectedSchema(finalUrl, title, h1, bodyText)
+      .filter(item => !schemaCovers.has(item.type)),
     isWordPress: /wp-content|wp-json/i.test(html),
     words,
     jsOnly,
@@ -634,46 +771,83 @@ function analyzePage(url, html, finalUrl, response = {}) {
 
 // ---------- MODE: discover ----------
 function parseRobots(txt) {
-  // Découpe en blocs user-agent (les agents groupés partagent les règles)
-  const lines = txt.split(/\r?\n/);
-  const rules = {}; // agent(min) -> {disallowAll, mentioned, partial[]}
+  // Découpe en blocs user-agent (les agents groupés partagent les règles).
+  // Règle de Google (RFC 9309) : la règle la plus longue qui correspond
+  // l'emporte, et à longueur égale « Allow » gagne. « Allow: / » placé avant
+  // « Disallow: / » laisse donc le site ouvert.
+  const lines = String(txt || "").replace(/^﻿/, "").split(/\r?\n|\r/);
+  const groups = {}; // agent(min) -> [{allow, path}]
   let agents = [];
   let sawRule = false;
   for (const raw of lines) {
     const line = raw.replace(/#.*$/, "").trim();
     if (!line) continue;
-    const ua = line.match(/^user-agent:\s*(.+)$/i);
-    if (ua) {
+    const field = line.match(/^([a-z-]+)\s*:\s*(.*)$/i);
+    if (!field) continue;
+    const key = field[1].toLowerCase();
+    const value = field[2].trim();
+    if (key === "user-agent") {
       if (sawRule) { agents = []; sawRule = false; }
-      agents.push(ua[1].trim().toLowerCase());
-      for (const a of agents) rules[a] ??= { disallowAll: false, mentioned: true, partial: [] };
+      const agent = value.toLowerCase();
+      agents.push(agent);
+      groups[agent] ??= [];
       continue;
     }
-    const dis = line.match(/^disallow:\s*(.*)$/i);
-    const alw = line.match(/^allow:\s*(.*)$/i);
-    if (dis || alw) {
+    if (key === "allow" || key === "disallow") {
       sawRule = true;
-      // « Disallow: /* » ferme tout le site, exactement comme « Disallow: / ».
-      const disPath = dis ? dis[1].trim() : "";
-      if (disPath === "/" || disPath === "/*") for (const a of agents) rules[a].disallowAll = true;
-      // Blocage ciblé (« Disallow: /blog/ ») : le robot reste admis ailleurs,
-      // mais ces sections ne pourront jamais être citées. Sans ce relevé, le
-      // robot était présenté comme entièrement autorisé.
-      else if (disPath) for (const a of agents) if (!rules[a].partial.includes(disPath)) rules[a].partial.push(disPath);
-      if (alw && alw[1].trim() === "/") for (const a of agents) rules[a].disallowAll = false;
+      if (!value) continue; // « Disallow: » vide = tout est permis
+      for (const agent of agents) groups[agent].push({ allow: key === "allow", path: value });
+    }
+  }
+  const patternMatches = (pattern, path) => {
+    const anchored = pattern.endsWith("$");
+    const body = (anchored ? pattern.slice(0, -1) : pattern)
+      .split("*").map(part => part.replace(/[.+?^${}()|[\]\\]/g, "\\$&")).join(".*");
+    return new RegExp("^" + body + (anchored ? "$" : "")).test(path);
+  };
+  const specificity = pattern => pattern.replace(/\*/g, "").length;
+  const blocks = (list, path) => {
+    let best = null;
+    for (const rule of list) {
+      if (!patternMatches(rule.path, path)) continue;
+      const len = specificity(rule.path);
+      if (!best || len > best.len || (len === best.len && rule.allow)) best = { len, allow: rule.allow };
+    }
+    return !!best && !best.allow;
+  };
+  const rules = {};
+  for (const [agent, list] of Object.entries(groups)) {
+    const rootBlocked = blocks(list, "/");
+    const allowExceptions = list.filter(rule => rule.allow && !patternMatches(rule.path, "/")).map(rule => rule.path);
+    const allowPaths = new Set(list.filter(rule => rule.allow).map(rule => rule.path));
+    const disallowed = list.filter(rule => !rule.allow && !patternMatches(rule.path, "/") && !allowPaths.has(rule.path))
+      .map(rule => rule.path);
+    if (rootBlocked && allowExceptions.length) {
+      // « Disallow: / » + « Allow: /fr/ » : fermé sauf quelques sections.
+      rules[agent] = { disallowAll: false, mentioned: true, partial: ["tout le site sauf " + allowExceptions.slice(0, 5).join(", ")] };
+    } else if (!rootBlocked && blocks(list, "/paparmane-exemple/page")) {
+      // « Allow: /$ » + « Disallow: / » : seule la page d'accueil reste ouverte.
+      rules[agent] = { disallowAll: false, mentioned: true, partial: ["tout le site sauf la page d'accueil"] };
+    } else {
+      rules[agent] = { disallowAll: rootBlocked, mentioned: true, partial: rootBlocked ? [] : [...new Set(disallowed)] };
     }
   }
   return rules;
 }
 
-async function readSitemap(url, origin) {
+// Balise XML avec ou sans préfixe d'espace de noms (<loc>, <sm:loc>).
+const xmlLocs = body => [...String(body).matchAll(/<(?:[\w-]+:)?loc\b[^>]*>\s*(?:<!\[CDATA\[)?\s*([\s\S]*?)\s*(?:\]\]>)?\s*<\/(?:[\w-]+:)?loc>/gi)]
+  .map(match => decode(match[1].trim()))
+  .filter(Boolean);
+
+async function readSitemap(url, origin, { timeout = FETCH_TIMEOUT } = {}) {
   if (!isSafeUrl(url)) return { pages: [], sitemaps: [], found: false };
-  const r = await grab(url);
-  if (!r.ok || r.status !== 200 || !/<(urlset|sitemapindex)/i.test(r.body)) {
+  const r = await grab(url, { timeout });
+  if (!r.ok || r.status !== 200 || !/<(?:[\w-]+:)?(urlset|sitemapindex)\b/i.test(r.body)) {
     return { pages: [], sitemaps: [], found: false };
   }
-  const locs = all(/<loc>\s*([^<]+?)\s*<\/loc>/gi, r.body).map(decode);
-  if (/<sitemapindex/i.test(r.body)) {
+  const locs = xmlLocs(r.body);
+  if (/<(?:[\w-]+:)?sitemapindex\b/i.test(r.body)) {
     return {
       pages: [],
       sitemaps: [...new Set(locs.filter(isSafeUrl))].slice(0, MAX_SITEMAP_URLS),
@@ -691,12 +865,36 @@ async function readSitemap(url, origin) {
   };
 }
 
+// Budget total d'un appel : la fonction Netlify est coupée au bout d'environ
+// 10 secondes, avec une erreur brute au lieu d'un message clair.
+const CALL_BUDGET = 8500;
+const remaining = deadline => Math.max(0, deadline - Date.now());
+
 async function discover(site) {
-  const origin = new URL(site).origin;
+  const deadline = Date.now() + CALL_BUDGET;
+  let origin = new URL(site).origin;
+  // Adresse officielle du site : si « ex.com » redirige vers « www.ex.com »,
+  // c'est cette dernière que le sitemap et les liens utilisent. Sans cela, tout
+  // le sitemap était filtré et l'audit se réduisait à la page d'accueil.
+  const home = await grab(origin + "/", { asText: false, timeout: Math.min(5000, remaining(deadline)) });
+  if (home.ok && home.status < 400) {
+    try {
+      const landed = new URL(home.finalUrl);
+      const bareHost = host => host.replace(/^www\./i, "").toLowerCase();
+      if (landed.origin !== origin && bareHost(landed.hostname) === bareHost(new URL(origin).hostname) && isSafeUrl(landed.origin)) origin = landed.origin;
+    } catch { /* garder l'adresse saisie */ }
+  }
   const out = { origin, pages: [], robots: null, aiBots: [], llms: null, sitemapFound: false };
 
-  // 1. robots.txt
-  const rb = await grab(origin + "/robots.txt");
+  // 1. robots.txt, favicon, page 404 et llms.txt : requêtes indépendantes, en parallèle.
+  const probe404 = origin + "/paparmane-audit-" + hashText(origin) + "-page-inexistante/";
+  const step = () => Math.min(FETCH_TIMEOUT, remaining(deadline) - 2500);
+  const [rb, favicon, missing, lm] = await Promise.all([
+    grab(origin + "/robots.txt", { timeout: step() }),
+    grab(origin + "/favicon.ico", { asText: false, timeout: step() }),
+    grab(probe404, { asText: false, timeout: step() }),
+    grab(origin + "/llms.txt", { timeout: step() }),
+  ]);
   const robotsTxt = rb.ok && rb.status === 200 && !/<html/i.test(rb.body.slice(0, 300)) ? rb.body : "";
   const rules = robotsTxt ? parseRobots(robotsTxt) : {};
   const wildcard = rules["*"];
@@ -726,14 +924,9 @@ async function discover(site) {
 
   // Un favicon peut être déclaré dans le HTML ou servi implicitement à la
   // racine. Ce second cas évite un faux positif dans le rapport client.
-  // Le test de la page 404 part en parallèle : deux requêtes indépendantes.
-  const probe404 = origin + "/paparmane-audit-" + hashText(origin) + "-page-inexistante/";
-  const [favicon, missing] = await Promise.all([
-    grab(origin + "/favicon.ico", { asText: false }),
-    grab(probe404, { asText: false }),
-  ]);
+  // Certains serveurs l'envoient en « application/octet-stream ».
   out.favicon = {
-    fallbackExists: !!(favicon.ok && favicon.status === 200 && /^image\//i.test(favicon.headers?.contentType || "")),
+    fallbackExists: !!(favicon.ok && favicon.status === 200 && /^(?:image\/|application\/octet-stream)/i.test(favicon.headers?.contentType || "")),
   };
   // Une adresse inventée DOIT répondre 404 (ou 410). Un site qui répond 200 dit
   // à Google que toutes les adresses existent : pages fantômes à l'infini.
@@ -749,29 +942,45 @@ async function discover(site) {
     unreachable: missing.status === 0,
   };
 
-  // 2. sitemaps (déclarés dans robots.txt, sinon /sitemap.xml et /sitemap_index.xml)
-  const declared = all(/sitemap:\s*(\S+)/gi, robotsTxt);
-  const candidates = declared.length ? [...new Set(declared)] : [origin + "/sitemap_index.xml", origin + "/sitemap.xml"];
+  // 2. sitemaps : tous ceux déclarés dans robots.txt (lignes commentées
+  // exclues, adresses relatives résolues), puis les emplacements habituels si
+  // aucun ne répond.
+  const declared = robotsTxt.split(/\r?\n|\r/)
+    .map(line => line.replace(/#.*$/, "").match(/^\s*sitemap\s*:\s*(\S+)/i)?.[1])
+    .filter(Boolean)
+    .map(value => { try { return new URL(value, origin).href; } catch { return null; } })
+    .filter(Boolean);
+  const defaults = [origin + "/sitemap_index.xml", origin + "/sitemap.xml", origin + "/wp-sitemap.xml"];
   const pages = new Set();
   const sitemapQueue = [];
-  for (const sm of candidates.slice(0, 10)) {
-    const parsed = await readSitemap(sm, origin);
-    if (!parsed.found) continue;
-    out.sitemapFound = true;
-    parsed.pages.forEach(l => pages.add(l));
-    sitemapQueue.push(...parsed.sitemaps);
-    break;
+  const readAll = async list => {
+    const results = await Promise.all(list.slice(0, 10).map(sm => readSitemap(sm, origin, { timeout: Math.min(FETCH_TIMEOUT, remaining(deadline)) })));
+    for (const parsed of results) {
+      if (!parsed.found) continue;
+      out.sitemapFound = true;
+      parsed.pages.forEach(l => pages.add(l));
+      sitemapQueue.push(...parsed.sitemaps);
+    }
+  };
+  if (declared.length) await readAll([...new Set(declared)]);
+  if (!out.sitemapFound && remaining(deadline) > 1000) {
+    // Un seul emplacement habituel suffit : sitemap_index.xml et sitemap.xml
+    // renvoient souvent le même index.
+    for (const sm of defaults) {
+      if (remaining(deadline) < 1000) break;
+      await readAll([sm]);
+      if (out.sitemapFound) break;
+    }
   }
   if (!pages.size) pages.add(origin + "/"); // repli : on partira de l'accueil (BFS côté client)
   out.pages = [...pages];
   out.sitemapQueue = [...new Set(sitemapQueue)];
 
   // 3. llms.txt
-  const lm = await grab(origin + "/llms.txt");
   const isReal = lm.ok && lm.status === 200 && !/<html|<!doctype/i.test(lm.body.slice(0, 300)) && lm.body.trim().length > 40;
   out.llms = { exists: isReal };
   if (isReal) {
-    const links = [...new Set(all(/\((https?:\/\/[^\)\s]+)\)/g, lm.body).filter(u => u.startsWith(origin)))].slice(0, 25);
+    const links = [...new Set(all(/\((https?:\/\/[^\)\s]+)\)/g, lm.body).filter(u => sameSite(u, origin)))].slice(0, 25);
     const prices = (lm.body.match(/\$\s?\d[\d\s,.]*|\d[\d\s,.]*\s?\$/g) || []).length;
     out.llms.lines = lm.body.split("\n").length;
     out.llms.links = links;
@@ -782,12 +991,22 @@ async function discover(site) {
 
 // ---------- MODE: verify ----------
 async function verify(urls) {
-  const results = [];
-  for (const u of urls.slice(0, MAX_VERIFY)) {
-    if (!isSafeUrl(u)) { results.push({ url: u, status: 0, finalUrl: u, redirected: false }); continue; }
-    const r = await grab(u, { asText: false });
-    results.push({ url: u, status: r.status, finalUrl: r.finalUrl, redirected: r.redirected || r.finalUrl.replace(/\/$/, "") !== u.replace(/\/$/, "") });
-  }
+  // Cinq vérifications à la fois, dans le budget d'un appel : quinze liens
+  // lus l'un après l'autre pouvaient dépasser la limite de la fonction.
+  const deadline = Date.now() + CALL_BUDGET;
+  const list = urls.slice(0, MAX_VERIFY);
+  const results = new Array(list.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < list.length) {
+      const index = next++;
+      const u = list[index];
+      if (!isSafeUrl(u) || remaining(deadline) < 600) { results[index] = { url: u, status: 0, finalUrl: u, redirected: false }; continue; }
+      const r = await grab(u, { asText: false, timeout: Math.min(6000, remaining(deadline)) });
+      results[index] = { url: u, status: r.status, finalUrl: r.finalUrl, redirected: r.redirected || r.finalUrl.replace(/\/$/, "") !== u.replace(/\/$/, "") };
+    }
+  };
+  await Promise.all(Array.from({ length: 5 }, worker));
   return results;
 }
 
