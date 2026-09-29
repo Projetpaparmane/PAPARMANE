@@ -47,6 +47,15 @@ const AI_BOTS = [
   ["cohere-ai",          "Cohere — entraînement",                  "contenu exclu d'un éventuel entraînement Cohere"],
 ];
 
+// --- Moteurs de recherche classiques : [agent, rôle, conséquence d'un blocage] ---
+// Les Aperçus IA de Google reposent sur l'exploration de Googlebot (et non sur
+// Google-Extended); Copilot s'appuie sur l'index de Bing, que DuckDuckGo
+// utilise aussi en grande partie.
+const SEARCH_ENGINES = [
+  ["Googlebot", "Google Search et Aperçus IA",  "absent de Google et de ses Aperçus IA"],
+  ["Bingbot",   "Bing, Copilot et DuckDuckGo",  "absent de Bing, de Copilot et en grande partie de DuckDuckGo"],
+];
+
 function isSafeUrl(u) {
   try {
     const p = new URL(u);
@@ -574,6 +583,16 @@ function analyzePage(url, html, finalUrl, response = {}) {
     return focusTokens.every(token => fieldTokens.has(token));
   };
   const pageState = detectPageState(title, h1, html, bodyText);
+  const words = bodyText ? bodyText.split(" ").length : 0;
+  // Page « coquille » : le HTML reçu ne contient qu'un point de montage vide
+  // que le JavaScript remplit dans le navigateur. Googlebot exécute ce
+  // JavaScript, mais pas GPTBot, ClaudeBot ni PerplexityBot (étude
+  // Vercel/MERJ, déc. 2024) : pour eux la page est vide. Ce n'est donc pas un
+  // contenu « trop court », et conseiller d'écrire davantage serait faux.
+  const emptyMountPoint = /<div\b[^>]*\bid=["'](?:root|app|__next|__nuxt|___gatsby|svelte)["'][^>]*>\s*<\/div>/i.test(html);
+  const noscriptAsksForJs = /<noscript\b[^>]*>(?:(?!<\/noscript>)[\s\S]){0,400}?javascript/i.test(html);
+  const jsOnly = pageState.kind === "normal" && words < 50 && headings.length === 0
+    && (emptyMountPoint || noscriptAsksForJs);
   const signatureBasis = plain(`${title || ""} ${(h1 || []).join(" ")} ${bodyText}`).slice(0, 24000);
 
   return {
@@ -587,7 +606,8 @@ function analyzePage(url, html, finalUrl, response = {}) {
     h1, h1Count: h1.length, h2Count: h2.length, headings, headingCounts, emptyHeadings, headingSkips,
     images, og, schemaTypes, schema, expectedSchema: inferExpectedSchema(finalUrl, title, h1, bodyText),
     isWordPress: /wp-content|wp-json/i.test(html),
-    words: bodyText ? bodyText.split(" ").length : 0,
+    words,
+    jsOnly,
     contentSignature: hashText(signatureBasis),
     pageState,
     keywords: keywords.top, focusKeyword,
@@ -616,7 +636,7 @@ function analyzePage(url, html, finalUrl, response = {}) {
 function parseRobots(txt) {
   // Découpe en blocs user-agent (les agents groupés partagent les règles)
   const lines = txt.split(/\r?\n/);
-  const rules = {}; // agent(min) -> {disallowAll, mentioned}
+  const rules = {}; // agent(min) -> {disallowAll, mentioned, partial[]}
   let agents = [];
   let sawRule = false;
   for (const raw of lines) {
@@ -626,14 +646,20 @@ function parseRobots(txt) {
     if (ua) {
       if (sawRule) { agents = []; sawRule = false; }
       agents.push(ua[1].trim().toLowerCase());
-      for (const a of agents) rules[a] ??= { disallowAll: false, mentioned: true };
+      for (const a of agents) rules[a] ??= { disallowAll: false, mentioned: true, partial: [] };
       continue;
     }
     const dis = line.match(/^disallow:\s*(.*)$/i);
     const alw = line.match(/^allow:\s*(.*)$/i);
     if (dis || alw) {
       sawRule = true;
-      if (dis && dis[1].trim() === "/") for (const a of agents) rules[a].disallowAll = true;
+      // « Disallow: /* » ferme tout le site, exactement comme « Disallow: / ».
+      const disPath = dis ? dis[1].trim() : "";
+      if (disPath === "/" || disPath === "/*") for (const a of agents) rules[a].disallowAll = true;
+      // Blocage ciblé (« Disallow: /blog/ ») : le robot reste admis ailleurs,
+      // mais ces sections ne pourront jamais être citées. Sans ce relevé, le
+      // robot était présenté comme entièrement autorisé.
+      else if (disPath) for (const a of agents) if (!rules[a].partial.includes(disPath)) rules[a].partial.push(disPath);
       if (alw && alw[1].trim() === "/") for (const a of agents) rules[a].disallowAll = false;
     }
   }
@@ -674,11 +700,24 @@ async function discover(site) {
   const robotsTxt = rb.ok && rb.status === 200 && !/<html/i.test(rb.body.slice(0, 300)) ? rb.body : "";
   const rules = robotsTxt ? parseRobots(robotsTxt) : {};
   const wildcard = rules["*"];
-  out.robots = { exists: !!robotsTxt, searchBlocked: !!wildcard?.disallowAll };
+  // Une règle nommée l'emporte sur « * », dans un sens comme dans l'autre :
+  // « User-agent: Googlebot / Disallow: / » ferme Google même si « * » est
+  // ouvert, et un site fermé à tous sauf Googlebot reste visible dans Google.
+  const engines = SEARCH_ENGINES.map(([agent, role, cost]) => {
+    const r = rules[agent.toLowerCase()];
+    return { agent, role, cost, blocked: r ? r.disallowAll : !!wildcard?.disallowAll, via: r ? "nomme" : "general" };
+  });
+  out.robots = {
+    exists: !!robotsTxt,
+    // Google est le moteur visé par l'audit : son blocage fait tomber l'indexation.
+    searchBlocked: engines[0].blocked,
+    wildcardBlocked: !!wildcard?.disallowAll,
+    engines,
+  };
   out.aiBots = AI_BOTS.map(([agent, role, cost]) => {
     const r = rules[agent.toLowerCase()];
     // Une règle nommée l'emporte toujours sur la règle générale « * ».
-    if (r) return { agent, role, cost, state: r.disallowAll ? "blocked" : "allowed", via: "nomme" };
+    if (r) return { agent, role, cost, state: r.disallowAll ? "blocked" : "allowed", via: "nomme", partial: r.disallowAll ? [] : r.partial.slice(0, 10) };
     // Sans règle nommée, le robot hérite de « User-agent: * ». Sans ce repli,
     // un site entièrement bloqué était présenté comme ouvert à toutes les IA.
     if (wildcard?.disallowAll) return { agent, role, cost, state: "blocked", via: "general" };

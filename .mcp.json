@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "search-console": {
+      "command": "bash",
+      "args": ["${CLAUDE_PROJECT_DIR:-.}/.claude/mcp/search-console.sh"]
+    }
+  }
+}
