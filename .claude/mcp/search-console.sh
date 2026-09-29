@@ -3,12 +3,14 @@
 # https://github.com/AminForou/mcp-gsc). Mode d'emploi : .claude/mcp/README.md
 #
 # Identifiants du compte de service Google, au choix :
-#   GSC_SERVICE_ACCOUNT_JSON  contenu de la clé JSON, brut ou encodé en base64
+#   GSC_SERVICE_ACCOUNT_JSON  contenu de la clé JSON : brut (entre apostrophes
+#                             s'il tient sur plusieurs lignes) ou en base64
 #                             (sessions cloud : variable de l'environnement) ;
 #   GSC_CREDENTIALS_PATH      chemin absolu vers le fichier JSON (poste local).
 #
 # Tout message va sur stderr : stdout est réservé au protocole MCP.
 set -euo pipefail
+shopt -s extglob
 
 # Version figée : ce paquet tiers manipule la clé Google, on ne suit pas
 # ses nouvelles versions à l'aveugle.
@@ -19,9 +21,16 @@ if [[ -n "${GSC_SERVICE_ACCOUNT_JSON:-}" ]]; then
   file="$dir/service_account.json"
   umask 077
   mkdir -p "$dir"
-  if [[ "$GSC_SERVICE_ACCOUNT_JSON" =~ ^[[:space:]]*\{ ]]; then
-    printf '%s' "$GSC_SERVICE_ACCOUNT_JSON" > "$file"
-  elif ! printf '%s' "$GSC_SERVICE_ACCOUNT_JSON" | tr -d '[:space:]' | base64 --decode > "$file" 2>/dev/null; then
+  # Apostrophes ou guillemets autour de la valeur : le format .env les retire
+  # normalement, mais on ne compte pas dessus.
+  value="${GSC_SERVICE_ACCOUNT_JSON##+([[:space:]])}"
+  value="${value%%+([[:space:]])}"
+  for q in "'" '"'; do
+    if [[ ${#value} -ge 2 && "$value" == "$q"*"$q" ]]; then value="${value:1:${#value}-2}"; fi
+  done
+  if [[ "$value" =~ ^[[:space:]]*\{ ]]; then
+    printf '%s' "$value" > "$file"
+  elif ! printf '%s' "$value" | tr -d '[:space:]' | base64 --decode > "$file" 2>/dev/null; then
     rm -f "$file"
     echo "search-console : GSC_SERVICE_ACCOUNT_JSON n'est ni du JSON ni du base64 valide." >&2
     exit 1

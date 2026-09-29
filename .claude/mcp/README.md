@@ -40,21 +40,28 @@ Pour un client : demande-lui d'ajouter cette même adresse à sa propriété.
 
 ### 3. Mettre la clé dans l'environnement cloud
 
-1. Sur ton Mac, ouvre **Terminal** et tape (en remplaçant le nom du fichier) :
-
-   ```bash
-   base64 -i ~/Downloads/NOM-DU-FICHIER.json | pbcopy
-   ```
-
-   La clé encodée est maintenant dans ton presse-papiers.
+1. Dans le Finder, fais un clic droit sur le fichier `.json` → **Ouvrir avec** →
+   **TextEdit**, puis **Cmd + A** et **Cmd + C**.
 2. Dans Claude Code sur le web : menu de l'environnement dans la barre de titre
-   de la session → **Modifier** → **Variables d'environnement**, ajoute la ligne :
+   de la session → **Modifier** → **Variables d'environnement**. Tape
+   `GSC_SERVICE_ACCOUNT_JSON='` (avec l'apostrophe), colle avec **Cmd + V**,
+   puis tape une dernière apostrophe `'` après l'accolade finale. Le résultat
+   ressemble à ceci :
 
    ```
-   GSC_SERVICE_ACCOUNT_JSON=<colle ici>
+   GSC_SERVICE_ACCOUNT_JSON='{
+     "type": "service_account",
+     ...
+   }'
    ```
 
-3. Enregistre. Tu peux ensuite supprimer le fichier `.json` de tes Téléchargements.
+   Sans les apostrophes, la clé tient sur plusieurs lignes et la fenêtre refuse
+   d'enregistrer.
+3. Enregistre. Tu peux ensuite mettre le fichier `.json` à la corbeille.
+
+Autre méthode, sur une seule ligne : dans le Terminal,
+`base64 -i chemin/vers/la-cle.json | pbcopy`, puis colle le résultat après
+`GSC_SERVICE_ACCOUNT_JSON=`.
 
 ### 4. Autoriser le serveur dans Claude Code
 
