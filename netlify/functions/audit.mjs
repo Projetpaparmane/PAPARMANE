@@ -285,6 +285,12 @@ function cleanAuditUrl(value) {
   } catch { return value; }
 }
 
+// Fichiers qui ne sont pas des pages web : certains sitemaps WordPress
+// (pièces jointes, images) listent des .avif ou .svg. Les analyser comme des
+// pages produisait « 171 pages sans H1 / non adaptées au mobile ».
+const NON_PAGE_EXT = /\.(?:jpe?g|png|webp|avif|gif|svg|ico|bmp|tiff?|heic|pdf|zip|rar|7z|gz|css|js|mjs|json|xml|txt|csv|mp4|m4v|mov|webm|avi|mp3|wav|ogg|m4a|woff2?|ttf|otf|eot|docx?|xlsx?|pptx?|odt|ods|eps|psd|ai)$/i;
+const isPagePath = value => { try { return !NON_PAGE_EXT.test(new URL(value).pathname); } catch { return false; } };
+
 // Même origine exacte : « https://ex.com.evil.net » commence par « https://ex.com »
 // mais n'est pas le même site.
 function sameSite(value, origin) {
@@ -369,7 +375,7 @@ function isBusinessType(type) {
 }
 
 function inspectStructuredData(blocks) {
-  const types = new Set(), problems = [], entities = [];
+  const types = new Set(), nestedTypes = new Set(), problems = [], entities = [];
   let validBlocks = 0, invalidBlocks = 0;
   const required = {
     Organization: ["name", "url"], LocalBusiness: ["name", "address"],
@@ -401,9 +407,14 @@ function inspectStructuredData(blocks) {
       .map(type => type.replace(/^(?:https?:\/\/)?schema\.org\//i, ""));
     if (rawTypes.length && primary) entities.push({ types: rawTypes, id: node["@id"] || null, name: node.name || node.headline || null, url: node.url || null });
     rawTypes.forEach(type => {
+      // Les nœuds secondaires (adresse, coordonnées, action de recherche…)
+      // ne sont pas listés comme « types présents » : ils noyaient le rapport.
+      if (!primary) { nestedTypes.add(type); return; }
       types.add(type);
-      if (!primary) return;
-      const missing = requiredFor(type).filter(k => node[k] == null || node[k] === "" || (Array.isArray(node[k]) && !node[k].length));
+      const empty = k => node[k] == null || node[k] === "" || (Array.isArray(node[k]) && !node[k].length);
+      // Google accepte un Product avec une offre, un avis OU une note moyenne.
+      const missing = requiredFor(type).filter(k => empty(k)
+        && !(k === "offers" && (!empty("review") || !empty("aggregateRating"))));
       if (missing.length) problems.push(`${type} : champ(s) manquant(s) — ${missing.join(", ")}`);
     });
     for (const [key, value] of Object.entries(node)) {
@@ -441,7 +452,7 @@ function inspectStructuredData(blocks) {
   const businessTypes = allTypes.filter(isBusinessType);
   const preciseBusinessTypes = businessTypes.filter(t => schemaLineage(t).includes("LocalBusiness"));
   return {
-    types: allTypes, validBlocks, invalidBlocks, problems: [...new Set(problems)], entities,
+    types: allTypes, nestedTypes: [...nestedTypes].filter(type => !types.has(type)).sort(), validBlocks, invalidBlocks, problems: [...new Set(problems)], entities,
     businessTypes, preciseBusinessTypes,
   };
 }
@@ -530,6 +541,10 @@ function classifyImg(srcRaw) {
   // Il est volontairement muet pour les lecteurs d'écran (alt="").
   if (/^arbres-coteaux-missisquoi(?:-\d+x\d+)?\.png$/.test(file)) return "deco";
   if (/(^|[-_])(logo|icon|icone|ico|badge|spacer|separateur|separator|deco|pattern|bg|arrow|fleche|puce|bullet|star|etoile)([-_.]|$)/.test(file)) return "deco";
+  // Icônes de réseaux sociaux (facebook.png, icons8-linkedin.png…) : ce sont
+  // des boutons, pas des photos à décrire pour Google Images.
+  const stem = file.replace(/\.[a-z0-9]+$/, "").replace(/-\d+x\d+$/, "");
+  if (/^(?:icons?\d*[-_])?(?:facebook|fb|instagram|insta|linkedin|tiktok|youtube|twitter|x-twitter|pinterest|whatsapp|messenger|threads|snapchat)(?:[-_]?(?:icon|icone|logo|white|black|blanc|noir|round|circle|square|color|couleur|\d+))*$/.test(stem)) return "deco";
   return "content";
 }
 
@@ -667,7 +682,7 @@ function analyzePage(url, html, finalUrl, response = {}) {
   const schema = inspectStructuredData(ld);
   const schemaTypes = schema.types;
   // Un Winery couvre Organization et LocalBusiness, un BlogPosting couvre Article.
-  const schemaCovers = new Set(schemaTypes.flatMap(schemaLineage));
+  const schemaCovers = new Set([...schemaTypes, ...(schema.nestedTypes || [])].flatMap(schemaLineage));
 
   const og = {
     title: !!metaNamed("og:title"),
@@ -706,8 +721,11 @@ function analyzePage(url, html, finalUrl, response = {}) {
   const links = [...new Set(
     rawHrefs
       .map(h => { try { return new URL(h, finalUrl).href.split("#")[0]; } catch { return null; } })
-      .filter(h => h && sameSite(h, origin) && !/\.(jpg|jpeg|png|webp|gif|pdf|zip|css|js|xml|ico|svg|mp4|woff2?)(\?|$)/i.test(h))
-  )].slice(0, 80);
+      .filter(h => h && sameSite(h, origin) && isPagePath(h)
+        // Lien de protection d'adresse courriel Cloudflare : décodé par le
+        // navigateur, ce n'est pas un lien brisé.
+        && !/\/cdn-cgi\//i.test(h))
+  )].slice(0, 400);
 
   const bodyText = decode(strip(usefulContentHtml(html)));
   const keywords = extractKeywords(bodyText);
@@ -857,7 +875,7 @@ async function readSitemap(url, origin, { timeout = FETCH_TIMEOUT } = {}) {
   return {
     pages: [...new Set(locs.filter(l => {
       try {
-        return new URL(l).origin === origin && !/\.(jpg|jpeg|png|webp|gif|pdf|xml)$/i.test(new URL(l).pathname);
+        return new URL(l).origin === origin && isPagePath(l);
       } catch { return false; }
     }))].slice(0, MAX_SITEMAP_URLS),
     sitemaps: [],
@@ -1055,6 +1073,23 @@ function unavailableProviderResult(error) {
   };
 }
 
+// Codes de marché DataForSEO = 2000 + code pays ISO 3166 numérique.
+// « 2854 · ar » devient « Burkina Faso · arabe ».
+const MARKET_NAMES = {
+  124: "Canada", 840: "États-Unis", 250: "France", 56: "Belgique", 756: "Suisse", 442: "Luxembourg",
+  492: "Monaco", 504: "Maroc", 12: "Algérie", 788: "Tunisie", 384: "Côte d'Ivoire", 686: "Sénégal",
+  854: "Burkina Faso", 466: "Mali", 120: "Cameroun", 180: "RD Congo", 178: "Congo", 204: "Bénin",
+  768: "Togo", 562: "Niger", 324: "Guinée", 450: "Madagascar", 332: "Haïti", 826: "Royaume-Uni",
+  36: "Australie", 484: "Mexique", 276: "Allemagne", 724: "Espagne", 380: "Italie", 76: "Brésil",
+  818: "Égypte", 682: "Arabie saoudite", 784: "Émirats arabes unis", 422: "Liban", 356: "Inde",
+};
+const LANGUAGE_NAMES = { fr: "français", en: "anglais", ar: "arabe", es: "espagnol", de: "allemand", it: "italien", pt: "portugais", nl: "néerlandais" };
+function marketName(code) {
+  const n = Number(code);
+  if (Number.isFinite(n) && n > 2000) return MARKET_NAMES[n - 2000] || "autre marché";
+  return code ? String(code) : "Portée DataForSEO";
+}
+
 async function externalIntelligence(site, location = "Canada", language = "fr") {
   const login = process.env.DATAFORSEO_LOGIN;
   const password = process.env.DATAFORSEO_PASSWORD;
@@ -1200,12 +1235,13 @@ async function externalIntelligence(site, location = "Canada", language = "fr") 
     const items = Array.isArray(aiMentions.result.items) ? aiMentions.result.items : [];
     const platforms = items.map(item => ({
       platform: item.platform || "inconnue",
-      location: item.location_name || (Number(item.location) === 2124 ? "Canada" : Number(item.location) === 2840 ? "États-Unis" : item.location || "Portée DataForSEO"),
-      language: item.language === "fr" ? "français" : item.language === "en" ? "anglais" : item.language || "langue disponible",
+      location: item.location_name || marketName(item.location),
+      language: LANGUAGE_NAMES[String(item.language || "").toLowerCase()] || item.language || "langue disponible",
       mentions: Number(item.metrics?.mentions ?? item.mentions ?? 0),
       aiSearchVolume: Number(item.metrics?.ai_search_volume ?? item.ai_search_volume ?? 0),
     }));
-    const scope = [...new Set(platforms.map(item => `${item.location} · ${item.language}`))].join(" + ");
+    platforms.sort((a, b) => b.mentions - a.mentions);
+    const scope = [...new Set(platforms.map(item => item.location))].join(", ");
     if (!platforms.length) {
       // La requête a abouti, mais la base ne couvre pas ce domaine pour ce
       // marché. Ce n'est pas un zéro : c'est une absence de mesure.
@@ -1488,6 +1524,10 @@ export default async (req) => {
       const r = await grab(url, { cacheBust: true });
       if (!r.ok) return json({ url, dead: true, status: 0, error: r.error });
       if (r.status >= 400) return json({ url, dead: true, status: r.status });
+      // Image, PDF ou autre fichier : ce n'est pas une page à auditer.
+      const type = String(r.headers?.contentType || "").toLowerCase();
+      const looksHtml = /html|xml/.test(type) || (!type && /<html|<!doctype html/i.test(r.body.slice(0, 1000)));
+      if (!looksHtml || !isPagePath(r.finalUrl || url)) return json({ url, skipped: true, reason: "not_html", contentType: type });
       return json(analyzePage(url, r.body, cleanAuditUrl(r.finalUrl), r));
     }
 
