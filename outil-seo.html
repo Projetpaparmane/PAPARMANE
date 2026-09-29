@@ -136,6 +136,7 @@
 
   .sec-h{display:flex;align-items:center;gap:13px;margin:46px 0 8px}
   .sec-h h3{font-family:var(--serif);font-size:23px;margin:0;font-weight:700;white-space:nowrap}
+  @media(max-width:560px){.sec-h h3{white-space:normal;min-width:0}}
   .sec-h .rule{flex:1;height:1px;background:var(--line)}
   .sec-h .cnt{font-size:12px;font-weight:700;color:var(--ink-faint);background:var(--surface-3);padding:2px 10px;border-radius:999px}
   .sec-intro{color:var(--ink-soft);font-size:14px;margin:0 0 18px}
@@ -401,6 +402,8 @@ const $ = s => document.querySelector(s);
 // L'apostrophe DOIT être échappée : les liens du rapport utilisent des attributs
 // en apostrophes. Sans ça, une adresse comme /l'hebergement/ casse la ligne — et
 // un site piraté pourrait injecter du code dans le tableau de bord.
+// Accord en français : 0 et 1 au singulier.
+const plur = (n,sing,plural) => n+" "+(n>1?plural:sing);
 const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const short = (u,origin) => { const p = u.replace(origin,""); return p===""?"/ (accueil)":p; };
 const GENERIC_SCHEMA = new Set(["WebPage","WebSite","Organization","BreadcrumbList","ListItem","ImageObject","ReadAction","SearchAction","EntryPoint","PropertyValueSpecification","Person","Answer","Question","CollectionPage"]);
@@ -411,7 +414,16 @@ const GOOGLE_RICH_SCHEMA = new Set(["Article","BlogPosting","BreadcrumbList","Da
 
 function detectAuditBarrier(pagesAll){
   const pages=pagesAll.filter(p=>!p.dead);
-  if(!pages.length) return null;
+  // Aucune page lisible : un score calculé sur zéro page afficherait « site
+  // sécurisé », « adapté au mobile »… sans avoir rien observé.
+  if(!pages.length) return pagesAll.length?{
+    kind:"unreachable",
+    count:pagesAll.length,
+    total:pagesAll.length,
+    title:"",
+    reason:"aucune page n'a pu être lue",
+    examples:pagesAll.slice(0,8).map(p=>p.url),
+  }:null;
   const pathOf=p=>{try{return new URL(p.finalUrl||p.url).pathname.replace(/\/$/,"")||"/";}catch{return "";}};
   const explicit=pages.filter(p=>p.pageState?.kind&&p.pageState.kind!=="normal");
   const homeBlocked=explicit.some(p=>pathOf(p)==="/");
@@ -478,10 +490,11 @@ async function api(params, body){
       if(r.ok) return r.json();
       const e=await r.json().catch(()=>({})); last=new Error(e.error||("Erreur "+r.status));
       last.status=r.status; last.code=e.reason||"";
-      if(r.status<500) throw last;
+      if(r.status<500) break;
     }catch(e){last=e;}
     if(attempt===0) await new Promise(r=>setTimeout(r,450));
   }
+  if(last?.status>=400&&last.status<500) throw last;
   const detail=location.protocol==="file:"
     ? "Impossible de joindre l’API Paparmane en ligne. Vérifie la connexion Internet ou ouvre https://paparmane.netlify.app/outil-seo.html."
     : "Impossible de joindre l’API d’audit. Réessaie dans quelques instants.";
@@ -511,6 +524,8 @@ async function loadKeywordGap(button){
       return;
     }
     const items=Array.isArray(data.items)?data.items:[];
+    // Le module n'apparaît au PDF qu'une fois l'analyse réellement chargée.
+    button.closest(".gap-module")?.classList.remove("screen-only");
     const fmtGap=value=>Number(value||0).toLocaleString("fr-CA");
     const shortGap=url=>{try{const parsed=new URL(url,/^https?:/i.test(url)?undefined:"https://"+competitor);return parsed.pathname+parsed.search;}catch{return url||"—";}};
     out.innerHTML=`<p class="sec-intro"><b>${fmtGap(data.totalCount)} occasion(s) détectée(s).</b> Le tableau montre les 25 plus forts volumes où ${esc(competitor)} est visible et le site analysé absent. Données hebdomadaires; volumes, positions et visites sont des estimations.</p>
@@ -583,6 +598,9 @@ async function runAudit(){
         try{
           const p = await api({mode:"page", url:u});
           done++;
+          // Statut 0 = délai dépassé ou erreur réseau côté serveur : ce n'est pas
+          // une page morte prouvée, elle ne doit ni pénaliser ni être comparée.
+          if(p.dead&&!p.status) p.transient=true;
           if(p.dead){ pages.push(p); log("✗ "+(p.status||"erreur")+" "+short(u,origin), "critl"); }
           else{
             pages.push(p);
@@ -636,7 +654,10 @@ async function runAudit(){
     const model = buildModel(origin, disc, pages, linkResults, llmsLinkResults, {clientName,contactName,targetKeywords,auditBarrier});
     let history=[];
     try{ history=JSON.parse(localStorage.getItem("pap_audits_"+new URL(origin).hostname)||"[]"); if(!Array.isArray(history)) history=[]; }catch{ history=[]; }
-    model.previous=model.auditMeta.conclusive===false?null:(history.find(h=>h.scoreVersion===model.auditMeta.scoreVersion&&h.confidence==="élevée")||null);
+    // Comparer seulement deux audits fiables portant sur un périmètre semblable :
+    // sinon un sitemap qui change passe pour un progrès (ou un recul) SEO.
+    const samePerimeter=h=>Number.isFinite(h.pages)&&Math.abs(h.pages-model.pages.length)<=Math.max(2,Math.round(model.pages.length*0.2));
+    model.previous=model.auditMeta.conclusive===false||model.auditMeta.confidence!=="élevée"?null:(history.find(h=>h.scoreVersion===model.auditMeta.scoreVersion&&h.confidence==="élevée"&&samePerimeter(h))||null);
     renderReport(model);
     if(model.auditMeta.conclusive!==false&&model.auditMeta.confidence==="élevée"){
       const snapshot={date:new Date().toISOString(),global:model.global,scores:model.scores,counts:model.counts,pages:model.pages.length,scoreVersion:model.auditMeta.scoreVersion,confidence:model.auditMeta.confidence};
@@ -655,6 +676,8 @@ async function runAudit(){
 
 // --- Construction du modèle : scores + problèmes ---
 function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, options={}){
+  // Statut 0 = délai ou erreur réseau, pas une page morte prouvée.
+  for(const p of pagesAll) if(p.dead&&!p.status) p.transient=true;
   const pages = pagesAll.filter(p=>!p.dead);
   const deadPages = pagesAll.filter(p=>p.dead);
   const auditBarrier=options.auditBarrier||detectAuditBarrier(pagesAll);
@@ -776,13 +799,13 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   }).filter(x=>x.flagged.length);
   const strictAltMissing=strictAltPages.reduce((sum,x)=>sum+x.flagged.length,0);
   if(strictAltMissing>0) issues.push({sev:"info",cat:"images",title:"Contrôle ALT strict : "+strictAltMissing+" image(s) ont un attribut absent ou vide",
-    body:"Ce contrôle reproduit la lecture stricte de SEOptimer : toute image visuelle sans texte ALT, y compris <code>alt=\"\"</code>, est affichée; les pixels de suivi techniques sont exclus. Paparmane ajoute ensuite le contexte : un ALT vide est correct pour une image purement décorative, tandis qu'une vraie photo de contenu doit être décrite. Seules les vraies photos manquantes réduisent le score SEO.",
+    body:"Ce contrôle applique la lecture la plus stricte : toute image visuelle sans texte ALT, y compris <code>alt=\"\"</code>, est affichée; les pixels de suivi techniques sont exclus. Paparmane ajoute ensuite le contexte : un ALT vide est correct pour une image purement décorative, tandis qu'une vraie photo de contenu doit être décrite. Seules les vraies photos manquantes réduisent le score SEO.",
     where:strictAltPages.slice(0,20).map(x=>"<a href='"+esc(x.page.url)+"' target='_blank'>"+esc(sh(x.page.url))+"</a> — <b>"+x.flagged.length+"/"+x.total+" signalée(s)</b> · "+x.content+" contenu · "+x.deco+" décorative(s) · "+x.tech+" technique(s) · "+x.flagged.slice(0,8).map(im=>"<code>"+esc(im.file)+"</code>").join(", ")+(x.flagged.length>8?"…":"")),
     steps:["Ouvrir chaque page et repérer les fichiers signalés.","Pour une photo qui apporte de l'information, écrire un ALT court qui décrit ce qu'on voit.","Pour une décoration, conserver <code>alt=\"\"</code>; pour un pixel de suivi, ne pas inventer de description.","Vérifier ensuite la ligne « photos de contenu » : c'est elle qui indique les corrections réellement nécessaires."],effort:"2 min / vraie photo",gain:"SEO Images + accessibilité"});
   if(contentBad>0) issues.push({sev: contentBad>=15?"crit":"warn", cat:"images", title:uniqFiles.size+" photo(s) invisibles pour Google Images",
     body:"Google lit la <b>description texte</b> d'une image (le « texte alternatif »), pas l'image elle-même. Sans elle, ces photos n'apparaîtront jamais dans Google Images. Note : notre robot a trié — les images techniques ("+techCount+") et décoratives ("+decoCount+") sont exclues, il ne reste que les vraies photos de contenu.",
     where:imgPages.slice(0,10).map(g=>"<a href='"+esc(g.url)+"' target='_blank'>"+esc(sh(g.url))+"</a> — <b>"+g.files.length+" photo(s)</b>"),
-    steps: isWP?["Aller dans <b>WordPress → Médias → Bibliothèque</b>.","Chercher chaque fichier (liste complète en bas du rapport).","Remplir <b>Texte alternatif</b> : décrire ce qu'on voit, en une phrase naturelle, avec le lieu si pertinent.","Éviter « photo » ou « IMG_1234 » : écrire par ex. « Intérieur de la yourte avec poêle à bois, en hiver »."]
+    steps: isWP?["Aller dans <b>WordPress → Médias → Bibliothèque</b>.","Chercher chaque fichier (liste complète en bas du rapport).","Remplir <b>Texte alternatif</b> : décrire ce qu'on voit, en une phrase naturelle, avec le lieu si pertinent.","Éviter « photo » ou « IMG_1234 » : écrire par ex. « Atelier de céramique avec tour de potier, à Sherbrooke »."]
     :["Ouvrir le code HTML de chaque page listée.","Sur chaque balise <code>&lt;img&gt;</code> concernée, ajouter <code>alt=\"…\"</code>.","Décrire ce que montre l'image, en une phrase naturelle."],
     effort:"~2 min / photo", gain:"élevé (Google Images + accessibilité)"});
 
@@ -817,7 +840,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   if(tShort.length) issues.push({sev:"info",cat:"balises",title:tShort.length+" titre(s) très courts — de l'espace inutilisé",
     body:"Un titre trop court gaspille l'espace d'affichage : on peut y ajouter un mot-clé ou un argument.",
     where:tShort.map(p=>"<code>"+esc(sh(p.url))+"</code> — "+p.titleLen+" caractères"),
-    steps:["Compléter le titre avec le service + la région (ex. « — hébergement nature en Estrie »)."],
+    steps:["Compléter le titre avec le service + la région (ex. « — plomberie résidentielle à Sherbrooke »)."],
     effort:"~3 min / page", gain:"faible"});
   const dLong = pages.filter(p=>p.descLen>165);
   if(dLong.length) issues.push({sev:"warn",cat:"balises",title:dLong.length+" description(s) dépassent la limite d'affichage",
@@ -830,9 +853,12 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   const dead = linkResults.filter(r=>r.status===0||r.status>=400);
   const redir = linkResults.filter(r=>r.status>0&&r.status<400&&r.redirected&&r.finalUrl.replace(/\/$/,"")!==r.url.replace(/\/$/,""));
   const sourcesOf = t => pages.filter(p=>(p.links||[]).includes(t)).map(p=>sh(p.url));
-  if(deadPages.length) issues.push({sev:"crit",cat:"liens",title:deadPages.length+" page(s) du sitemap sont inaccessibles",
+  // Les pages non relues (délai, réseau) ont leur propre avertissement « score
+  // provisoire » : elles ne sont pas une preuve de page morte.
+  const provenDeadPages=deadPages.filter(p=>!p.transient);
+  if(provenDeadPages.length) issues.push({sev:"crit",cat:"liens",title:provenDeadPages.length>1?provenDeadPages.length+" pages du sitemap sont inaccessibles":"1 page du sitemap est inaccessible",
     body:"Ces pages sont annoncées à Google dans le plan de site, mais renvoient une erreur.",
-    where:deadPages.map(p=>"<code>"+esc(sh(p.url))+"</code> — erreur "+(p.status||"réseau")),
+    where:provenDeadPages.map(p=>"<code>"+esc(sh(p.url))+"</code> — erreur "+(p.status||"réseau")),
     steps:["Vérifier si la page a été supprimée ou renommée.","Si supprimée : la retirer du sitemap et rediriger l'ancienne adresse.","Si renommée : mettre à jour le sitemap."],
     effort:"variable", gain:"élevé"});
   if(dead.length) issues.push({sev:"crit",cat:"liens",title:dead.length+" lien(s) interne(s) brisé(s)",
@@ -1063,7 +1089,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   if(iframeMissingPages.length) issues.push({sev:"info",cat:"qualite",title:iframeMissingPages.length+" page(s) contiennent une iFrame sans titre accessible",
     body:"Une iFrame peut être légitime (carte, vidéo, réservation), mais elle doit avoir un attribut <code>title</code> qui explique son contenu aux personnes utilisant un lecteur d'écran.",
     where:iframeMissingPages.slice(0,15).map(p=>"<code>"+esc(sh(p.url))+"</code> — "+p.iframes.missingTitle+" iFrame(s) sans titre sur "+p.iframes.total),
-    steps:["Identifier chaque intégration concernée.","Ajouter un titre descriptif, par exemple <code>title=\"Carte pour se rendre aux Côteaux Missisquoi\"</code>.","Ne pas supprimer une iFrame utile uniquement pour faire disparaître l'alerte."],effort:"5 min / iFrame",gain:"accessibilité"});
+    steps:["Identifier chaque intégration concernée.","Ajouter un titre descriptif, par exemple <code>title=\"Carte pour se rendre à notre boutique\"</code>.","Ne pas supprimer une iFrame utile uniquement pour faire disparaître l'alerte."],effort:"5 min / iFrame",gain:"accessibilité"});
   if(!faviconReady) issues.push({sev:"info",cat:"qualite",title:"Aucun favicon déclaré ou servi à la racine",
     body:"Le favicon aide à reconnaître le site dans les onglets, les favoris et certains résultats mobiles. Paparmane a vérifié la déclaration HTML et l'adresse conventionnelle <code>/favicon.ico</code>.",
     where:["Accueil — aucune balise <code>rel=\"icon\"</code> et aucun fichier image valide à <code>"+esc(origin)+"/favicon.ico</code>"],
@@ -1162,8 +1188,8 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   const gptStrat = blocked.some(b=>b.agent==="GPTBot") && disc.aiBots.some(b=>b.agent==="OAI-SearchBot"&&b.state==="allowed");
   if(majorBlocked.length){
     issues.push({sev:"warn",cat:"ia",title:majorBlocked.length+" assistant(s) IA majeurs ne peuvent pas lire le site",
-      body:"De plus en plus de voyageurs demandent des recommandations à ChatGPT, Claude ou Perplexity. Les robots de recherche et de citation doivent pouvoir explorer le site pour résumer et lier ses pages."
-        +(gptStrat?" <br><br><b>Nuance :</b> bloquer GPTBot (entraînement) tout en autorisant OAI-SearchBot (citations) est une stratégie volontaire défendable — « ne t'entraîne pas sur moi, mais cite-moi ».":"")
+      body:"De plus en plus de clients demandent des recommandations à ChatGPT, Claude ou Perplexity. Les robots de recherche et de citation doivent pouvoir explorer le site pour résumer et lier ses pages."
+        +(gptStrat?" <br><br><b>Nuance :</b> bloquer GPTBot (entraînement) tout en autorisant OAI-SearchBot (citations) est une stratégie volontaire défendable — « n'utilisez pas mon contenu pour vous entraîner, mais citez-moi ».":"")
         ,
       where: majorBlocked.map(b=>"<b>"+esc(b.agent)+"</b> ("+esc(b.role)+") — conséquence : "+esc(b.cost)),
       steps:["Décider avec le client d'une <b>politique IA</b> : visibilité dans les réponses, entraînement des modèles, ou les deux.","Pour la visibilité : autoriser au minimum les robots de <b>recherche et citation</b> listés ci-dessus.","On peut bloquer GPTBot ou Google-Extended tout en restant visible dans Google Search et ChatGPT Search.","Fichier : <code>"+esc(origin)+"/robots.txt</code>"+(isWP?" (souvent géré par une extension SEO ou de gouvernance des robots)":"")],
@@ -1359,7 +1385,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
     avgResponseMs,slowPages:slowPages.length,compressedPages:compressedPages.length,avgResources,heavyPages:resourceHeavyPages.length,
     orphanPages:orphanPages.length,iframeTotal,iframeMissing:iframeMissingTotal,faviconReady,analyticsTools,hreflangLinks,inlineStyleCount,obsoletePages:obsoletePages.length,
   };
-  return {origin, disc, pages, keywordPages, deadPages, issues, wins, scores, scoreEvidence, global, imgPages, uniqFiles, isWP, aiReadiness, searchAgents, siteKeywords, cannibalization, targetMap, clientName:options.clientName||"",contactName:options.contactName||"",publicContacts,pagesNeedingWork,quickWins,proofCount,opportunityScore,schemaAudit:{inventory:schemaInventory,expectedMissing,entityNames,entityIds},advancedAudit,auditMeta,
+  return {origin, disc, pages, keywordPages, deadPages, issues, wins, scores, scoreEvidence, global, imgPages, uniqFiles, isWP, aiReadiness, searchAgents, siteKeywords, cannibalization, targetMap, clientName:options.clientName||"",contactName:options.contactName||"",publicContacts,pagesNeedingWork,quickWins,proofCount,opportunityScore,schemaAudit:{inventory:schemaInventory,expectedMissing,entityNames,entityIds,identityReady},advancedAudit,auditMeta,
           counts,
           linksChecked: linkResults.length};
 }
@@ -1370,7 +1396,9 @@ function renderInconclusiveReport(m){
   const host = m.origin.replace(/^https?:\/\//,"");
   const b=m.barrier||{};
   const reason=b.kind==="maintenance"?"une page de maintenance":b.kind==="challenge"?"une vérification anti-robot":"un contenu identique sur plusieurs URL";
-  const explanation=b.kind==="duplicate-wall"
+  const explanation=b.kind==="unreachable"
+    ?"Aucune des pages demandées n'a pu être lue : le serveur a répondu par une erreur ou n'a pas répondu à temps. Il peut s'agir d'une panne passagère, d'un pare-feu qui bloque les robots ou d'un site hors ligne."
+    :b.kind==="duplicate-wall"
     ?"Le serveur a retourné pratiquement le même contenu sur des adresses différentes. Il peut s'agir d'une page de maintenance, d'un pare-feu ou d'une redirection interne qui conserve un code 200."
     :"Le serveur a présenté "+reason+" au robot Paparmane. Les titres, textes, images et données structurées observés ne représentent donc pas les vraies pages du site.";
   $("#report").innerHTML=`
@@ -1384,7 +1412,7 @@ function renderInconclusiveReport(m){
       <span class="stop-state">Audit interrompu automatiquement</span>
       <h3>Aucun score ne sera attribué à des pages qui ne peuvent pas être observées correctement.</h3>
       <p>${explanation}</p>
-      <div class="where"><b>Preuve :</b> ${b.count||0} réponse(s) sur ${b.total||m.pages.length} partagent cet état${b.title?` et le titre « ${esc(b.title)} »`:""}.
+      <div class="where"><b>Preuve :</b> ${b.kind==="unreachable"?`${b.count||0} page(s) demandée(s), aucune réponse exploitable`:`${b.count||0} réponse(s) sur ${b.total||m.pages.length} partagent cet état`}${b.title?` et le titre « ${esc(b.title)} »`:""}.
         ${b.examples?.length?`<ul>${b.examples.map(u=>`<li><code>${esc(short(u,m.origin))}</code></li>`).join("")}</ul>`:""}
       </div>
       <div class="block-lab">Comment obtenir un audit fiable</div>
@@ -1420,11 +1448,17 @@ function renderNextStep(m){
   const client=(m.clientName||"").trim();
   const aQui=client?esc(client):"votre entreprise";
   const intro=retenus.length
-    ? `Cet audit a relevé ${m.counts.crit} problème(s) critique(s) et ${m.counts.warn} point(s) important(s) sur ${m.pages.length} pages. Voici ce que Paparmane peut prendre en charge pour ${aQui}, par ordre de priorité :`
+    ? `Cet audit a relevé ${plur(m.counts.crit,"problème critique","problèmes critiques")} et ${plur(m.counts.warn,"point important","points importants")} sur ${plur(m.pages.length,"page","pages")}. Voici ce que Paparmane peut prendre en charge pour ${aQui}, par ordre de priorité :`
+    : m.counts.crit
+    ? `Le site de ${aQui} a de bonnes bases, mais cet audit a relevé ${plur(m.counts.crit,"problème critique","problèmes critiques")} à corriger en priorité :`
     : `Le site de ${aQui} est en bonne santé. Paparmane peut assurer le suivi, mesurer l'évolution et faire progresser la visibilité, notamment auprès des assistants IA.`;
+  // Jamais « bonne santé » à côté d'un problème critique : on liste alors ces problèmes.
+  const critiques=retenus.length?[]:m.issues.filter(i=>i.sev==="crit").slice(0,5);
   const liste=retenus.length
     ? `<ul class="next-list">${retenus.map(([k,,titre,detail])=>
         `<li><div class="b">→</div><div><b>${esc(titre)}</b> <span style="color:var(--ink-soft)">— ${esc(detail)}.</span></div></li>`).join("")}</ul>`
+    : critiques.length
+    ? `<ul class="next-list">${critiques.map(i=>`<li><div class="b">→</div><div><b>${esc(i.title)}</b></div></li>`).join("")}</ul>`
     : "";
   return `
     <div class="next">
@@ -1484,16 +1518,19 @@ window.addEventListener("afterprint",()=>{
 });
 
 function renderReport(m){
-  if(m.auditMeta?.conclusive===false){renderInconclusiveReport(m);return;}
   // L'en-tête imprimé porte le nom du client, pas la mention « usage interne ».
+  // Mis à jour avant tout rendu : sinon un audit non concluant garde le nom du
+  // client précédent.
   const _pf=document.getElementById("printFor");
   if(_pf) _pf.textContent=(m.clientName||"").trim()
     ? "Préparé pour "+(m.clientName||"").trim()
     : "Rapport préparé par Paparmane";
+  if(m.auditMeta?.conclusive===false){renderInconclusiveReport(m);return;}
   const sh=u=>short(u,m.origin);
   const today = new Date().toLocaleDateString("fr-CA",{year:"numeric",month:"long",day:"numeric"});
   const host = m.origin.replace(/^https?:\/\//,"");
-  const verdict = m.global>=85?["Excellent — entretien",  "var(--good-soft)","var(--good)"]
+  // Un problème critique interdit le verdict « Excellent », quel que soit le score.
+  const verdict = m.global>=85&&!m.counts.crit?["Excellent — entretien",  "var(--good-soft)","var(--good)"]
                 : m.global>=70?["Bon — à peaufiner","var(--warn-soft)","var(--warn)"]
                 : m.global>=50?["Bon potentiel — corrections requises","var(--warn-soft)","var(--warn)"]
                 : ["Corrections urgentes","var(--crit-soft)","var(--crit)"];
@@ -1514,9 +1551,10 @@ function renderReport(m){
   const competitorData=traffic.competitors||{};
   const marketCompetitors=Array.isArray(competitorData.items)?competitorData.items:[];
   const topPagesData=traffic.topPages||{};
-  const marketTopPages=Array.isArray(topPagesData.items)?topPagesData.items:[];
+  const marketTopPages=Array.isArray(topPagesData.items)?topPagesData.items.filter(item=>typeof item?.url==="string"):[];
   const backlinkData=traffic.backlinks||{};
   const aiMentionData=traffic.aiMentions||{};
+  if(!Array.isArray(aiMentionData.platforms)) aiMentionData.platforms=[];
   const fmt=value=>Number(value||0).toLocaleString("fr-CA");
   const scoreProof=(score,evidence,perfectText)=>{
     const deductions=Array.isArray(evidence?.deductions)?evidence.deductions:[];
@@ -1549,8 +1587,9 @@ function renderReport(m){
     formula:globalWeightTerms.map(([key,label,weight])=>label+" "+weight+"%×"+m.scores[key]).join(" + ")+" = "+m.global,
     locations:[],
   };
-  const scoredBusinessTypes=new Set(["Organization","Corporation","LocalBusiness","LodgingBusiness","Store","ProfessionalService","Hotel","Restaurant"]);
-  const scoredIdentityReady=m.pages.some(p=>p.schemaTypes?.some(type=>scoredBusinessTypes.has(type)));
+  // Reprendre exactement la valeur utilisée pour le score (qui accepte aussi
+  // les sous-types comme Winery ou Campground) : sinon la formule ne tombe pas juste.
+  const scoredIdentityReady=!!m.schemaAudit?.identityReady;
   const schemaInvalidPages=m.pages.filter(p=>p.schema?.invalidBlocks||p.schema?.problems?.length);
   const schemaMissingPages=m.pages.filter(p=>!p.schemaTypes?.length);
   const schemaCauses=[
@@ -1579,15 +1618,13 @@ function renderReport(m){
     formula:advanced.searchBlocked||m.pages[0]?.indexability?.noindex?"Blocage global ou accueil en noindex = 0":"100 − 80×"+noindexScorePages.length+"/"+m.pages.length+" − 15×"+nofollowScorePages.length+"/"+m.pages.length+" − 20×"+canonicalScorePages.length+"/"+m.pages.length+" = "+m.scores.indexation,
     locations:[...noindexScorePages,...nofollowScorePages,...canonicalScorePages].map(p=>p.url).slice(0,3),
   };
+  // Texte destiné au client : jamais de message de facturation ni d'erreur brute
+  // du fournisseur. Le détail technique va dans la note interne (non imprimée).
   const providerFailure=data=>(
     data?.reason==="provider_no_coverage"?"Marché non couvert par la base — aucune mesure possible":
     data?.reason==="provider_empty_response"?"Aucune donnée retournée — rien n'a été mesuré":
-    data?.error||(
-      data?.reason==="provider_timeout"?"Délai dépassé — réessayer plus tard":
-      data?.reason==="provider_payment_required"?"Solde DataForSEO insuffisant — ajouter des crédits API":
-      data?.reason==="provider_unauthorized"?"Accès DataForSEO non autorisé pour ce module":
-      "Donnée temporairement indisponible"
-    )
+    data?.reason==="provider_timeout"?"Délai dépassé — mesure non disponible pour cet audit":
+    "Mesure non disponible pour cet audit"
   );
   const platformLabel=platform=>platform==="chat_gpt"?"ChatGPT":platform==="google"?"Google IA":String(platform||"IA").replaceAll("_"," ");
   const trafficUnavailable=(()=>{
@@ -1599,6 +1636,14 @@ function renderReport(m){
     if(traffic.reason==="no_data") return ["Aucune estimation trouvée pour ce domaine","aucune donnée disponible",""];
     return [traffic.error||"Estimation temporairement indisponible","connexion à vérifier","warn"];
   })();
+  const trafficClientText=traffic.reason==="no_data"?"Aucune estimation trouvée pour ce domaine":"Mesure non disponible pour cet audit";
+  const internalNotes=[
+    ...(!traffic.available&&traffic.reason&&traffic.reason!=="no_data"?["Trafic : "+trafficUnavailable[0]+" ("+trafficUnavailable[1]+")"]:[]),
+    ...[["Mots-clés",externalKeywords],["Concurrents",competitorData],["Pages",topPagesData],["Backlinks",backlinkData],["Mentions IA",aiMentionData]]
+      .filter(([,d])=>d&&d.available===false&&/payment|unauthorized|provider_error/.test(d.reason||""))
+      .map(([label,d])=>label+" : "+(d.error||d.reason)),
+  ];
+  const internalNotesHtml=internalNotes.length?`<div class="note screen-only"><b>Note interne — non imprimée.</b> ${[...new Set(internalNotes)].map(esc).join(" · ")}</div>`:"";
   const scoreProofHtml=proof=>proof?`<div class="ov-why">
     <b>${esc(proof.title)}</b>
     <span>${esc(proof.summary)}</span>
@@ -1607,9 +1652,9 @@ function renderReport(m){
   </div>`:"";
   const overviewCards=[
     ["Santé SEO",m.global+"/100","Score global Paparmane v"+m.auditMeta.scoreVersion,"mesuré",scoreClass(m.global),globalProof],
-    ["Pages analysées",m.pages.length,m.auditMeta.successful+" réussies · "+m.auditMeta.transient+" provisoires","crawl complet",m.auditMeta.transient?"warn":"good"],
+    ["Pages analysées",m.pages.length,m.auditMeta.successful+" réussies · "+m.auditMeta.transient+" provisoires"+(m.deadPages.length-m.auditMeta.transient>0?" · "+(m.deadPages.length-m.auditMeta.transient)+" en erreur":""),m.disc.truncated?"plafonné à "+MAX_AUDIT_PAGES+" pages":"crawl complet",m.auditMeta.transient?"warn":"good"],
     ["Problèmes prioritaires",m.counts.crit,m.counts.warn+" importants · "+m.counts.info+" opportunités","audit interne",m.counts.crit?"bad":m.counts.warn?"warn":"good"],
-    ["Mots-clés organiques",m.disc.traffic?.available&&m.disc.traffic.organicKeywords!=null?m.disc.traffic.organicKeywords.toLocaleString("fr-CA"):observedKeywordCount,m.disc.traffic?.available?"classements Google estimés · Canada":m.cannibalization.length+" chevauchement(s) potentiel(s)",m.disc.traffic?.available?"estimation DataForSEO":"contenu observé",scoreClass(m.scores.keywords)],
+    [m.disc.traffic?.available&&m.disc.traffic.organicKeywords!=null?"Mots-clés organiques":"Sujets observés",m.disc.traffic?.available&&m.disc.traffic.organicKeywords!=null?m.disc.traffic.organicKeywords.toLocaleString("fr-CA"):observedKeywordCount,m.disc.traffic?.available?"classements Google estimés · Canada":m.cannibalization.length+" chevauchement(s) potentiel(s)",m.disc.traffic?.available?"estimation DataForSEO":"contenu observé",scoreClass(m.scores.keywords)],
     ["Mots-clés stratégiques",m.targetMap.length?targetCovered+"/"+m.targetMap.length:externalKeywords.available?fmt(externalKeywords.totalCount):"—",m.targetMap.length?(m.targetMap.length-targetCovered)+" sans cible claire":externalKeywords.available?rankedKeywords.length+" meilleures positions et occasions chargées":providerFailure(externalKeywords),m.targetMap.length?"fourni par le client":externalKeywords.available?"DataForSEO · Canada":"non mesuré",m.targetMap.length&&targetCovered===m.targetMap.length?"good":m.targetMap.length?"warn":externalKeywords.available?(rankedKeywords.length?"good":"warn"):""],
     ["Concurrents organiques",competitorData.available?marketCompetitors.length:"—",competitorData.available?(marketCompetitors.length?(marketCompetitors[0].domain+" · "+fmt(marketCompetitors[0].intersections)+" mots-clés communs"):"aucun concurrent significatif détecté"):providerFailure(competitorData),competitorData.available?"DataForSEO · Canada":"non mesuré",competitorData.available?(marketCompetitors.length?"good":"warn"):""],
     ["Pages qui attirent",topPagesData.available?marketTopPages.length:"—",topPagesData.available?(marketTopPages.length?(sh(marketTopPages[0].url)+" · "+fmt(marketTopPages[0].organicTraffic)+" visites estimées"):"aucune page classée détectée"):providerFailure(topPagesData),topPagesData.available?"DataForSEO · mise à jour hebdomadaire":"non mesuré",topPagesData.available?(marketTopPages.length?"good":"warn"):""],
@@ -1618,9 +1663,9 @@ function renderReport(m){
     ["Liens",m.scores.liens+"/100",m.linksChecked+" vérifiés · "+brokenLinkCount+" brisé(s) · "+orphanCount+" orpheline(s)","score technique expliqué",scoreClass(m.scores.liens),linkProof],
     ["Indexabilité",m.scores.indexation+"/100",advanced.indexable+"/"+m.pages.length+" pages indexables","META + en-têtes HTTP",scoreClass(m.scores.indexation),indexProof],
     ["ALT vides — accueil",(advanced.homepageStrictMissing||0)+"/"+(advanced.homepageStrictTotal||0),(advanced.homepageDecorativeAltEmpty||0)+" décoratif(s) correct(s) · "+(advanced.homepageContentAltMissing||0)+" photo(s) de contenu à corriger","lecture expliquée",advanced.homepageContentAltMissing?"warn":"good"],
-    ["Trafic organique",traffic.available?traffic.organic.toLocaleString("fr-CA"):"—",traffic.available?"visites mensuelles organiques estimées · Canada":trafficUnavailable[0],traffic.available?"estimation DataForSEO":trafficUnavailable[1],traffic.available?"good":trafficUnavailable[2]],
-    ["Trafic payant",traffic.available?traffic.paid.toLocaleString("fr-CA"):"—",traffic.available?"visites mensuelles payantes estimées · Canada":trafficUnavailable[0],traffic.available?"estimation DataForSEO":trafficUnavailable[1],traffic.available&&traffic.paid>0?"warn":trafficUnavailable[2]],
-    ["Backlinks",backlinkData.available?fmt(backlinkData.backlinks):"—",backlinkData.available?fmt(backlinkData.referringDomains)+" domaines référents · rang "+(backlinkData.rank??"—"):providerFailure(backlinkData),backlinkData.available?"mesure DataForSEO":"non mesuré",backlinkData.available?(backlinkData.backlinks?"good":"warn"):""],
+    ["Trafic organique",traffic.available?traffic.organic.toLocaleString("fr-CA"):"—",traffic.available?"visites mensuelles organiques estimées · Canada":trafficClientText,traffic.available?"estimation DataForSEO":"non mesuré",traffic.available?"good":trafficUnavailable[2]],
+    ["Trafic payant",traffic.available?traffic.paid.toLocaleString("fr-CA"):"—",traffic.available?"visites mensuelles payantes estimées · Canada":trafficClientText,traffic.available?"estimation DataForSEO":"non mesuré",traffic.available&&traffic.paid>0?"warn":trafficUnavailable[2]],
+    ["Backlinks",backlinkData.available?fmt(backlinkData.backlinks):"—",backlinkData.available?fmt(backlinkData.referringDomains)+" domaines référents · rang "+(Number.isFinite(Number(backlinkData.rank))?Number(backlinkData.rank):"—"):providerFailure(backlinkData),backlinkData.available?"mesure DataForSEO":"non mesuré",backlinkData.available?(backlinkData.backlinks?"good":"warn"):""],
     // « Non mesuré » n'est jamais présenté comme un zéro : l'outil ne peut pas
     // affirmer qu'une marque est absente des IA s'il n'a pas pu la chercher.
     ["Mentions IA réelles",aiMentionData.available?fmt(aiMentionData.mentions):"non mesuré",aiMentionData.available?aiMentionData.platforms.map(x=>platformLabel(x.platform)+" "+fmt(x.mentions)).join(" · ")+" · "+(aiMentionData.scope||"portée externe"):providerFailure(aiMentionData),aiMentionData.available?"base DataForSEO":"aucune mesure",aiMentionData.available?(aiMentionData.mentions?"good":"warn"):""],
@@ -1630,7 +1675,7 @@ function renderReport(m){
   const advancedCards=[
     ["Indexation",advanced.indexable+"/"+m.pages.length,(advanced.searchBlocked?"robots.txt bloque le site · ":"")+(advanced.noindex||0)+" noindex · "+(advanced.canonicalMismatch||0)+" canonique(s) divergente(s)",m.scores.indexation],
     ["Attributs ALT — contrôle brut",(advanced.strictAltMissing||0)+" vide(s)",(advanced.decorativeAltEmpty||0)+" décoratif(s) autorisé(s) · "+(advanced.contentAltMissing||0)+" vraie(s) photo(s) à corriger sur "+(advanced.strictAltPages||0)+" page(s)",m.scores.images],
-    ["Plan des titres H1–H6",(advanced.emptyHeadings||0)+(advanced.headingSkips||0)+" alerte(s)",(advanced.emptyHeadings||0)+" page(s) avec titre vide · "+(advanced.headingSkips||0)+" avec saut de niveau",m.scores.structure],
+    ["Plan des titres H1–H6",plur((advanced.emptyHeadings||0)+(advanced.headingSkips||0),"point à revoir","points à revoir"),(advanced.emptyHeadings||0)+" page(s) avec titre vide · "+(advanced.headingSkips||0)+" avec saut de niveau",m.scores.structure],
     ["Images Web",(advanced.dimensionCoverage??100)+"% dimensions","formats modernes "+(advanced.modernCoverage==null?"non déterminés":advanced.modernCoverage+"%")+" · chargement différé "+(advanced.lazyCoverage==null?"non déterminé":advanced.lazyCoverage+"%"),m.scores.qualite],
     ["Réponse et ressources",advanced.avgResponseMs?advanced.avgResponseMs+" ms":"—","moyenne du crawl · "+(advanced.avgResources||0)+" ressources HTML/page · "+(advanced.compressedPages||0)+" réponse(s) compressée(s)",advanced.slowPages?65:90],
     ["Maillage interne",(advanced.orphanPages||0)+" orpheline(s)",advanced.orphanPages?"pages du sitemap sans lien entrant détecté":"toutes les pages publiques reçoivent un lien",advanced.orphanPages?55:100],
@@ -1638,7 +1683,7 @@ function renderReport(m){
     ["Mesure et international",advanced.analyticsTools?.length?advanced.analyticsTools.join(" + "):"aucun outil détecté",(advanced.hreflangLinks||0)+" lien(s) hreflang · "+(advanced.inlineStyleCount||0)+" style(s) en ligne",""],
   ];
 
-  const catRows = [
+  const catDefs = [
     ["Fondations techniques","HTTPS, mobile, plan de site","fondations"],
     ["Indexation","robots, noindex, canoniques","indexation"],
     ["Balises & descriptions","ce que Google affiche","balises"],
@@ -1650,7 +1695,9 @@ function renderReport(m){
     ["Visibilité IA","ChatGPT, Claude, Gemini…","ia"],
     ["Santé des liens","liens brisés, redirections","liens"],
     ["Qualité web","images, iFrames, HTML","qualite"],
-  ].map(([nm,sub,k])=>{
+  ];
+  const catLabels=Object.fromEntries(catDefs.map(([nm,,k])=>[k,nm]));
+  const catRows = catDefs.map(([nm,sub,k])=>{
     const v=m.scores[k];
     return `<div class="cat"><div class="cat-name">${nm}<small>${sub}</small></div>
       <div class="track"><div class="fill" style="width:${v}%;background:${barColor(v)}"></div></div>
@@ -1739,7 +1786,7 @@ function renderReport(m){
 
   // Plan d'action
   const planRows=[];
-  if(m.counts.crit) planRows.push(["Semaine 1","Corriger les "+m.counts.crit+" problème(s) critique(s) — voir la section rouge.","Impact immédiat"]);
+  if(m.counts.crit) planRows.push(["Semaine 1",(m.counts.crit>1?"Corriger les "+m.counts.crit+" problèmes critiques":"Corriger le problème critique")+" — voir la section rouge.","Impact immédiat"]);
   if(m.imgPages.length) planRows.push(["Semaine 1-2","Décrire les "+m.uniqFiles.size+" photos (liste complète ci-dessus).","Google Images"]);
   if(m.counts.warn) planRows.push(["Semaine 2","Traiter les points importants : descriptions, titres, longueurs.","+ taux de clic"]);
   if(m.issues.some(i=>i.cat==="schema")) planRows.push(["Mois 1","Enrichir les données structurées (type d'entreprise précis).","Résultats enrichis"]);
@@ -1773,8 +1820,8 @@ function renderReport(m){
       </div>
       <div class="hero-body">
         <h2>En un coup d'œil</h2>
-        <p><strong>${m.counts.crit}</strong> problème(s) critique(s), <strong>${m.counts.warn}</strong> important(s),
-           <strong>${m.counts.info}</strong> opportunité(s) — et <strong>${m.counts.wins}</strong> points déjà conformes.</p>
+        <p><strong>${m.counts.crit}</strong> ${m.counts.crit>1?"problèmes critiques":"problème critique"}, <strong>${m.counts.warn}</strong> ${m.counts.warn>1?"importants":"important"},
+           <strong>${m.counts.info}</strong> ${m.counts.info>1?"opportunités":"opportunité"} — et <strong>${m.counts.wins}</strong> ${m.counts.wins>1?"points déjà conformes":"point déjà conforme"}.</p>
         <p>Chaque problème ci-dessous indique <strong>où il se trouve</strong> (page, champ, fichier) et
            <strong>comment le corriger</strong>, étape par étape${m.isWP?" — instructions adaptées à WordPress":""}.</p>
         <div class="potentiel">
@@ -1791,13 +1838,14 @@ function renderReport(m){
       <div class="tri g"><div class="n tnum">${m.counts.wins}</div><div class="l">Conformes</div><div class="d">rien à faire</div></div>
     </div>
 
+    ${internalNotesHtml}
     <section class="overview" aria-labelledby="overview-title">
-      <div class="overview-head"><h3 id="overview-title">Vue d'ensemble</h3><span>Chaque score inférieur à 100 doit expliquer les points retirés</span></div>
+      <div class="overview-head"><h3 id="overview-title">Vue d'ensemble</h3><span>Chaque score inférieur à 100 est expliqué, preuves à l'appui</span></div>
       <div class="overview-grid">${overviewCards.map(([label,value,detail,state,cls,proof])=>`<div class="ov"><div class="ov-label">${esc(label)}</div><div class="ov-value ${cls}">${esc(value)}</div><div class="ov-detail">${esc(detail)}</div>${scoreProofHtml(proof)}<span class="ov-state">${esc(state)}</span></div>`).join("")}</div>
     </section>
 
     <div class="sec-h"><h3>Contrôles techniques avancés</h3><div class="rule"></div></div>
-    <p class="sec-intro">Lecture approfondie inspirée des meilleurs contrôles de SEOptimer, avec la preuve exacte et les nuances nécessaires pour éviter les faux positifs.</p>
+    <p class="sec-intro">Lecture approfondie des points techniques qu'examinent les outils professionnels, avec la preuve exacte et les nuances nécessaires pour éviter les faux positifs.</p>
     <div class="ai-grid">${advancedCards.map(([label,value,detail,score])=>`<div class="ai-card">
       <div class="ai-card-head"><span>${esc(label)}</span><span class="ai-card-score">${esc(value)}</span></div>
       ${typeof score==="number"?`<div class="track"><div class="fill" style="width:${Math.max(0,Math.min(100,score))}%;background:${barColor(score)}"></div></div>`:""}
@@ -1806,8 +1854,8 @@ function renderReport(m){
     <div class="cats">${catRows}</div>
 
     ${m.previous?`<div class="sec-h"><h3>Évolution depuis le dernier audit</h3><div class="rule"></div></div>
-    <p class="sec-intro">Comparaison avec l'analyse du ${new Date(m.previous.date).toLocaleDateString("fr-CA")}. L'historique des 12 derniers audits est conservé uniquement dans ce navigateur.</p>
-    <div class="kw-cloud">${Object.entries(m.scores).map(([key,value])=>{const old=m.previous.scores?.[key];const d=typeof old==="number"?value-old:null;return `<span class="kw"><b>${esc(key)}</b><small>${d===null?"nouveau":(d>0?"+":"")+d+" points"}</small></span>`}).join("")}</div>`:""}
+    <p class="sec-intro">Comparaison avec l'analyse du ${new Date(m.previous.date).toLocaleDateString("fr-CA")}. <span class="screen-only">L'historique des 12 derniers audits est conservé uniquement dans ce navigateur.</span></p>
+    <div class="kw-cloud">${Object.entries(m.scores).map(([key,value])=>{const old=m.previous.scores?.[key];const d=typeof old==="number"?value-old:null;return `<span class="kw"><b>${esc(catLabels[key]||key)}</b><small>${d===null?"nouveau":(d>0?"+":"")+d+" points"}</small></span>`}).join("")}</div>`:""}
 
     <div class="sec-h"><h3>Priorités à meilleur rendement</h3><div class="rule"></div></div>
     <p class="sec-intro">Les interventions qui combinent le plus fort impact potentiel avec l'effort estimé le plus raisonnable.</p>
@@ -1837,7 +1885,7 @@ function renderReport(m){
 
     ${traffic.available||externalKeywords.available||competitorData.available||topPagesData.available||backlinkData.available||aiMentionData.available?`
     <div class="sec-h"><h3>Intelligence de marché DataForSEO</h3><div class="rule"></div></div>
-    <p class="sec-intro">Mesures externes comparables à un outil de marché : positions Google au Canada en français, concurrents dans les mêmes résultats, profil de liens et mentions observées dans la base IA. Les résultats sont conservés sept jours pour maîtriser les frais de collecte.</p>
+    <p class="sec-intro">Mesures externes comparables à un outil de marché : positions Google au Canada en français, concurrents dans les mêmes résultats, profil de liens et mentions observées dans la base IA. <span class="screen-only">Les résultats sont conservés sept jours pour maîtriser les frais de collecte.</span></p>
 
     ${externalKeywords.available?`<h4>Mots-clés Google classés et occasions</h4>
     <p class="sec-intro">Ce sont des requêtes sur lesquelles le domaine est déjà visible. Elles servent à choisir les gains rapides; elles ne remplacent pas les objectifs d'affaires fournis par le client.</p>
@@ -1850,7 +1898,7 @@ function renderReport(m){
     <div class="tbl-wrap"><table><thead><tr><th>Domaine</th><th class="c">Mots-clés communs</th><th class="c">Position moyenne</th><th class="c">Mots-clés organiques</th><th class="c">Trafic organique estimé</th><th>Lecture</th></tr></thead><tbody>
       ${marketCompetitors.length?marketCompetitors.map((competitor,index)=>{const stronger=competitor.organicTraffic>(traffic.organic||0);const reading=index===0?"Concurrent le plus proche":stronger?"Visibilité estimée supérieure":"Concurrent à surveiller";return `<tr><td><b>${esc(competitor.domain)}</b></td><td class="c tnum">${fmt(competitor.intersections)}</td><td class="c tnum">${competitor.averagePosition==null?"—":Number(competitor.averagePosition).toLocaleString("fr-CA",{maximumFractionDigits:1})}</td><td class="c tnum">${fmt(competitor.organicKeywords)}</td><td class="c tnum">${fmt(competitor.organicTraffic)}</td><td><span class="tag ${index===0?"mid":stronger?"no":""}">${reading}</span></td></tr>`}).join(""):`<tr><td colspan="6">Aucun domaine concurrent significatif trouvé dans cette base pour le marché Canada/français.</td></tr>`}
     </tbody></table></div>
-    ${marketCompetitors.length?`<div class="gap-module note"><b>Keyword Gap — mots-clés manquants</b><br>Comparer le site à <b>${esc(marketCompetitors[0].domain)}</b> et repérer les requêtes où ce concurrent est classé, mais pas le client. Cet appel est lancé uniquement sur demande et conservé sept jours.
+    ${marketCompetitors.length?`<div class="gap-module note screen-only"><b>Keyword Gap — mots-clés manquants</b><br>Comparer le site à <b>${esc(marketCompetitors[0].domain)}</b> et repérer les requêtes où ce concurrent est classé, mais pas le client. Cet appel est lancé uniquement sur demande et conservé sept jours.
       <div class="pitch-actions"><button class="btn ghost" data-site="${esc(m.origin)}" data-competitor="${esc(marketCompetitors[0].domain)}" onclick="loadKeywordGap(this)">Trouver les mots-clés manquants</button></div><div class="gap-results"></div></div>`:""}`:""}
 
     ${topPagesData.available?`<div class="sec-h"><h3>Pages qui génèrent la visibilité</h3><span class="cnt">${marketTopPages.length}</span><div class="rule"></div></div>
@@ -1863,7 +1911,7 @@ function renderReport(m){
     <div class="ai-grid">
       <div class="ai-card"><div class="ai-card-head"><span>Backlinks</span><span class="ai-card-score">${fmt(backlinkData.backlinks)}</span></div><p>Liens externes vivants détectés vers le domaine.</p></div>
       <div class="ai-card"><div class="ai-card-head"><span>Domaines référents</span><span class="ai-card-score">${fmt(backlinkData.referringDomains)}</span></div><p>${fmt(backlinkData.referringMainDomains)} domaines principaux · ${fmt(backlinkData.referringPages)} pages référentes.</p></div>
-      <div class="ai-card"><div class="ai-card-head"><span>Rang du domaine</span><span class="ai-card-score">${backlinkData.rank??"—"}/100</span></div><p>Indice DataForSEO sur une échelle de 100, distinct du score d'audit Paparmane.</p></div>
+      <div class="ai-card"><div class="ai-card-head"><span>Rang du domaine</span><span class="ai-card-score">${Number.isFinite(Number(backlinkData.rank))?Number(backlinkData.rank):"—"}/100</span></div><p>Indice DataForSEO sur une échelle de 100, distinct du score d'audit Paparmane.</p></div>
       <div class="ai-card"><div class="ai-card-head"><span>Liens à surveiller</span><span class="ai-card-score">${fmt(backlinkData.brokenBacklinks)}</span></div><p>${fmt(backlinkData.nofollow)} liens nofollow${typeof backlinkData.spamScore==="number"?" · score de spam moyen "+backlinkData.spamScore:""}.</p></div>
     </div>`:""}
 
@@ -1877,7 +1925,7 @@ function renderReport(m){
       ${aiMentionData.reason==="provider_no_coverage"
         ? "La base de mentions IA utilisée ne couvre actuellement que les États-Unis et l'anglais. Pour une entreprise québécoise, l'absence de données est le cas normal : <b>cela ne signifie pas que la marque est absente des réponses d'IA</b>, seulement que personne ne l'a comptée."
         : esc(providerFailure(aiMentionData))+". Aucune conclusion ne peut être tirée sur la présence réelle de la marque dans les IA."}
-      <br><br>Ce que dit ce rapport, c'est autre chose et c'est vérifiable : <b>est-ce que les assistants IA ont le droit d'entrer sur le site, comprennent-ils qui vous êtes, et qu'est-ce qui les empêche de vous citer ?</b> C'est l'objet de la section « Visibilité auprès des IA » ci-dessus.
+      <br><br>Ce que dit ce rapport, c'est autre chose et c'est vérifiable : <b>est-ce que les assistants IA ont le droit d'entrer sur le site, comprennent-ils qui vous êtes, et qu'est-ce qui les empêche de vous citer ?</b> C'est l'objet de la section « Visibilité auprès des IA » ci-dessous.
       <br><br>Pour une mesure réelle et personnalisée — poser 20 à 50 vraies questions de clients à ChatGPT, Claude, Perplexity et Gemini, puis compter les mentions et les concurrents qui sortent à votre place — c'est un mandat distinct que Paparmane peut réaliser.</div>
     `}
     `:""}
@@ -1912,10 +1960,10 @@ function renderReport(m){
       <thead><tr><th>Page</th><th class="c">Titre</th><th class="c">Desc.</th><th class="c">Titres</th><th class="c">Index</th><th class="c">Schéma</th><th class="c">ALT strict</th><th class="c">Photos ✗</th><th class="c">Mots</th><th class="c">Poids</th></tr></thead>
       <tbody>${m.pages.map(pgRow).join("")}</tbody>
     </table></div>
-    <div class="legend"><span><span class="dot ok"></span> Conforme</span><span><span class="dot mid"></span> À ajuster (le chiffre = longueur)</span><span><span class="dot no"></span> Manquant / à corriger</span><span>« ALT strict » = absent ou vide / total, comme SEOptimer</span><span>« Photos ✗ » = vraies photos de contenu sans description</span></div>
+    <div class="legend"><span><span class="dot ok"></span> Conforme</span><span><span class="dot mid"></span> À ajuster (le chiffre = longueur)</span><span><span class="dot no"></span> Manquant / à corriger</span><span>« ALT strict » = absent ou vide / total</span><span>« Photos ✗ » = vraies photos de contenu sans description</span></div>
 
     ${m.imgPages.length?`
-    <div class="sec-h"><h3>Photos à décrire</h3><span class="cnt">${m.uniqFiles.size} fichiers</span><div class="rule"></div></div>
+    <div class="sec-h"><h3>Photos à décrire</h3><span class="cnt">${plur(m.uniqFiles.size,"fichier","fichiers")}</span><div class="rule"></div></div>
     <p class="sec-intro">La liste de travail exacte${m.isWP?" — ces noms de fichiers se retrouvent dans WordPress → Médias":""}.</p>
     ${photoGroups}`:""}
 
