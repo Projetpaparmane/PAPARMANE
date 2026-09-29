@@ -862,7 +862,7 @@ async function readSitemap(url, origin, { timeout = FETCH_TIMEOUT } = {}) {
   if (!isSafeUrl(url)) return { pages: [], sitemaps: [], found: false };
   const r = await grab(url, { timeout });
   if (!r.ok || r.status !== 200 || !/<(?:[\w-]+:)?(urlset|sitemapindex)\b/i.test(r.body)) {
-    return { pages: [], sitemaps: [], found: false };
+    return { pages: [], sitemaps: [], found: false, status: r.status || 0 };
   }
   const locs = xmlLocs(r.body);
   if (/<(?:[\w-]+:)?sitemapindex\b/i.test(r.body)) {
@@ -974,6 +974,8 @@ async function discover(site) {
   const readAll = async list => {
     const results = await Promise.all(list.slice(0, 10).map(sm => readSitemap(sm, origin, { timeout: Math.min(FETCH_TIMEOUT, remaining(deadline)) })));
     for (const parsed of results) {
+      // 401/403/429 : un pare-feu refuse le robot. Le sitemap existe peut-être.
+      if (!parsed.found && [401, 403, 429].includes(parsed.status)) out.sitemapBlocked = parsed.status;
       if (!parsed.found) continue;
       out.sitemapFound = true;
       parsed.pages.forEach(l => pages.add(l));
@@ -990,6 +992,7 @@ async function discover(site) {
       if (out.sitemapFound) break;
     }
   }
+  if (out.sitemapFound) delete out.sitemapBlocked;
   if (!pages.size) pages.add(origin + "/"); // repli : on partira de l'accueil (BFS côté client)
   out.pages = [...pages];
   out.sitemapQueue = [...new Set(sitemapQueue)];
