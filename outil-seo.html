@@ -466,7 +466,7 @@ function detectAuditBarrier(pagesAll){
 function isUtilityPage(page){
   try{
     const path=new URL(page.finalUrl||page.url).pathname.toLocaleLowerCase("fr-CA");
-    return /\/(?:politique[^/]*|privacy[^/]*|confidentialite[^/]*|confidentialité[^/]*|temoins[^/]*|témoins[^/]*|cookies?[^/]*|mentions-legales[^/]*|mentions-légales[^/]*|legal[^/]*|terms[^/]*|conditions[^/]*)(?:\/|$)/.test(path);
+    return /\/(?:politique[^/]*|privacy[^/]*|confidentialite[^/]*|confidentialité[^/]*|temoins[^/]*|témoins[^/]*|cookies?[^/]*|mentions-legales[^/]*|mentions-légales[^/]*|legal[^/]*|terms[^/]*|conditions-(?:generales|générales|d-utilisation|dutilisation|de-vente|de-service|utilisation)[^/]*|cgu|cgv)(?:\/|$)/.test(path);
   }catch{return false;}
 }
 
@@ -953,7 +953,13 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   // ---- Fondations ----
   const noCanon = pages.filter(p=>!p.canonical);
   const canonicalMismatch = pages.filter(p=>p.canonical&&p.canonicalMatches===false);
-  const noindexPages = pages.filter(p=>p.indexability?.noindex);
+  // Panier, compte client, paiement, confirmation : un noindex y est normal et
+  // souhaitable. Ce n'est pas une page perdue pour Google, seulement une page
+  // qui n'a rien à faire dans le sitemap.
+  const TRANSACTION_PATH=/\/(?:panier|cart|caisse|checkout|commande|order|mon-compte|my-account|compte|account|connexion|login|inscription|register|confirmation|merci|thank-you|thanks)(?:[\/?#]|$)/i;
+  const isTransactionPage=p=>{try{return TRANSACTION_PATH.test(new URL(p.url).pathname);}catch{return false;}};
+  const utilityNoindex = pages.filter(p=>p.indexability?.noindex&&(isTransactionPage(p)||isUtilityPage(p)));
+  const noindexPages = pages.filter(p=>p.indexability?.noindex&&!isTransactionPage(p)&&!isUtilityPage(p));
   const nofollowPages = pages.filter(p=>p.indexability?.nofollow);
   const searchBlocked = !!disc.robots?.searchBlocked;
   const noViewport = pages.filter(p=>!p.viewport);
@@ -981,6 +987,10 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
     body:"Ces URL sont annoncées dans le sitemap tout en envoyant <code>noindex</code> par balise META ou par en-tête HTTP <code>X-Robots-Tag</code>. Les deux consignes se contredisent et Google finira normalement par retirer ces pages de ses résultats.",
     where:noindexPages.slice(0,20).map(p=>"<code>"+esc(sh(p.url))+"</code> — "+(p.indexability.xRobotsTag?"en-tête X-Robots-Tag : "+esc(p.indexability.xRobotsTag):"balise robots : "+esc(p.indexability.robotsDirectives||"noindex"))),
     steps:["Décider si chaque page doit apparaître dans Google.","Si oui, retirer <code>noindex</code> dans l'extension SEO, le modèle ou l'en-tête serveur.","Si non, la retirer du sitemap et éviter de la présenter comme page stratégique.","Relancer l'audit après purge du cache WordPress/CDN."],effort:"5-20 min / page",gain:"indexation"});
+  if(utilityNoindex.length) issues.push({sev:"info",cat:"indexation",title:plur(utilityNoindex.length,"page utilitaire est listée","pages utilitaires sont listées")+" dans le sitemap",
+    body:"Panier, compte client ou confirmation de commande : ces pages sont correctement exclues de Google avec <code>noindex</code>. Elles n'ont simplement pas leur place dans le plan de site. Aucun impact sur le score.",
+    where:utilityNoindex.slice(0,10).map(p=>"<code>"+esc(sh(p.url))+"</code>"),
+    steps:["Dans l'extension SEO (Yoast, Rank Math), exclure ces pages du sitemap.","Garder le <code>noindex</code> tel quel."],effort:"5 min",gain:"propreté du sitemap"});
   if(nofollowPages.length) issues.push({sev:"warn",cat:"indexation",title:nofollowPages.length+" page(s) demandent aux moteurs de ne suivre aucun lien",
     body:"La directive <code>nofollow</code> au niveau de la page coupe le chemin d'exploration de tous ses liens. Sur une page publique normale, elle peut empêcher Google de découvrir ou de renforcer les destinations internes.",
     where:nofollowPages.slice(0,20).map(p=>"<code>"+esc(sh(p.url))+"</code> — "+esc(p.indexability.xRobotsTag||p.indexability.robotsDirectives||"nofollow")),
