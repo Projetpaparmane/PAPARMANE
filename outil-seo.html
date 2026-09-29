@@ -7,12 +7,12 @@
 <title>Outil SEO — PAPARMANE</title>
 <style>
   :root{
-    --bg:#161310; --surface:#211d17; --surface-2:#1b1813; --surface-3:#282219;
-    --ink:#f2ece3; --ink-soft:#c2b8ab; --ink-faint:#8f857a; --line:#352f27;
-    --accent:#e64015; --accent-hi:#ff6a3d; --accent-soft:#3a2118;
-    --good:#6fce9f; --good-soft:#1d2f25; --warn:#e6a94a; --warn-soft:#302615;
-    --crit:#ef7b6b; --crit-soft:#331d19; --info:#77b4d8; --info-soft:#1a262e;
-    --shadow:0 1px 2px rgba(0,0,0,.35),0 10px 30px rgba(0,0,0,.35);
+    --bg:#ffffff; --surface:#ffffff; --surface-2:#f7f7f5; --surface-3:#efeeeb;
+    --ink:#1c1b19; --ink-soft:#55524d; --ink-faint:#8a867f; --line:#e5e3df;
+    --accent:#e64015; --accent-hi:#d23a12; --accent-soft:#fdeee8;
+    --good:#2f7d5b; --good-soft:#e5f3eb; --warn:#b36b0c; --warn-soft:#fbf0dc;
+    --crit:#c0392b; --crit-soft:#fbe6e2; --info:#2f6a8f; --info-soft:#e4eff7;
+    --shadow:0 1px 2px rgba(20,18,15,.05),0 4px 14px rgba(20,18,15,.05);
     --radius:14px;
     --serif:"Fraunces","Iowan Old Style",Palatino,Georgia,serif;
     --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
@@ -119,7 +119,10 @@
   .ov-value.good{color:var(--good)}.ov-value.warn{color:var(--warn)}.ov-value.bad{color:var(--crit)}
   .ov-detail{font-size:11.5px;color:var(--ink-soft);line-height:1.35}
   .ov-why{margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-size:10.5px;line-height:1.4;color:var(--ink-soft)}
-  .ov-why b{display:block;margin-bottom:2px;color:var(--ink);font-size:9.5px;text-transform:uppercase;letter-spacing:.07em}
+  .ov-why>summary{cursor:pointer;list-style:none;margin-bottom:2px;color:var(--accent);font-weight:750;font-size:9.5px;text-transform:uppercase;letter-spacing:.07em}
+  .ov-why>summary::-webkit-details-marker{display:none}
+  .ov-why>summary::after{content:" +"}.ov-why[open]>summary::after{content:" −"}
+  .ov-why:not([open]){padding-top:6px}
   .ov-why code{display:block;margin-top:5px;padding:5px 6px;border-radius:6px;background:var(--surface-2);color:var(--ink-soft);font-family:var(--mono);font-size:9.5px;white-space:normal}
   .ov-where{margin-top:5px;color:var(--ink-faint)}
   .ov-where code{display:inline;padding:0;background:none;color:inherit}
@@ -161,10 +164,15 @@
   .where details.more>summary{cursor:pointer;color:var(--accent);font-weight:600;margin-top:6px;list-style:none}
   .where details.more>summary::-webkit-details-marker{display:none}
   /* Navigation du rapport, toujours visible en haut de l'écran. */
-  .rnav{position:sticky;top:0;z-index:20;display:flex;gap:6px;overflow-x:auto;padding:10px 0;margin:0 0 6px;background:var(--bg);border-bottom:1px solid var(--line);scrollbar-width:thin}
-  .rnav a{flex:none;font-size:12.5px;font-weight:650;text-decoration:none;color:var(--ink-soft);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:5px 12px;white-space:nowrap}
-  .rnav a:hover{color:var(--ink);border-color:var(--ink-faint)}
-  .rnav a.crit{color:var(--crit)} .rnav a.warn{color:var(--warn)}
+  .rnav{position:sticky;top:0;z-index:20;display:flex;gap:2px;overflow-x:auto;padding:0;margin:0 0 22px;background:var(--bg);border-bottom:1px solid var(--line);scrollbar-width:thin}
+  .rnav button{flex:none;font:650 13px var(--sans);color:var(--ink-soft);background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-1px;padding:12px 12px 10px;white-space:nowrap;cursor:pointer}
+  .rnav button:hover{color:var(--ink)}
+  .rnav button.on{color:var(--ink);border-bottom-color:var(--accent)}
+  .rnav button .n{display:inline-block;margin-left:5px;padding:0 7px;border-radius:999px;background:var(--surface-3);color:var(--ink-faint);font-size:11px;font-weight:700}
+  .rnav button.crit .n{background:var(--crit-soft);color:var(--crit)} .rnav button.warn .n{background:var(--warn-soft);color:var(--warn)}
+  .rpane:not(.on){display:none}
+  .rpane>.sec-h:first-child{margin-top:4px}
+  .pane-next{display:flex;justify-content:flex-end;margin-top:26px}
   .sec-h{scroll-margin-top:64px}
   details.tbl-toggle>summary{cursor:pointer;display:inline-block;margin:6px 0 10px;font-size:13.5px;font-weight:650;color:var(--accent);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:7px 14px;list-style:none}
   details.tbl-toggle>summary::-webkit-details-marker{display:none}
@@ -226,7 +234,7 @@
   @media(max-width:620px){.prospect-facts{grid-template-columns:1fr}}
   .prospect-fact{background:var(--surface-3);border-radius:9px;padding:10px 12px}.prospect-fact b{display:block;font-size:17px}.prospect-fact span{font-size:10.5px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.07em}
   .contact-line{font-size:12.5px;color:var(--ink-soft);margin:8px 0 14px}.contact-line a{margin-right:10px}
-  .pitch{white-space:pre-wrap;background:#12100d;border:1px solid var(--line);border-radius:10px;padding:14px 15px;color:var(--ink-soft);font:12px/1.55 var(--mono);max-height:290px;overflow:auto}
+  .pitch{white-space:pre-wrap;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:14px 15px;color:var(--ink-soft);font:12px/1.55 var(--mono);max-height:290px;overflow:auto}
   .pitch-actions{display:flex;justify-content:flex-end;margin-top:10px}.pitch-actions .btn{padding:9px 15px;font-size:12px}
 
   .pgroup{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:13px 16px;margin-bottom:10px}
@@ -287,6 +295,8 @@
     details>summary{list-style:none}
     details>summary::-webkit-details-marker{display:none}
     .screen-only{display:none!important}
+    .rpane{display:block!important}
+    .rpane>.sec-h:first-child{margin-top:46px}
     .print-only{display:block!important}
     .cover{display:flex!important;break-after:page;page-break-after:always}
   }
@@ -1615,19 +1625,46 @@ const NAV_SHORT={"Problèmes critiques":"Critiques","Problèmes importants":"Imp
   "Priorités à meilleur rendement":"Priorités","Contrôles techniques avancés":"Technique","Analyse des mots-clés observés":"Mots-clés",
   "Intelligence de marché DataForSEO":"Marché","Visibilité auprès des IA":"IA","Schema Studio — données structurées":"Schema",
   "Détail page par page":"Pages","Photos à décrire":"Photos","Ce qui va déjà bien":"Points forts","Plan d'action recommandé":"Plan d'action"};
+// Onglets : le rapport est découpé en volets, un seul visible à l'écran.
+// À l'impression, tous les volets sont affichés (voir @media print).
 function buildReportNav(){
   const report=$("#report");
-  const heads=[...report.querySelectorAll(".sec-h")].filter(h=>NAV_SHORT[h.querySelector("h3")?.textContent.trim()]);
-  if(heads.length<3) return;
-  const links=heads.map((h,i)=>{
-    const title=h.querySelector("h3").textContent.trim();
-    const cnt=h.querySelector(".cnt")?.textContent.trim();
-    h.id="sec-"+i;
-    const cls=title==="Problèmes critiques"?"crit":title==="Problèmes importants"?"warn":"";
-    return `<a href="#sec-${i}" class="${cls}">${esc(NAV_SHORT[title])}${cnt&&/^\d+$/.test(cnt)?" · "+cnt:""}</a>`;
-  }).join("");
-  const top=`<a href="#report" onclick="window.scrollTo({top:$('#report').offsetTop-10,behavior:'smooth'});return false">Résumé</a>`;
-  report.insertAdjacentHTML("afterbegin",`<nav class="rnav screen-only" aria-label="Sections du rapport">${top}${links}</nav>`);
+  const isHead=el=>el.classList?.contains("sec-h")&&NAV_SHORT[el.querySelector("h3")?.textContent.trim()];
+  const kids=[...report.children].filter(el=>!el.matches(".cover,.toolbar,.rnav"));
+  if(kids.filter(isHead).length<3) return;
+  const panes=[{label:"Résumé",cls:"",els:[]}];
+  for(const el of kids){
+    if(isHead(el)){
+      const title=el.querySelector("h3").textContent.trim();
+      const cnt=el.querySelector(".cnt")?.textContent.trim();
+      panes.push({label:NAV_SHORT[title],n:cnt&&/^\d+$/.test(cnt)?cnt:"",
+        cls:title==="Problèmes critiques"?"crit":title==="Problèmes importants"?"warn":"",els:[]});
+    }
+    panes[panes.length-1].els.push(el);
+  }
+  // Le titre du rapport reste visible au-dessus des onglets.
+  const head=panes[0].els.filter(el=>el.matches(".doc-title,.doc-sub"));
+  panes[0].els=panes[0].els.filter(el=>!head.includes(el));
+  panes.forEach((p,i)=>{
+    const box=document.createElement("div");
+    box.className="rpane"+(i?"":" on"); box.dataset.pane=i;
+    p.els[0].before(box); p.els.forEach(el=>box.appendChild(el));
+    if(i<panes.length-1) box.insertAdjacentHTML("beforeend",`<div class="pane-next screen-only"><button class="btn ghost" data-go="${i+1}">${esc(panes[i+1].label)} →</button></div>`);
+  });
+  const nav=document.createElement("nav");
+  nav.className="rnav screen-only"; nav.setAttribute("aria-label","Sections du rapport"); nav.setAttribute("role","tablist");
+  nav.innerHTML=panes.map((p,i)=>`<button type="button" role="tab" data-go="${i}" class="${p.cls}${i?"":" on"}">${esc(p.label)}${p.n?`<span class="n">${esc(p.n)}</span>`:""}</button>`).join("");
+  (head[head.length-1]||report.firstElementChild).after(nav);
+  const show=i=>{
+    report.querySelectorAll(".rpane").forEach(b=>b.classList.toggle("on",b.dataset.pane==i));
+    nav.querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.go==i));
+    const btn=nav.querySelector("button.on");
+    if(btn) nav.scrollLeft=Math.max(0,btn.offsetLeft-nav.clientWidth/2+btn.offsetWidth/2);
+    // Revenir en haut du volet s'il commence au-dessus de l'écran.
+    const pane=report.querySelector(".rpane.on"), top=pane.getBoundingClientRect().top-nav.offsetHeight-12;
+    if(top<0) window.scrollBy({top});
+  };
+  report.addEventListener("click",e=>{const b=e.target.closest("[data-go]");if(b) show(+b.dataset.go);});
   // Longs tableaux repliés à l'écran (dépliés automatiquement à l'impression).
   report.querySelectorAll(".tbl-wrap").forEach(wrap=>{
     const rows=wrap.querySelectorAll("tbody tr").length;
@@ -1775,12 +1812,11 @@ function renderReport(m){
       .map(([label,d])=>label+" : "+(d.error||d.reason)),
   ];
   const internalNotesHtml=internalNotes.length?`<div class="note screen-only"><b>Note interne — non imprimée.</b> ${[...new Set(internalNotes)].map(esc).join(" · ")}</div>`:"";
-  const scoreProofHtml=proof=>proof?`<div class="ov-why">
-    <b>${esc(proof.title)}</b>
+  const scoreProofHtml=proof=>proof?`<details class="ov-why"><summary>${esc(proof.title)}</summary>
     <span>${esc(proof.summary)}</span>
     ${proof.formula?`<code>Calcul : ${esc(proof.formula)}</code>`:""}
     ${proof.locations?.length?`<div class="ov-where">Où : ${proof.locations.map(url=>`<code>${esc(sh(url))}</code>`).join(" · ")}</div>`:""}
-  </div>`:"";
+  </details>`:"";
   const overviewCards=[
     ["Santé SEO",m.global+"/100","Score global Paparmane v"+m.auditMeta.scoreVersion,"mesuré",scoreClass(m.global),globalProof],
     ["Pages analysées",m.pages.length,m.auditMeta.successful+" réussies · "+m.auditMeta.transient+" provisoires"+(m.deadPages.length-m.auditMeta.transient>0?" · "+(m.deadPages.length-m.auditMeta.transient)+" en erreur":""),m.disc.truncated?"plafonné à "+MAX_AUDIT_PAGES+" pages":"crawl complet",m.auditMeta.transient?"warn":"good"],
