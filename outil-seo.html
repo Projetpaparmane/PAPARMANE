@@ -897,10 +897,24 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   const noViewport = pages.filter(p=>!p.viewport);
   const noLang = pages.filter(p=>!p.lang);
   const noHttps = pages.filter(p=>!p.https);
-  if(searchBlocked) issues.push({sev:"crit",cat:"indexation",title:"Le fichier robots.txt bloque l'ensemble du site pour les moteurs",
-    body:"La directive <code>User-agent: * / Disallow: /</code> empêche Google et les autres moteurs d'explorer toutes les pages. C'est un blocage d'indexation majeur, sauf s'il s'agit volontairement d'un environnement privé.",
-    where:["<code>"+esc(origin)+"/robots.txt</code> — blocage global détecté"],
-    steps:["Confirmer que le site doit être public.","Retirer <code>Disallow: /</code> du groupe <code>User-agent: *</code> ou remplacer cette règle par des exclusions ciblées.","Tester le fichier, puis demander une nouvelle exploration dans Google Search Console."],effort:"10 min",gain:"critique"});
+  // Les audits archivés n'ont pas « engines » : ils gardent l'ancien message.
+  const googleNamed = disc.robots?.engines?.[0]?.via==="nomme";
+  const googleOnly = googleNamed&&!disc.robots?.wildcardBlocked;
+  // Groupes à corriger : Googlebot peut être fermé par son propre groupe ET par « * ».
+  const blockingGroups = (googleNamed?["Googlebot"]:[]).concat(googleOnly?[]:["*"]).map(g=>"<code>User-agent: "+g+"</code>").join(" et ");
+  const bingEngine = disc.robots?.engines?.find(e=>e.agent==="Bingbot");
+  if(searchBlocked) issues.push({sev:"crit",cat:"indexation",title:googleOnly?"Le fichier robots.txt interdit tout le site à Google":"Le fichier robots.txt bloque l'ensemble du site pour les moteurs",
+    body:(googleOnly
+      ?"Le groupe <code>User-agent: Googlebot</code> contient <code>Disallow: /</code> : Google ne peut explorer aucune page, même si les autres moteurs restent admis."
+      :"La directive <code>User-agent: * / Disallow: /</code> empêche Google et les autres moteurs d'explorer toutes les pages."+(googleNamed?" Google est en plus fermé par son propre groupe <code>User-agent: Googlebot</code>.":""))
+      +" Le site disparaît de Google Search et de ses Aperçus IA, qui s'appuient sur le même robot. C'est un blocage d'indexation majeur, sauf s'il s'agit volontairement d'un environnement privé.",
+    where:["<code>"+esc(origin)+"/robots.txt</code> — "+(googleOnly?"blocage nommé de Googlebot":"blocage global détecté")],
+    steps:["Confirmer que le site doit être public.","Retirer <code>Disallow: /</code> "+(blockingGroups.includes(" et ")?"des groupes ":"du groupe ")+blockingGroups+" ou remplacer cette règle par des exclusions ciblées.","Tester le fichier, puis demander une nouvelle exploration dans Google Search Console."],effort:"10 min",gain:"critique"});
+  // Si Google est déjà bloqué par « * », le problème critique ci-dessus couvre Bing.
+  if(bingEngine?.blocked&&!(searchBlocked&&bingEngine.via==="general")) issues.push({sev:"warn",cat:"indexation",title:"Le fichier robots.txt interdit tout le site à Bing",
+    body:"Bingbot ne peut explorer aucune page. Le site est donc absent de Bing et de Copilot, qui s'appuie sur l'index de Bing, et en grande partie de DuckDuckGo, qui utilise aussi cet index.",
+    where:["<code>"+esc(origin)+"/robots.txt</code> — groupe <code>User-agent: "+(bingEngine.via==="nomme"?"Bingbot":"*")+"</code> avec <code>Disallow: /</code>"],
+    steps:["Confirmer avec le client que l'exclusion de Bing n'est pas volontaire.","Retirer <code>Disallow: /</code> de ce groupe ou autoriser explicitement <code>Bingbot</code>.","Vérifier ensuite l'exploration dans Bing Webmaster Tools."],effort:"10 min",gain:"moyen"});
   if(noindexPages.length) issues.push({sev:"crit",cat:"indexation",title:noindexPages.length+" page(s) du sitemap demandent de ne pas être indexées",
     body:"Ces URL sont annoncées dans le sitemap tout en envoyant <code>noindex</code> par balise META ou par en-tête HTTP <code>X-Robots-Tag</code>. Les deux consignes se contredisent et Google finira normalement par retirer ces pages de ses résultats.",
     where:noindexPages.slice(0,20).map(p=>"<code>"+esc(sh(p.url))+"</code> — "+(p.indexability.xRobotsTag?"en-tête X-Robots-Tag : "+esc(p.indexability.xRobotsTag):"balise robots : "+esc(p.indexability.robotsDirectives||"noindex"))),
@@ -1132,7 +1146,12 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   // Pénalité proportionnelle : allonger la liste des robots ne doit pas rendre
   // le score plus sévère pour un même site.
   const blockedShare = majorBlocked.length/Math.max(1,searchAgents.length);
-  const thinPages = keywordPages.filter(p=>(p.words||0)<180);
+  // Une page rendue uniquement en JavaScript n'est pas « trop courte » : elle
+  // est vide pour les robots d'IA. Elle reçoit son propre diagnostic.
+  const jsOnlyPages = keywordPages.filter(p=>p.jsOnly);
+  const thinPages = keywordPages.filter(p=>(p.words||0)<180&&!p.jsOnly);
+  // Blocages ciblés (« Disallow: /blog/ ») visant nommément un robot de citation.
+  const partialCitation = disc.aiBots.filter(b=>b.state==="allowed"&&b.partial?.length&&searchAgents.includes(b.agent));
   // Le moteur renvoie désormais la filiation schema.org : un sous-type précis
   // (Winery, Campground, BedAndBreakfast, DaySpa…) compte comme une identité
   // d'entreprise. On garde l'ancienne liste en repli pour les audits archivés.
@@ -1150,7 +1169,14 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
       steps:["Décider avec le client d'une <b>politique IA</b> : visibilité dans les réponses, entraînement des modèles, ou les deux.","Pour la visibilité : autoriser au minimum les robots de <b>recherche et citation</b> listés ci-dessus.","On peut bloquer GPTBot ou Google-Extended tout en restant visible dans Google Search et ChatGPT Search.","Fichier : <code>"+esc(origin)+"/robots.txt</code>"+(isWP?" (souvent géré par une extension SEO ou de gouvernance des robots)":"")],
       effort:"20 min", gain:"élevé — canal en pleine croissance"});
   } else {
-    wins.push(["Robots d'IA autorisés","le site peut être lu et cité par ChatGPT, Claude, Perplexity et Google IA."]);
+    wins.push(["Robots d'IA autorisés","le site peut être lu et cité par ChatGPT, Claude, Perplexity"+(searchBlocked?".":" et Google IA.")]);
+  }
+  if(partialCitation.length){
+    issues.push({sev:"info",cat:"ia",title:partialCitation.length+" robot(s) de citation sont exclus de certaines sections",
+      body:"Ces robots peuvent lire le site, mais le fichier robots.txt leur ferme des sections précises. Les pages concernées ne pourront jamais être citées par l'assistant correspondant. C'est parfois voulu (espace client, panier), parfois un oubli qui touche des pages importantes.",
+      where:partialCitation.map(b=>"<b>"+esc(b.agent)+"</b> — exclu de "+b.partial.map(p=>"<code>"+esc(p)+"</code>").join(", ")),
+      steps:["Vérifier que ces sections n'ont pas vocation à être citées (offres, blogue, FAQ, fiches de services).","Sinon, retirer les lignes <code>Disallow</code> correspondantes dans le groupe du robot.","Fichier : <code>"+esc(origin)+"/robots.txt</code>"],
+      effort:"10 min",gain:"variable selon les sections exclues"});
   }
 
   if(!disc.llms?.exists){
@@ -1192,6 +1218,13 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
       steps:["Décrire l'entreprise sur l'accueil avec des faits simples : qui, quoi, où, pour qui et différence principale.","Ajouter un JSON-LD correspondant au vrai type d'entreprise avec nom, URL, logo, téléphone, adresse ou zone desservie et <code>sameAs</code>.","Utiliser exactement le même nom et les mêmes coordonnées sur Google Business Profile et les principaux répertoires."],
       effort:"2-3 h",gain:"élevé — compréhension et confiance des IA"});
   }
+  if(jsOnlyPages.length){
+    issues.push({sev:"warn",cat:"ia",title:jsOnlyPages.length+" page(s) n'affichent leur texte qu'avec JavaScript — vides pour les robots d'IA",
+      body:"Le HTML envoyé par le serveur ne contient qu'un conteneur vide : le texte n'apparaît qu'une fois le JavaScript exécuté dans le navigateur. Google exécute ce JavaScript, mais les robots de ChatGPT, Claude et Perplexity ne le font pas (étude Vercel/MERJ, décembre 2024) : pour eux, ces pages sont vides et ne peuvent pas être citées. Ajouter du texte n'y changera rien tant que le rendu reste côté navigateur.",
+      where:jsOnlyPages.slice(0,15).map(p=>"<code>"+esc(sh(p.url))+"</code> — environ "+(p.words||0)+" mot(s) dans le HTML reçu"),
+      steps:["Activer le rendu côté serveur (SSR) ou la génération statique (SSG) du framework : Next.js, Nuxt, Astro, SvelteKit…","À défaut, mettre en place un pré-rendu des pages publiques.","Vérifier : afficher le code source de la page (Cmd+Option+U ou Ctrl+U) — le texte principal doit y apparaître."],
+      effort:"1-3 jours",gain:"élevé — condition pour être cité par les assistants IA"});
+  }
   if(thinPages.length){
     issues.push({sev:"info",cat:"ia",title:thinPages.length+" page(s) donnent trop peu de matière factuelle aux IA",
       body:"Une page très courte peut être jolie pour un humain, mais elle offre peu de phrases citables. Pour recommander une entreprise, les moteurs de réponse cherchent des faits explicites : service, lieu, clientèle, conditions, prix ou processus et preuves.",
@@ -1231,6 +1264,9 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   const aiDeductions=[
     ...(majorBlocked.length?[{points:Math.round(66*blockedShare),label:majorBlocked.length+" robot(s) de recherche/citation bloqué(s) sur "+searchAgents.length,locations:majorBlocked.map(b=>b.agent)}]:[]),
     ...(!identityReady?[{points:18,label:"identité d’entreprise précise absente",locations:[]}]:[]),
+    // Proportionnel, comme les robots bloqués : un site entièrement rendu en
+    // JavaScript est illisible pour la plupart des assistants IA.
+    ...(jsOnlyPages.length?[{points:Math.round(40*jsOnlyPages.length/Math.max(1,n)),label:jsOnlyPages.length+" page(s) vides sans JavaScript (illisibles pour ChatGPT, Claude et Perplexity)",locations:jsOnlyPages.slice(0,5).map(p=>p.url)}]:[]),
     // Interdire tout extrait exclut la page des Aperçus IA : c'est le réglage
     // le plus coûteux pour la visibilité IA, il pèse donc lourd.
     ...(snippetBloque.length?[{points:Math.min(25,Math.round(25*snippetBloque.length/Math.max(1,n))),label:snippetBloque.length+" page(s) en nosnippet (exclues des Aperçus IA)",locations:snippetBloque.slice(0,5).map(p=>p.url)}]:[]),
@@ -1287,7 +1323,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   const aiReadiness = [
     {name:"Accès des robots de citation",score:Math.max(0,Math.round(100*(1-blockedShare))),detail:majorBlocked.length?majorBlocked.length+" robot(s) de citation bloqué(s) sur "+searchAgents.length+" : "+majorBlocked.slice(0,3).map(b=>b.agent).join(", "):"ChatGPT, Claude, Perplexity, Mistral, DuckDuckGo et Apple peuvent explorer le site"},
     {name:"Identité de l'entreprise",score:identityReady?100:35,detail:identityReady?"entité d'entreprise précise détectée":"identité seulement générique ou absente"},
-    {name:"Contenu facile à citer",score:Math.max(20,Math.round(100-thinPages.length/Math.max(1,n)*100)),detail:thinPages.length+" page(s) trop courtes"},
+    {name:"Contenu facile à citer",score:Math.max(20,Math.round(100-(thinPages.length+jsOnlyPages.length)/Math.max(1,n)*100)),detail:thinPages.length+" page(s) trop courtes"+(jsOnlyPages.length?" · "+jsOnlyPages.length+" page(s) vides sans JavaScript":"")},
     {name:"Extraits citables",score:snippetBloque.length?Math.max(0,Math.round(100*(1-snippetBloque.length/Math.max(1,n)))):100,detail:snippetBloque.length?snippetBloque.length+" page(s) interdisent tout extrait (nosnippet) — exclues des Aperçus IA":"aucune page n'interdit la reprise d'extraits"},
     {name:"Fiche llms.txt",score:disc.llms?.exists?(llmsHasInvalidLinks?45:90):70,detail:disc.llms?.exists?(llmsHasInvalidLinks?"fichier présent mais certains liens sont invalides":"fichier présent et valide"):"fichier absent — facultatif : 97 % des llms.txt publiés ne sont jamais lus (Ahrefs, mai 2026)"},
   ];
@@ -1676,8 +1712,10 @@ function renderReport(m){
     const citation = citationAgents.has(b.agent);
     const deprecie = /déprécié/i.test(b.role||"");
     const inconnu = /non documenté/i.test(b.role||"");
+    const partiel = b.state==="allowed" && b.partial?.length;
     const st = b.state==="blocked"
         ? (citation && !deprecie && !inconnu ? `<span class="tag no">Bloqué</span>` : `<span class="tag mid">Bloqué</span>`)
+      : partiel ? `<span class="tag mid">Partiel</span>`
       : b.state==="allowed" ? `<span class="tag ok">Autorisé</span>`
       : `<span class="tag mid">Par défaut</span>`;
     const role = esc(b.role) + (citation
@@ -1687,6 +1725,7 @@ function renderReport(m){
     const csq = b.state==="blocked" && b.cost
       ? `<span style="color:${citation?"var(--crit)":"var(--ink-soft)"}">${esc(b.cost)}</span>`
       : b.state==="blocked" ? `<span style="color:var(--ink-faint)">—</span>`
+      : partiel ? `<span style="color:${citation?"var(--crit)":"var(--ink-soft)"}">exclu de ${b.partial.map(p=>`<code>${esc(p)}</code>`).join(", ")}</span>`
       : `<span style="color:var(--ink-faint)">aucune restriction</span>`;
     return `<tr><td><b>${esc(b.agent)}</b></td><td>${role}</td><td class="c">${st}</td><td style="font-size:12.5px">${csq}</td></tr>`;
   };
@@ -1866,7 +1905,7 @@ function renderReport(m){
       <thead><tr><th>Robot</th><th>Ce qu'il alimente</th><th class="c">État</th><th>Conséquence si bloqué</th></tr></thead>
       <tbody>${m.disc.aiBots.map(botRow).join("")}</tbody>
     </table></div>
-    <div class="legend"><span><span class="dot ok"></span> Autorisé</span><span><span class="dot mid"></span> Non mentionné (autorisé par défaut)</span><span><span class="dot no"></span> Bloqué explicitement</span></div>
+    <div class="legend"><span><span class="dot ok"></span> Autorisé</span><span><span class="dot mid"></span> Non mentionné (autorisé par défaut) ou exclu de certaines sections</span><span><span class="dot no"></span> Bloqué explicitement</span></div>
 
     <div class="sec-h"><h3>Détail page par page</h3><span class="cnt">${m.pages.length}</span><div class="rule"></div></div>
     <div class="tbl-wrap"><table>
