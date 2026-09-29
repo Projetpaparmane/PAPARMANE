@@ -151,6 +151,27 @@
   .sev-tag.warn{background:var(--warn-soft);color:var(--warn)}
   .sev-tag.info{background:var(--info-soft);color:var(--info)}
   .iss-body{padding:0 20px 18px}
+  /* Fiches repliables : le titre suffit pour survoler le rapport. */
+  details.iss>summary{list-style:none;cursor:pointer}
+  details.iss>summary::-webkit-details-marker{display:none}
+  details.iss>summary h4::before{content:"▸";display:inline-block;width:1.1em;color:var(--ink-faint);transition:transform .15s}
+  details.iss[open]>summary h4::before{transform:rotate(90deg)}
+  .iss-meta{font-size:12.5px;color:var(--ink-faint);font-weight:600;width:100%;padding-left:1.1em}
+  details.iss[open] .iss-meta{display:none}
+  .where details.more>summary{cursor:pointer;color:var(--accent);font-weight:600;margin-top:6px;list-style:none}
+  .where details.more>summary::-webkit-details-marker{display:none}
+  /* Navigation du rapport, toujours visible en haut de l'écran. */
+  .rnav{position:sticky;top:0;z-index:20;display:flex;gap:6px;overflow-x:auto;padding:10px 0;margin:0 0 6px;background:var(--bg);border-bottom:1px solid var(--line);scrollbar-width:thin}
+  .rnav a{flex:none;font-size:12.5px;font-weight:650;text-decoration:none;color:var(--ink-soft);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:5px 12px;white-space:nowrap}
+  .rnav a:hover{color:var(--ink);border-color:var(--ink-faint)}
+  .rnav a.crit{color:var(--crit)} .rnav a.warn{color:var(--warn)}
+  .sec-h{scroll-margin-top:64px}
+  details.tbl-toggle>summary{cursor:pointer;display:inline-block;margin:6px 0 10px;font-size:13.5px;font-weight:650;color:var(--accent);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:7px 14px;list-style:none}
+  details.tbl-toggle>summary::-webkit-details-marker{display:none}
+  details.tbl-toggle[open]>summary{display:none}
+  /* Formulaire replié une fois le rapport affiché. */
+  .launcher.done{padding:14px 18px;margin-top:18px}
+  .launcher.done h1,.launcher.done>p,.launcher.done .advanced,.launcher.done .hint{display:none}
   .iss-body>p{margin:0 0 13px;font-size:14.5px;color:var(--ink-soft)}
   .block{margin-top:13px}
   .block-lab{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.13em;color:var(--ink-faint);margin-bottom:6px;display:flex;align-items:center;gap:7px}
@@ -687,6 +708,8 @@ async function runAudit(){
     const samePerimeter=h=>Number.isFinite(h.pages)&&Math.abs(h.pages-model.pages.length)<=Math.max(2,Math.round(model.pages.length*0.2));
     model.previous=model.auditMeta.conclusive===false||model.auditMeta.confidence!=="élevée"?null:(history.find(h=>h.scoreVersion===model.auditMeta.scoreVersion&&h.confidence==="élevée"&&samePerimeter(h))||null);
     renderReport(model);
+    if(model.auditMeta.conclusive!==false) buildReportNav();
+    $(".launcher")?.classList.add("done");
     if(model.auditMeta.conclusive!==false&&model.auditMeta.confidence==="élevée"){
       const snapshot={date:new Date().toISOString(),global:model.global,scores:model.scores,counts:model.counts,pages:model.pages.length,scoreVersion:model.auditMeta.scoreVersion,confidence:model.auditMeta.confidence};
       localStorage.setItem("pap_audits_"+new URL(origin).hostname,JSON.stringify([snapshot,...history].slice(0,12)));
@@ -801,11 +824,11 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   const skippedHeadingPages=pages.filter(p=>(p.headingSkips||[]).length);
   if(emptyHeadingPages.length) issues.push({sev:"info",cat:"structure",title:emptyHeadingPages.length+" page(s) contiennent des titres H1–H6 vides",
     body:"Un titre vide crée une étape sans nom dans la structure de la page. Les lecteurs d'écran et les moteurs reçoivent une section qui n'annonce aucun sujet.",
-    where:emptyHeadingPages.slice(0,15).map(p=>"<code>"+esc(sh(p.url))+"</code> — "+p.emptyHeadings.map(level=>"H"+level).join(", ")),
+    where:emptyHeadingPages.slice(0,15).map(p=>"<code>"+esc(sh(p.url))+"</code> — "+p.emptyHeadings.map(level=>"H"+esc(level)).join(", ")),
     steps:["Ouvrir la page et repérer les blocs Titre sans texte.","Supprimer le bloc s'il ne sert qu'à créer un espace; utiliser plutôt les marges du bloc ou de la section.","S'il annonce une vraie section, lui donner un titre descriptif."],effort:"~3 min / page",gain:"accessibilité + structure"});
   if(skippedHeadingPages.length) issues.push({sev:"info",cat:"structure",title:skippedHeadingPages.length+" page(s) sautent un niveau dans la hiérarchie des titres",
     body:"Passer directement d'un H2 à un H4 donne l'impression qu'un niveau de section manque. Ce n'est pas toujours une erreur SEO grave, mais une hiérarchie continue est plus claire pour les visiteurs, les lecteurs d'écran et les moteurs.",
-    where:skippedHeadingPages.slice(0,15).flatMap(p=>(p.headingSkips||[]).slice(0,3).map(x=>"<code>"+esc(sh(p.url))+"</code> — H"+x.from+" → H"+x.to+" devant « "+esc(x.text)+" »")),
+    where:skippedHeadingPages.slice(0,15).flatMap(p=>(p.headingSkips||[]).slice(0,3).map(x=>"<code>"+esc(sh(p.url))+"</code> — H"+esc(x.from)+" → H"+esc(x.to)+" devant « "+esc(x.text)+" »")),
     steps:["Relire les titres comme un plan de document.","Conserver un seul H1, puis utiliser H2 pour les grandes sections et H3 pour leurs sous-sections.","Changer seulement le niveau HTML; garder l'apparence avec les réglages de style."],effort:"5-15 min / page",gain:"clarté + accessibilité"});
 
   // ---- Images ----
@@ -1139,7 +1162,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
     steps:["Tester les mêmes URL dans PageSpeed Insights à plusieurs moments.","Vérifier le cache pleine page, le CDN, les requêtes WordPress lentes et la taille du HTML.","Ne conclure à un problème serveur que si plusieurs mesures indépendantes restent lentes."],effort:"1-3 h de diagnostic",gain:"vitesse"});
   if(uncompressedLargePages.length>=Math.max(2,Math.ceil(pages.length*.5))) issues.push({sev:"info",cat:"qualite",title:uncompressedLargePages.length+" réponses HTML volumineuses ne déclarent aucune compression",
     body:"Aucun en-tête <code>Content-Encoding</code> n'a été observé sur ces pages de 80 Ko ou plus. Gzip ou Brotli réduit habituellement le transfert du HTML, du CSS et du JavaScript.",
-    where:uncompressedLargePages.slice(0,15).map(p=>"<code>"+esc(sh(p.url))+"</code> — "+p.sizeKB+" Ko HTML"),
+    where:uncompressedLargePages.slice(0,15).map(p=>"<code>"+esc(sh(p.url))+"</code> — "+esc(p.sizeKB)+" Ko HTML"),
     steps:["Vérifier les en-têtes avec l'hébergeur ou le CDN.","Activer Brotli ou gzip pour HTML, CSS, JavaScript, SVG et JSON.","Purger le cache puis confirmer avec PageSpeed Insights ou WebPageTest."],effort:"30-60 min",gain:"transfert plus léger"});
   if(resourceHeavyPages.length) issues.push({sev:"info",cat:"qualite",title:resourceHeavyPages.length+" page(s) déclarent au moins 100 ressources dans leur HTML",
     body:"Paparmane additionne les scripts, feuilles de style, images et iFrames visibles dans le code source. Ce n'est pas encore le poids complet après rendu, mais un nombre élevé annonce souvent trop d'extensions, de variantes ou de dépendances.",
@@ -1579,6 +1602,36 @@ window.addEventListener("afterprint",()=>{
   _detailsRouverts=[];
 });
 
+// Barre de navigation collée en haut du rapport : un clic mène à chaque
+// section au lieu de faire défiler un long document.
+const NAV_SHORT={"Problèmes critiques":"Critiques","Problèmes importants":"Importants","Opportunités":"Opportunités",
+  "Priorités à meilleur rendement":"Priorités","Contrôles techniques avancés":"Technique","Analyse des mots-clés observés":"Mots-clés",
+  "Intelligence de marché DataForSEO":"Marché","Visibilité auprès des IA":"IA","Schema Studio — données structurées":"Schema",
+  "Détail page par page":"Pages","Photos à décrire":"Photos","Ce qui va déjà bien":"Points forts","Plan d'action recommandé":"Plan d'action"};
+function buildReportNav(){
+  const report=$("#report");
+  const heads=[...report.querySelectorAll(".sec-h")].filter(h=>NAV_SHORT[h.querySelector("h3")?.textContent.trim()]);
+  if(heads.length<3) return;
+  const links=heads.map((h,i)=>{
+    const title=h.querySelector("h3").textContent.trim();
+    const cnt=h.querySelector(".cnt")?.textContent.trim();
+    h.id="sec-"+i;
+    const cls=title==="Problèmes critiques"?"crit":title==="Problèmes importants"?"warn":"";
+    return `<a href="#sec-${i}" class="${cls}">${esc(NAV_SHORT[title])}${cnt&&/^\d+$/.test(cnt)?" · "+cnt:""}</a>`;
+  }).join("");
+  const top=`<a href="#report" onclick="window.scrollTo({top:$('#report').offsetTop-10,behavior:'smooth'});return false">Résumé</a>`;
+  report.insertAdjacentHTML("afterbegin",`<nav class="rnav screen-only" aria-label="Sections du rapport">${top}${links}</nav>`);
+  // Longs tableaux repliés à l'écran (dépliés automatiquement à l'impression).
+  report.querySelectorAll(".tbl-wrap").forEach(wrap=>{
+    const rows=wrap.querySelectorAll("tbody tr").length;
+    if(rows<=25||wrap.closest("details")) return;
+    const box=document.createElement("details");
+    box.className="tbl-toggle";
+    box.innerHTML=`<summary>Afficher le tableau complet (${rows} lignes)</summary>`;
+    wrap.replaceWith(box); box.appendChild(wrap);
+  });
+}
+
 function renderReport(m){
   // L'en-tête imprimé porte le nom du client, pas la mention « usage interne ».
   // Mis à jour avant tout rendu : sinon un audit non concluant garde le nom du
@@ -1775,16 +1828,22 @@ function renderReport(m){
       <div class="cat-score tnum">${v}</div></div>`;
   }).join("");
 
+  // Critiques ouverts d'office; les autres se lisent d'un coup d'œil et
+  // s'ouvrent au clic. Tout est déplié à l'impression (beforeprint).
+  const WHERE_VISIBLE=6;
+  const whereList=list=>list.length<=WHERE_VISIBLE+2
+    ? `<ul>${list.map(w=>`<li>${w}</li>`).join("")}</ul>`
+    : `<ul>${list.slice(0,WHERE_VISIBLE).map(w=>`<li>${w}</li>`).join("")}</ul><details class="more"><summary>Voir les ${list.length-WHERE_VISIBLE} autres</summary><ul>${list.slice(WHERE_VISIBLE).map(w=>`<li>${w}</li>`).join("")}</ul></details>`;
   const issueCard = i=>`
-    <article class="iss ${i.sev}">
-      <div class="iss-head"><h4>${i.title}</h4><span class="sev-tag ${i.sev}">${i.sev==="crit"?"Critique":i.sev==="warn"?"Important":"Opportunité"}</span></div>
+    <details class="iss ${i.sev}"${i.sev==="crit"?" open":""}>
+      <summary class="iss-head"><h4>${i.title}</h4><span class="sev-tag ${i.sev}">${i.sev==="crit"?"Critique":i.sev==="warn"?"Important":"Opportunité"}</span><span class="iss-meta">⏱ ${i.effort||"—"} · 🎯 ${i.gain||"—"}</span></summary>
       <div class="iss-body">
         <p>${i.body}</p>
-        ${i.where?.length?`<div class="block"><div class="block-lab">Où exactement</div><div class="where"><ul>${i.where.map(w=>`<li>${w}</li>`).join("")}</ul></div></div>`:""}
+        ${i.where?.length?`<div class="block"><div class="block-lab">Où exactement</div><div class="where">${whereList(i.where)}</div></div>`:""}
         ${i.steps?.length?`<div class="block"><div class="block-lab">Comment corriger</div><ol class="steps">${i.steps.map(s=>`<li>${s}</li>`).join("")}</ol></div>`:""}
         <div class="effort"><span class="chip">⏱ Effort : <b>${i.effort||"—"}</b></span><span class="chip">🎯 Gain : <b>${i.gain||"—"}</b></span></div>
       </div>
-    </article>`;
+    </details>`;
 
   const effortRank=e=>/min|5 min|10 min|15 min|20 min|30 min/i.test(e||"")?1:/1 h|2 h|3 h|90 min/i.test(e||"")?2:3;
   const impactRank=i=>i.sev==="crit"?3:i.sev==="warn"?2:1;
@@ -1810,15 +1869,15 @@ function renderReport(m){
     const schemaLabel = schemaBad?"Erreur":p.schemaTypes?.length?p.schemaTypes.filter(t=>!GENERIC_SCHEMA.has(t)).slice(0,2).join(", ")||"Générique":"Absent";
     const dotFor = ok=>ok?"ok":"no";
     return `<tr><td class="pg">${esc(sh(p.url))}</td>
-      <td class="c"><span class="dot ${p.title?(tOk?"ok":"mid"):"no"}"></span>${p.title?(tOk?"":" "+p.titleLen):" —"}</td>
-      <td class="c"><span class="dot ${p.desc?(dOk?"ok":"mid"):"no"}"></span>${p.desc?(dOk?"":" "+p.descLen):" —"}</td>
-      <td class="c"><span class="dot ${dotFor(h1Ok&&!headingAlerts)}"></span> ${p.h1Count}${headingAlerts?" +"+headingAlerts:""}</td>
+      <td class="c"><span class="dot ${p.title?(tOk?"ok":"mid"):"no"}"></span>${p.title?(tOk?"":" "+esc(p.titleLen)):" —"}</td>
+      <td class="c"><span class="dot ${p.desc?(dOk?"ok":"mid"):"no"}"></span>${p.desc?(dOk?"":" "+esc(p.descLen)):" —"}</td>
+      <td class="c"><span class="dot ${dotFor(h1Ok&&!headingAlerts)}"></span> ${esc(p.h1Count)}${headingAlerts?" +"+headingAlerts:""}</td>
       <td class="c"><span class="tag ${indexOk?"ok":"no"}">${indexOk?"Indexable":"À vérifier"}</span></td>
       <td class="c"><span class="tag ${schemaBad?"no":p.schemaTypes?.length?"ok":"mid"}">${esc(schemaLabel)}</span></td>
       <td class="c"><span class="tag ${strictAlt?"mid":"ok"}">${strictAlt}/${strictImages.length}</span></td>
       <td class="c">${badImgs?`<span class="tag ${badImgs>5?"no":"mid"}">${badImgs}</span>`:`<span class="tag ok">0</span>`}</td>
-      <td class="c tnum">${p.words||"—"}</td>
-      <td class="c tnum">${p.sizeKB||"—"} Ko</td></tr>`;
+      <td class="c tnum">${esc(p.words||"—")}</td>
+      <td class="c tnum">${esc(p.sizeKB||"—")} Ko</td></tr>`;
   };
 
   // Module IA — tableau robots
