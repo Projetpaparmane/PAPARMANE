@@ -556,7 +556,7 @@ async function runAudit(){
     log("Découverte du site (robots.txt, sitemap, llms.txt)…");
     const disc = await api({mode:"discover", site:raw});
     const origin = disc.origin;
-    const trafficCacheKey="pap_intelligence_v2_"+new URL(origin).hostname+"_canada_fr";
+    const trafficCacheKey="pap_intelligence_v3_"+new URL(origin).hostname+"_canada_fr";
     let cachedTraffic=null;
     try{const saved=JSON.parse(localStorage.getItem(trafficCacheKey)||"null");if(saved&&Date.now()-saved.cachedAt<604800000)cachedTraffic=saved.data;}catch{}
     const trafficPromise=cachedTraffic?Promise.resolve({...cachedTraffic,cached:true}):api({mode:"traffic",site:origin,location:"Canada",language:"fr"}).then(data=>{if(data.available||data.strategicKeywords?.available||data.competitors?.available||data.topPages?.available||data.backlinks?.available||data.aiMentions?.available)localStorage.setItem(trafficCacheKey,JSON.stringify({cachedAt:Date.now(),data}));return data;}).catch(e=>({configured:false,available:false,reason:e.code||"request_error",error:e.message}));
@@ -589,6 +589,11 @@ async function runAudit(){
 
     // Crawl (avec repli exploration si pas de sitemap)
     disc.pages=[...disc.pages].sort((a,b)=>a.localeCompare(b));
+    // Les images et documents listés dans certains sitemaps ne sont pas des pages.
+    const NON_PAGE=/\.(?:jpe?g|png|webp|avif|gif|svg|ico|bmp|tiff?|heic|pdf|zip|css|js|json|xml|txt|csv|mp4|mov|webm|mp3|woff2?|docx?|xlsx?|pptx?)$/i;
+    const isPage=u=>{try{return !NON_PAGE.test(new URL(u).pathname);}catch{return false;}};
+    disc.pages=disc.pages.filter(isPage);
+    let skippedFiles=0;
     const queue=[...disc.pages]; const seen=new Set(queue); const pages=[];
     // Sitemap présent mais vide (ou limité à l'accueil) : on explore aussi les liens.
     const followLinks=!disc.sitemapFound||disc.pages.length<=1;
@@ -603,7 +608,8 @@ async function runAudit(){
           // Statut 0, 429 ou 503 = délai, erreur réseau ou limite de débit : ce n'est pas
           // une page morte prouvée, elle ne doit ni pénaliser ni être comparée.
           if(p.dead&&(!p.status||p.status===429||p.status===503)) p.transient=true;
-          if(p.dead){ pages.push(p); log("✗ "+(p.status||"erreur")+" "+short(u,origin), "critl"); }
+          if(p.skipped){ skippedFiles++; }
+          else if(p.dead){ pages.push(p); log("✗ "+(p.status||"erreur")+" "+short(u,origin), "critl"); }
           else{
             pages.push(p);
             log("✓ "+short(u,origin)+" — "+p.images.length+" img, "+p.words+" mots", "okl");
@@ -614,6 +620,26 @@ async function runAudit(){
       }
     }
     await Promise.all(Array.from({length:CRAWL_WORKERS},()=>worker()));
+    if(skippedFiles) log("ℹ "+skippedFiles+" fichier(s) du sitemap ignoré(s) : images ou documents, pas des pages.", "warnl");
+
+    // Deuxième chance, plus lente, pour les pages qui n'ont pas répondu à temps :
+    // un serveur surchargé par 5 requêtes simultanées répond souvent à 2.
+    const retryList=pages.filter(p=>p.transient);
+    if(retryList.length){
+      log("Nouvelle tentative pour "+retryList.length+" page(s) qui n'ont pas répondu à temps…");
+      const retryQueue=[...retryList];
+      await Promise.all(Array.from({length:2},async()=>{
+        while(retryQueue.length){
+          const old=retryQueue.shift();
+          try{
+            const p=await api({mode:"page",url:old.url});
+            if(p.skipped){ pages.splice(pages.indexOf(old),1); continue; }
+            if(p.dead&&(!p.status||p.status===429||p.status===503)) continue;
+            pages[pages.indexOf(old)]=p;
+          }catch{}
+        }
+      }));
+    }
 
     // Une page de maintenance ou un pare-feu peut répondre 200 à toutes les
     // URL. Dans ce cas, continuer créerait un faux audit très convaincant.
@@ -1118,7 +1144,10 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
     effort:"~3 min / page", gain:"moyen"});
 
   // ---- Données structurées ----
-  const richFound = [...new Set(pages.flatMap(p=>p.schemaTypes.filter(t=>!GENERIC_SCHEMA.has(t))))];
+  // Les types qui donnent des résultats enrichis Google d'abord (Product, FAQ…).
+  const RICH_FIRST=["Product","LocalBusiness","FAQPage","Article","BlogPosting","Event","Recipe","Course","Service","VideoObject","Review","HowTo"];
+  const richFound = [...new Set(pages.flatMap(p=>p.schemaTypes.filter(t=>!GENERIC_SCHEMA.has(t))))]
+    .sort((a,b)=>(RICH_FIRST.indexOf(a)+1||99)-(RICH_FIRST.indexOf(b)+1||99));
   const pagesGeneric = pages.filter(p=>p.schemaTypes.length && !p.schemaTypes.some(t=>!GENERIC_SCHEMA.has(t)));
   const pagesNoSchema = pages.filter(p=>!p.schemaTypes.length);
   const pagesSchemaInvalid = pages.filter(p=>p.schema?.invalidBlocks||p.schema?.problems?.length);
@@ -1549,6 +1578,12 @@ function renderReport(m){
   const delta=m.previous?m.global-m.previous.global:null;
   const deltaHtml=delta===null?"":`<span class="delta ${delta>0?"up":delta<0?"down":"same"}">${delta>0?"+":""}${delta} depuis le dernier audit</span>`;
   const schemaCovered=m.pages.filter(p=>p.schemaTypes?.length).length;
+  // Sur un gros site, le PDF ne liste que les pages à corriger (erreur, type à
+  // ajouter, absent) : 460 lignes « Valide » faisaient un PDF de 10 Mo.
+  const bigSite=m.pages.length>60;
+  const schemaRows=m.pages.map(p=>{const missing=(p.expectedSchema||[]).filter(x=>!p.schemaTypes.includes(x.type));const bad=p.schema?.invalidBlocks||p.schema?.problems?.length;return {p,missing,bad,rank:bad?0:missing.length?1:p.schemaTypes.length?3:2};})
+    .sort((a,b)=>a.rank-b.rank);
+  const schemaValidRows=schemaRows.filter(r=>r.rank===3).length;
   const schemaValid=m.pages.filter(p=>p.schemaTypes?.length&&!p.schema?.invalidBlocks&&!p.schema?.problems?.length).length;
   const schemaUse=type=>GOOGLE_RICH_SCHEMA.has(type)?"Fonction Google documentée":"Compréhension Schema.org";
   const scoreClass=v=>v>=80?"good":v>=55?"warn":"bad";
@@ -1678,7 +1713,7 @@ function renderReport(m){
     ["Backlinks",backlinkData.available?fmt(backlinkData.backlinks):"—",backlinkData.available?fmt(backlinkData.referringDomains)+" domaines référents · rang "+(Number.isFinite(Number(backlinkData.rank))?Number(backlinkData.rank):"—"):providerFailure(backlinkData),backlinkData.available?"mesure DataForSEO":"non mesuré",backlinkData.available?(backlinkData.backlinks?"good":"warn"):""],
     // « Non mesuré » n'est jamais présenté comme un zéro : l'outil ne peut pas
     // affirmer qu'une marque est absente des IA s'il n'a pas pu la chercher.
-    ["Mentions IA réelles",aiMentionData.available?fmt(aiMentionData.mentions):"non mesuré",aiMentionData.available?aiMentionData.platforms.map(x=>platformLabel(x.platform)+" "+fmt(x.mentions)).join(" · ")+" · "+(aiMentionData.scope||"portée externe"):providerFailure(aiMentionData),aiMentionData.available?"base DataForSEO":"aucune mesure",aiMentionData.available?(aiMentionData.mentions?"good":"warn"):""],
+    ["Mentions IA réelles",aiMentionData.available?fmt(aiMentionData.mentions):"non mesuré",aiMentionData.available?Object.entries(aiMentionData.platforms.reduce((t,x)=>{const k=platformLabel(x.platform);t[k]=(t[k]||0)+(x.mentions||0);return t;},{})).map(([k,v])=>k+" "+fmt(v)).join(" · ")+" · "+(aiMentionData.scope||"portée externe"):providerFailure(aiMentionData),aiMentionData.available?"base DataForSEO":"aucune mesure",aiMentionData.available?(aiMentionData.mentions?"good":"warn"):""],
     ["Évolution",delta===null?"—":(delta>0?"+":"")+delta,delta===null?"Un deuxième audit fiable activera la comparaison":"points depuis le dernier audit","historique local",delta>0?"good":delta<0?"bad":""],
   ];
 
@@ -1788,7 +1823,18 @@ function renderReport(m){
   };
 
   // Photos à corriger
-  const photoGroups = m.imgPages.map((g,ix)=>`
+  // Une même image répétée sur des dizaines de pages (pied de page, bandeau)
+  // n'est listée qu'une fois : sinon la liste de travail tient 400 pages.
+  const fileSpread=new Map();
+  for(const g of m.imgPages) for(const f of new Set(g.files)) fileSpread.set(f,(fileSpread.get(f)||0)+1);
+  const sharedFiles=[...fileSpread].filter(([,n])=>n>3);
+  const sharedSet=new Set(sharedFiles.map(([f])=>f));
+  const sharedGroup=sharedFiles.length?`
+    <details class="pgroup" open>
+      <summary><span class="nm">Images présentes sur plusieurs pages</span><span class="n">${sharedFiles.length} photo${sharedFiles.length>1?"s":""}</span></summary>
+      <ul class="flist">${sharedFiles.map(([f,n])=>`<li>${esc(f)} — ${n} pages</li>`).join("")}</ul>
+    </details>`:"";
+  const photoGroups = sharedGroup+m.imgPages.map(g=>({...g,files:g.files.filter(f=>!sharedSet.has(f))})).filter(g=>g.files.length).map((g,ix)=>`
     <details class="pgroup"${ix===0?" open":""}>
       <summary><span class="nm">${esc(sh(g.url))}</span><span class="n">${g.files.length} photo${g.files.length>1?"s":""}</span></summary>
       <ul class="flist">${g.files.map(f=>`<li>${esc(f)}</li>`).join("")}</ul>
@@ -1880,7 +1926,7 @@ function renderReport(m){
     <div class="kw-cloud">${m.siteKeywords.length?m.siteKeywords.map(k=>`<span class="kw"><b>${esc(k.term)}</b><small>${k.count}× · ${k.pages} p.</small></span>`).join(""):`<span class="sec-intro">Pas assez de contenu textuel pour dégager des sujets fiables.</span>`}</div>
     <div class="tbl-wrap"><table>
       <thead><tr><th>Page</th><th>Expression dominante observée</th><th class="c">Titre</th><th class="c">H1</th><th class="c">Description</th></tr></thead>
-      <tbody>${m.keywordPages.map(p=>`<tr><td class="pg">${esc(sh(p.url))}</td><td>${p.focusKeyword?`<b>${esc(p.focusKeyword)}</b>`:"—"}</td>
+      <tbody>${m.keywordPages.map(p=>`<tr class="${m.pages.length>60&&p.keywordAlignment?.title&&p.keywordAlignment?.h1?"screen-only":""}"><td class="pg">${esc(sh(p.url))}</td><td>${p.focusKeyword?`<b>${esc(p.focusKeyword)}</b>`:"—"}</td>
         <td class="c"><span class="dot ${p.keywordAlignment?.title?"ok":"no"}"></span></td>
         <td class="c"><span class="dot ${p.keywordAlignment?.h1?"ok":"no"}"></span></td>
         <td class="c"><span class="dot ${p.keywordAlignment?.desc?"ok":"mid"}"></span></td></tr>`).join("")}</tbody>
@@ -1949,8 +1995,9 @@ function renderReport(m){
       <div class="ai-card"><div class="ai-card-head"><span>Types suggérés manquants</span><span class="ai-card-score">${m.schemaAudit.expectedMissing.length}</span></div><p>Suggestions basées sur le contenu; toujours confirmer le type réel avant implantation.</p></div>
     </div>
     <div class="tbl-wrap"><table><thead><tr><th>Page</th><th>Types présents</th><th>Type(s) suggéré(s)</th><th class="c">État</th></tr></thead><tbody>
-      ${m.pages.map(p=>{const missing=(p.expectedSchema||[]).filter(x=>!p.schemaTypes.includes(x.type));const bad=p.schema?.invalidBlocks||p.schema?.problems?.length;return `<tr><td class="pg">${esc(sh(p.url))}</td><td>${p.schemaTypes.length?p.schemaTypes.map(t=>esc(t)+` <small>(${schemaUse(t)})</small>`).join(", "):"—"}</td><td>${missing.length?missing.map(x=>`<b>${esc(x.type)}</b> <small>(${schemaUse(x.type)})</small>`).join(", "):"—"}</td><td class="c"><span class="tag ${bad?"no":missing.length?"mid":p.schemaTypes.length?"ok":"mid"}">${bad?"Erreur":missing.length?"À enrichir":p.schemaTypes.length?"Valide":"Absent"}</span></td></tr>`}).join("")}
+      ${schemaRows.map(({p,missing,bad,rank})=>`<tr class="${rank===3&&bigSite?"screen-only":""}"><td class="pg">${esc(sh(p.url))}</td><td>${p.schemaTypes.length?p.schemaTypes.map(t=>esc(t)+` <small>(${schemaUse(t)})</small>`).join(", "):"—"}</td><td>${missing.length?missing.map(x=>`<b>${esc(x.type)}</b> <small>(${schemaUse(x.type)})</small>`).join(", "):"—"}</td><td class="c"><span class="tag ${bad?"no":missing.length?"mid":p.schemaTypes.length?"ok":"mid"}">${bad?"Erreur":missing.length?"À enrichir":p.schemaTypes.length?"Valide":"Absent"}</span>${bad&&p.schema?.problems?.length?`<br><small>${esc(p.schema.problems[0])}</small>`:""}</td></tr>`).join("")}
     </tbody></table></div>
+    ${bigSite&&schemaValidRows?`<p class="sec-intro print-only">${plur(schemaValidRows,"autre page valide n'est pas listée","autres pages valides ne sont pas listées")} dans ce document.</p>`:""}
 
     <div class="sec-h"><h3>Visibilité auprès des IA</h3><div class="rule"></div></div>
     <p class="sec-intro"><b>Indice de préparation technique, pas une mesure de mentions réelles.</b> Il indique si ChatGPT, Claude, Gemini et Perplexity peuvent trouver, comprendre et citer correctement l'entreprise.</p>
@@ -1966,7 +2013,8 @@ function renderReport(m){
     <div class="legend"><span><span class="dot ok"></span> Autorisé</span><span><span class="dot mid"></span> Non mentionné (autorisé par défaut) ou exclu de certaines sections</span><span><span class="dot no"></span> Bloqué explicitement</span></div>
 
     <div class="sec-h"><h3>Détail page par page</h3><span class="cnt">${m.pages.length}</span><div class="rule"></div></div>
-    <div class="tbl-wrap"><table>
+    ${bigSite?`<p class="sec-intro print-only">Le tableau des ${m.pages.length} pages est trop long pour ce document : il est fourni séparément sur demande. Les pages à corriger sont toutes nommées dans les sections précédentes.</p>`:""}
+    <div class="tbl-wrap ${bigSite?"screen-only":""}"><table>
       <thead><tr><th>Page</th><th class="c">Titre</th><th class="c">Desc.</th><th class="c">Titres</th><th class="c">Index</th><th class="c">Schéma</th><th class="c">ALT strict</th><th class="c">Photos ✗</th><th class="c">Mots</th><th class="c">Poids</th></tr></thead>
       <tbody>${m.pages.map(pgRow).join("")}</tbody>
     </table></div>
