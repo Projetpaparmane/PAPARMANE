@@ -179,10 +179,13 @@ async function grab(url, { asText = true, cacheBust = false, timeout = FETCH_TIM
         contentType,
         cacheControl: res.headers.get("cache-control") || "",
         server: res.headers.get("server") || "",
+        // Cloudflare l'ajoute quand il sert une page de vérification à la place du contenu.
+        cfMitigated: res.headers.get("cf-mitigated") || "",
       },
     };
   } catch (e) {
-    return { ok: false, status: 0, finalUrl: url, body: "", redirected: false, elapsedMs: Date.now() - startedAt, error: String(e.message || e) };
+    // timedOut distingue le délai dépassé d'une vraie erreur réseau (DNS, TLS…).
+    return { ok: false, status: 0, finalUrl: url, body: "", redirected: false, elapsedMs: Date.now() - startedAt, error: String(e.message || e), timedOut: ctrl.signal.aborted };
   } finally { clearTimeout(t); }
 }
 
@@ -295,6 +298,17 @@ const isPagePath = value => { try { return !NON_PAGE_EXT.test(new URL(value).pat
 // mais n'est pas le même site.
 function sameSite(value, origin) {
   try { return new URL(value).origin === origin; } catch { return false; }
+}
+
+// Même site avec ou sans « www », même protocole : le sitemap d'un site en www
+// liste parfois ses pages sans www (ou l'inverse). Ces pages sont auditées
+// plutôt qu'écartées en silence.
+function sameSiteLoose(value, origin) {
+  try {
+    const a = new URL(value), b = new URL(origin);
+    const bare = host => host.toLowerCase().replace(/^www\./, "");
+    return a.protocol === b.protocol && bare(a.hostname) === bare(b.hostname);
+  } catch { return false; }
 }
 
 function one(re, s) { const m = s.match(re); return m ? decode(m[1].trim()) : null; }
@@ -858,29 +872,52 @@ const xmlLocs = body => [...String(body).matchAll(/<(?:[\w-]+:)?loc\b[^>]*>\s*(?
   .map(match => decode(match[1].trim()))
   .filter(Boolean);
 
+// Pages de vérification anti-robot servies à la place du contenu (Cloudflare,
+// Wordfence, Sucuri, Imunify360, Incapsula, DDoS-Guard, ModSecurity…). Elles
+// répondent souvent 200 : sans ce test, un sitemap protégé passait pour absent.
+const CHALLENGE_MARKERS = /just a moment|cf-browser-verification|cf_chl_|__cf_chl|challenge-platform|checking your browser|enable javascript and cookies to continue|verify (?:that )?you are (?:a )?human|are you a robot|sucuri website firewall|wordfence|imunify360|incapsula|ddos-guard|bot verification|mod_?security|awswaf|perfdrive|v[ée]rification humaine|prouvez que vous (?:êtes|n'êtes pas) (?:un )?(?:humain|robot)/i;
+
+function looksLikeChallenge(r) {
+  if (r.headers?.cfMitigated) return true;
+  const head = String(r.body || "").slice(0, 8000);
+  if (!/<html|<!doctype|<body|<head|<title/i.test(head)) return false;
+  return CHALLENGE_MARKERS.test(head);
+}
+
+// Lit un sitemap et qualifie la réponse. « outcome » :
+//   found         sitemap XML lu (index ou liste de pages)
+//   missing       404 ou 410 : preuve d'absence à cette adresse
+//   not-xml       page ordinaire (HTML…) servie à la place : pas de sitemap ici
+//   blocked       401/403/406/429/451 : pare-feu, rien n'est prouvé
+//   challenge     page de vérification anti-robot, rien n'est prouvé
+//   timeout       pas de réponse dans le délai, rien n'est prouvé
+//   server-error  5xx, rien n'est prouvé
+//   error         DNS, TLS, redirections épuisées… rien n'est prouvé
+// Seuls « missing » et « not-xml » autorisent à conclure qu'il n'y a pas de sitemap.
+const SITEMAP_ABSENT_OUTCOMES = new Set(["missing", "not-xml"]);
 async function readSitemap(url, origin, { timeout = FETCH_TIMEOUT } = {}) {
-  if (!isSafeUrl(url)) return { pages: [], sitemaps: [], found: false };
+  const base = { url, finalUrl: url, pages: [], sitemaps: [], found: false, status: 0 };
+  if (!isSafeUrl(url)) return { ...base, outcome: "error", error: "adresse invalide" };
   const r = await grab(url, { timeout });
-  if (!r.ok || r.status !== 200 || !/<(?:[\w-]+:)?(urlset|sitemapindex)\b/i.test(r.body)) {
-    return { pages: [], sitemaps: [], found: false, status: r.status || 0 };
+  const status = r.status || 0;
+  const finalUrl = cleanAuditUrl(r.finalUrl || url);
+  if (!r.ok || !status) return { ...base, finalUrl, outcome: r.timedOut ? "timeout" : "error", error: r.error || "" };
+  const body = r.body || "";
+  if (status >= 200 && status < 300 && /<(?:[\w-]+:)?(urlset|sitemapindex)\b/i.test(body)) {
+    const locs = xmlLocs(body);
+    if (/<(?:[\w-]+:)?sitemapindex\b/i.test(body)) {
+      return { ...base, finalUrl, status, found: true, outcome: "found", kind: "index",
+        sitemaps: [...new Set(locs.filter(isSafeUrl))].slice(0, MAX_SITEMAP_URLS) };
+    }
+    return { ...base, finalUrl, status, found: true, outcome: "found", kind: "urlset", listed: locs.length,
+      pages: [...new Set(locs.filter(l => sameSiteLoose(l, origin) && isPagePath(l)))].slice(0, MAX_SITEMAP_URLS) };
   }
-  const locs = xmlLocs(r.body);
-  if (/<(?:[\w-]+:)?sitemapindex\b/i.test(r.body)) {
-    return {
-      pages: [],
-      sitemaps: [...new Set(locs.filter(isSafeUrl))].slice(0, MAX_SITEMAP_URLS),
-      found: true,
-    };
-  }
-  return {
-    pages: [...new Set(locs.filter(l => {
-      try {
-        return new URL(l).origin === origin && isPagePath(l);
-      } catch { return false; }
-    }))].slice(0, MAX_SITEMAP_URLS),
-    sitemaps: [],
-    found: true,
-  };
+  if (looksLikeChallenge(r)) return { ...base, finalUrl, status, outcome: "challenge" };
+  if ([401, 403, 406, 429, 451].includes(status)) return { ...base, finalUrl, status, outcome: "blocked" };
+  if (status >= 500) return { ...base, finalUrl, status, outcome: "server-error" };
+  if (status === 404 || status === 410) return { ...base, finalUrl, status, outcome: "missing" };
+  if (status >= 200 && status < 300) return { ...base, finalUrl, status, outcome: "not-xml" };
+  return { ...base, finalUrl, status, outcome: "error" };
 }
 
 // Budget total d'un appel : la fonction Netlify est coupée au bout d'environ
@@ -890,11 +927,29 @@ const remaining = deadline => Math.max(0, deadline - Date.now());
 
 async function discover(site) {
   const deadline = Date.now() + CALL_BUDGET;
-  let origin = new URL(site).origin;
+  const typedOrigin = new URL(site).origin;
+  let origin = typedOrigin;
+  const out = { origin, pages: [], robots: null, aiBots: [], llms: null, sitemapFound: false, sitemapProbes: [] };
+
+  // 1. Tout part en parallèle dès la première milliseconde : accueil, robots.txt,
+  // favicon, page 404, llms.txt et /sitemap.xml. Attendre l'accueil avant le
+  // reste laissait parfois moins d'une seconde au sitemap d'un serveur lent,
+  // qui passait alors pour absent. Les redirections (www, https) sont suivies
+  // requête par requête : l'adresse saisie suffit pour lancer les lectures.
+  const probe404 = typedOrigin + "/paparmane-audit-" + hashText(typedOrigin) + "-page-inexistante/";
+  const SITEMAP_RESERVE = 3000; // budget gardé pour la seconde vague de sitemaps
+  const step = () => Math.max(1500, Math.min(FETCH_TIMEOUT, remaining(deadline) - SITEMAP_RESERVE));
+  const [home, rb, favicon, missing, lm, firstSitemap] = await Promise.all([
+    grab(typedOrigin + "/", { asText: false, timeout: step() }),
+    grab(typedOrigin + "/robots.txt", { timeout: step() }),
+    grab(typedOrigin + "/favicon.ico", { asText: false, timeout: step() }),
+    grab(probe404, { asText: false, timeout: step() }),
+    grab(typedOrigin + "/llms.txt", { timeout: step() }),
+    readSitemap(typedOrigin + "/sitemap.xml", typedOrigin, { timeout: step() }),
+  ]);
   // Adresse officielle du site : si « ex.com » redirige vers « www.ex.com »,
   // c'est cette dernière que le sitemap et les liens utilisent. Sans cela, tout
   // le sitemap était filtré et l'audit se réduisait à la page d'accueil.
-  const home = await grab(origin + "/", { asText: false, timeout: Math.min(5000, remaining(deadline)) });
   if (home.ok && home.status < 400) {
     try {
       const landed = new URL(home.finalUrl);
@@ -902,17 +957,7 @@ async function discover(site) {
       if (landed.origin !== origin && bareHost(landed.hostname) === bareHost(new URL(origin).hostname) && isSafeUrl(landed.origin)) origin = landed.origin;
     } catch { /* garder l'adresse saisie */ }
   }
-  const out = { origin, pages: [], robots: null, aiBots: [], llms: null, sitemapFound: false };
-
-  // 1. robots.txt, favicon, page 404 et llms.txt : requêtes indépendantes, en parallèle.
-  const probe404 = origin + "/paparmane-audit-" + hashText(origin) + "-page-inexistante/";
-  const step = () => Math.min(FETCH_TIMEOUT, remaining(deadline) - 2500);
-  const [rb, favicon, missing, lm] = await Promise.all([
-    grab(origin + "/robots.txt", { timeout: step() }),
-    grab(origin + "/favicon.ico", { asText: false, timeout: step() }),
-    grab(probe404, { asText: false, timeout: step() }),
-    grab(origin + "/llms.txt", { timeout: step() }),
-  ]);
+  out.origin = origin;
   const robotsTxt = rb.ok && rb.status === 200 && !/<html/i.test(rb.body.slice(0, 300)) ? rb.body : "";
   const rules = robotsTxt ? parseRobots(robotsTxt) : {};
   const wildcard = rules["*"];
@@ -923,8 +968,18 @@ async function discover(site) {
     const r = rules[agent.toLowerCase()];
     return { agent, role, cost, blocked: r ? r.disallowAll : !!wildcard?.disallowAll, via: r ? "nomme" : "general" };
   });
+  // robots.txt illisible (délai, pare-feu, page anti-robot, erreur serveur) :
+  // ce n'est pas un fichier absent. Le rapport le dit au lieu de supposer
+  // « aucune règle » et de présenter tous les robots comme autorisés.
+  const robotsUnverifiable = robotsTxt ? null
+    : (!rb.ok || !rb.status) ? (rb.timedOut ? "timeout" : "error")
+    : looksLikeChallenge(rb) ? "challenge"
+    : [401, 403, 406, 429, 451].includes(rb.status) ? "blocked"
+    : rb.status >= 500 ? "server-error" : null;
   out.robots = {
     exists: !!robotsTxt,
+    status: rb.status || 0,
+    ...(robotsUnverifiable ? { unverifiable: robotsUnverifiable } : {}),
     // Google est le moteur visé par l'audit : son blocage fait tomber l'indexation.
     searchBlocked: engines[0].blocked,
     wildcardBlocked: !!wildcard?.disallowAll,
@@ -960,39 +1015,61 @@ async function discover(site) {
     unreachable: missing.status === 0,
   };
 
-  // 2. sitemaps : tous ceux déclarés dans robots.txt (lignes commentées
-  // exclues, adresses relatives résolues), puis les emplacements habituels si
-  // aucun ne répond.
+  // 2. Sitemaps. Première vague : /sitemap.xml, déjà lu ci-dessus (Yoast et
+  // Rank Math y redirigent vers sitemap_index.xml). Seconde vague, en parallèle,
+  // seulement s'il n'a rien donné : les adresses déclarées dans robots.txt
+  // (lignes commentées exclues, adresses relatives résolues), puis les
+  // emplacements habituels : sitemap_index.xml (Yoast, Rank Math),
+  // wp-sitemap.xml (WordPress natif), sitemaps.xml (SEOPress).
   const declared = robotsTxt.split(/\r?\n|\r/)
     .map(line => line.replace(/#.*$/, "").match(/^\s*sitemap\s*:\s*(\S+)/i)?.[1])
     .filter(Boolean)
     .map(value => { try { return new URL(value, origin).href; } catch { return null; } })
     .filter(Boolean);
-  const defaults = [origin + "/sitemap_index.xml", origin + "/sitemap.xml", origin + "/wp-sitemap.xml"];
+  const defaults = [origin + "/sitemap_index.xml", origin + "/wp-sitemap.xml", origin + "/sitemaps.xml"];
+  // L'accueil a redirigé vers www (ou l'inverse) : /sitemap.xml n'a été lu que sur
+  // l'adresse saisie, il faut aussi l'essayer sur l'adresse officielle.
+  if (origin !== typedOrigin) defaults.unshift(origin + "/sitemap.xml");
   const pages = new Set();
   const sitemapQueue = [];
-  const readAll = async list => {
-    const results = await Promise.all(list.slice(0, 10).map(sm => readSitemap(sm, origin, { timeout: Math.min(FETCH_TIMEOUT, remaining(deadline)) })));
-    for (const parsed of results) {
-      // 401/403/429 : un pare-feu refuse le robot. Le sitemap existe peut-être.
-      if (!parsed.found && [401, 403, 429].includes(parsed.status)) out.sitemapBlocked = parsed.status;
-      if (!parsed.found) continue;
-      out.sitemapFound = true;
-      parsed.pages.forEach(l => pages.add(l));
-      sitemapQueue.push(...parsed.sitemaps);
-    }
+  const probes = [firstSitemap];
+  const absorb = parsed => {
+    if (!parsed.found) return;
+    out.sitemapFound = true;
+    out.sitemapUrl ??= parsed.finalUrl;
+    parsed.pages.forEach(l => pages.add(l));
+    sitemapQueue.push(...parsed.sitemaps);
   };
-  if (declared.length) await readAll([...new Set(declared)]);
-  if (!out.sitemapFound && remaining(deadline) > 1000) {
-    // Un seul emplacement habituel suffit : sitemap_index.xml et sitemap.xml
-    // renvoient souvent le même index.
-    for (const sm of defaults) {
-      if (remaining(deadline) < 1000) break;
-      await readAll([sm]);
-      if (out.sitemapFound) break;
-    }
+  absorb(firstSitemap);
+  const alreadyProbed = new Set([firstSitemap.url, firstSitemap.finalUrl]);
+  const candidates = [...new Set([...declared, ...defaults])].filter(u => !alreadyProbed.has(u));
+  let skipped = [];
+  if (!out.sitemapFound && candidates.length) {
+    const wave = candidates.slice(0, 5);
+    skipped = candidates.slice(5);
+    if (remaining(deadline) > 800) {
+      const results = await Promise.all(wave.map(sm => readSitemap(sm, origin, { timeout: Math.max(500, remaining(deadline) - 200) })));
+      for (const parsed of results) { probes.push(parsed); absorb(parsed); }
+    } else skipped = candidates; // budget épuisé : le client réessaiera avec un appel dédié
   }
-  if (out.sitemapFound) delete out.sitemapBlocked;
+  out.sitemapProbes = probes.map(p => ({ url: p.url, finalUrl: p.finalUrl, status: p.status, outcome: p.outcome }));
+  out.sitemapDeclared = declared;
+  if (!out.sitemapFound) {
+    // Rien de lu. « Absent » ne se conclut que si CHAQUE adresse essayée a
+    // répondu introuvable (ou par une page ordinaire). Un délai, une erreur
+    // serveur ou un pare-feu ne prouvent rien : le client réessaie ces
+    // adresses avec un budget neuf, puis le rapport dit « non vérifiable ».
+    const inconclusive = probes.filter(p => !SITEMAP_ABSENT_OUTCOMES.has(p.outcome));
+    // Les adresses déclarées dans robots.txt d'abord : c'est la parole du site,
+    // et sitemap_index.xml répond sans la redirection qui double le délai de /sitemap.xml.
+    const retryOrder = url => declared.includes(url) ? 0 : /\/sitemap\.xml$/.test(url) ? 2 : 1;
+    out.sitemapRetry = [...new Set([...inconclusive.map(p => p.url), ...skipped])].sort((x, y) => retryOrder(x) - retryOrder(y)).slice(0, 6);
+    const blocked = inconclusive.find(p => p.outcome === "blocked" || p.outcome === "challenge");
+    if (blocked) { out.sitemapBlocked = blocked.status; out.sitemapBlockedKind = blocked.outcome; }
+    else if (inconclusive.length) out.sitemapUnverifiable = inconclusive[0].outcome;
+    else if (skipped.length) out.sitemapUnverifiable = "budget";
+    out.sitemapDeclaredMissing = declared.filter(d => probes.some(p => p.url === d && SITEMAP_ABSENT_OUTCOMES.has(p.outcome)));
+  }
   if (!pages.size) pages.add(origin + "/"); // repli : on partira de l'accueil (BFS côté client)
   out.pages = [...pages];
   out.sitemapQueue = [...new Set(sitemapQueue)];
