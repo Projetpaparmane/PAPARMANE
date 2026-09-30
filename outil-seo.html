@@ -7,12 +7,12 @@
 <title>Outil SEO — PAPARMANE</title>
 <style>
   :root{
-    --bg:#ffffff; --surface:#ffffff; --surface-2:#f7f7f5; --surface-3:#efeeeb;
-    --ink:#1c1b19; --ink-soft:#55524d; --ink-faint:#8a867f; --line:#e5e3df;
-    --accent:#e64015; --accent-hi:#d23a12; --accent-soft:#fdeee8;
-    --good:#2f7d5b; --good-soft:#e5f3eb; --warn:#b36b0c; --warn-soft:#fbf0dc;
-    --crit:#c0392b; --crit-soft:#fbe6e2; --info:#2f6a8f; --info-soft:#e4eff7;
-    --shadow:0 1px 2px rgba(20,18,15,.05),0 4px 14px rgba(20,18,15,.05);
+    --bg:#1f2023; --surface:#28292d; --surface-2:#232427; --surface-3:#313236;
+    --ink:#f1f1f2; --ink-soft:#c3c4c8; --ink-faint:#8e9096; --line:#3a3b40;
+    --accent:#e64015; --accent-hi:#ff6a3d; --accent-soft:#3b231c;
+    --good:#6fce9f; --good-soft:#1e2e27; --warn:#e6a94a; --warn-soft:#322a1c;
+    --crit:#ef7b6b; --crit-soft:#35221f; --info:#77b4d8; --info-soft:#1d2830;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.28);
     --radius:14px;
     --serif:"Fraunces","Iowan Old Style",Palatino,Georgia,serif;
     --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
@@ -438,6 +438,30 @@ const plur = (n,sing,plural) => n+" "+(n>1?plural:sing);
 // 0 (délai), 401/403 (accès refusé au robot), 429 (limite de débit) et 503 viennent
 // le plus souvent d'un pare-feu : ce n'est pas une page morte prouvée.
 const isUnverifiableStatus = s => !s||s===401||s===403||s===429||s===503;
+// Verdict sur le plan de site à partir des essais réels. « Absent » n'est conclu
+// que si CHAQUE adresse essayée a répondu introuvable (ou par une page ordinaire) :
+// un pare-feu, une page anti-robot, un délai ou une erreur serveur ne prouvent
+// rien et donnent « non vérifiable », sans retirer de point.
+const SITEMAP_ABSENT = new Set(["missing","not-xml","invalid","unreachable","redirect-loop"]);
+function applySitemapVerdict(disc){
+  delete disc.sitemapBlocked; delete disc.sitemapBlockedKind; delete disc.sitemapUnverifiable;
+  if(disc.sitemapFound) return;
+  const inconclusive=(disc.sitemapProbes||[]).filter(p=>!SITEMAP_ABSENT.has(p.outcome));
+  const blocked=inconclusive.find(p=>p.outcome==="blocked"||p.outcome==="challenge");
+  if(blocked){ disc.sitemapBlocked=blocked.status||0; disc.sitemapBlockedKind=blocked.outcome; }
+  else if(inconclusive.length) disc.sitemapUnverifiable=inconclusive[0].outcome;
+}
+// Cause d'un essai non concluant, en quelques mots (journal, titres).
+const SITEMAP_CAUSE={timeout:"pas de réponse à temps","server-error":"erreur du serveur",error:"erreur de connexion",empty:"réponse vide",interstitial:"page intermédiaire servie à la place","api-error":"l'outil d'audit a échoué",blocked:"accès refusé au robot",challenge:"page anti-robot servie à la place",budget:"adresses restantes à demander"};
+// Libellé lisible d'un essai de lecture de sitemap (journal et rapport).
+function sitemapOutcomeLabel(p){
+  const s=p.status?" ("+p.status+")":"";
+  const L={found:"plan de site lu"+s,missing:"introuvable"+s,"not-xml":"répond"+s+" par une page ordinaire, pas par un plan de site",empty:"réponse vide"+s,interstitial:"redirigé vers une page intermédiaire"+s,blocked:"accès refusé au robot"+s,challenge:"page de vérification anti-robot servie à la place"+s,timeout:"pas de réponse dans le délai",error:"erreur de connexion",unreachable:"adresse qui ne mène nulle part (hôte inexistant)",invalid:"adresse invalide","redirect-loop":"redirection sans fin"+s,"server-error":"erreur du serveur"+s,"api-error":"l'outil d'audit a échoué"+s,budget:"pas encore demandé"};
+  let base=L[p.outcome]||("statut "+(p.status||0));
+  if(p.first&&p.first.outcome!==p.outcome) base=(L[p.first.outcome]||"statut "+(p.first.status||0))+" à la découverte, puis "+base;
+  else if(p.retried) base+=", même après une seconde tentative";
+  return base;
+}
 const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const short = (u,origin) => { const p = u.replace(origin,""); return p===""?"/ (accueil)":p; };
 const GENERIC_SCHEMA = new Set(["WebPage","WebSite","Organization","BreadcrumbList","ListItem","ImageObject","ReadAction","SearchAction","EntryPoint","PropertyValueSpecification","Person","Answer","Question","CollectionPage"]);
@@ -594,30 +618,76 @@ async function runAudit(){
     let cachedTraffic=null;
     try{const saved=JSON.parse(localStorage.getItem(trafficCacheKey)||"null");if(saved&&Date.now()-saved.cachedAt<604800000)cachedTraffic=saved.data;}catch{}
     const trafficPromise=cachedTraffic?Promise.resolve({...cachedTraffic,cached:true}):api({mode:"traffic",site:origin,location:"Canada",language:"fr"}).then(data=>{if(data.available||data.strategicKeywords?.available||data.competitors?.available||data.topPages?.available||data.backlinks?.available||data.aiMentions?.available)localStorage.setItem(trafficCacheKey,JSON.stringify({cachedAt:Date.now(),data}));return data;}).catch(e=>({configured:false,available:false,reason:e.code||"request_error",error:e.message}));
+    // Le sitemap n'a pas été lu dans le budget de la découverte (serveur lent,
+    // pare-feu, erreur). Chaque adresse candidate est réessayée par un appel
+    // dédié, donc avec un budget neuf : « absent » ne se conclut jamais d'un délai.
+    disc.sitemapProbes=Array.isArray(disc.sitemapProbes)?disc.sitemapProbes:[];
+    if(!disc.sitemapFound && disc.sitemapRetry?.length){
+      const cause=SITEMAP_CAUSE[disc.sitemapBlockedKind||disc.sitemapUnverifiable]||"réponse non concluante";
+      const list=disc.sitemapRetry.slice(0,4);
+      log("Plan de site : "+(disc.sitemapUnverifiable==="budget"?plur(list.length,"adresse restante à demander","adresses restantes à demander"):cause+". Nouvelle tentative sur "+plur(list.length,"adresse","adresses"))+"…");
+      // Un pare-feu qui vient de refuser accepte souvent la requête suivante après
+      // une pause ; une limite de débit (429) demande plus long, et insister la prolonge.
+      if(disc.sitemapBlocked) await new Promise(r=>setTimeout(r,disc.sitemapBlocked===429?10000:4000));
+      for(const sm of list){
+        const first=disc.sitemapProbes.find(p=>p.url===sm);
+        let parsed;
+        try{ parsed=await api({mode:"sitemap",url:sm,origin}); }
+        // Erreur de NOTRE fonction (400, 502…), pas du site audité : dit comme tel.
+        catch(e){ parsed={found:false,outcome:"api-error",status:e.status||0,pages:[],sitemaps:[]}; }
+        const probe={url:sm,finalUrl:parsed.finalUrl||sm,status:parsed.status||0,outcome:parsed.outcome||(parsed.found?"found":"api-error"),retried:!!first&&!parsed.found};
+        if(first&&!parsed.found) probe.first={outcome:first.outcome,status:first.status};
+        disc.sitemapProbes=disc.sitemapProbes.filter(p=>p.url!==sm).concat([probe]);
+        log((parsed.found?"✓ ":"✗ ")+short(sm,origin)+" — "+sitemapOutcomeLabel(probe), parsed.found?"okl":"warnl");
+        if(parsed.found){
+          disc.sitemapFound=true; disc.sitemapUrl=probe.finalUrl;
+          disc.pages=parsed.pages?.length?parsed.pages:[origin+"/"];
+          disc.sitemapQueue=parsed.sitemaps||[];
+          break;
+        }
+        if(probe.status===429) break; // limite de débit : chaque essai de plus la prolonge
+      }
+      applySitemapVerdict(disc);
+    }
     // Un index de sitemap peut référencer plusieurs sous-sitemaps. On les lit
     // séparément pour éviter les délais d'expiration des fonctions Netlify.
     if(disc.sitemapFound && disc.sitemapQueue?.length){
       log("Lecture de "+disc.sitemapQueue.length+" sous-sitemap(s)…");
-      const pending=[...disc.sitemapQueue], sitemapSeen=new Set(pending), foundPages=new Set(disc.pages);
+      const pending=[...disc.sitemapQueue], sitemapSeen=new Set(pending), foundPages=new Set(disc.pages), unread=[], broken=[];
+      const declaredSet=new Set(disc.sitemapDeclared||[]);
       let smDone=0;
       async function sitemapWorker(){
         while(pending.length && foundPages.size<MAX_AUDIT_PAGES){
           const sm=pending.shift(); if(!sm) break;
           try{
             const parsed=await api({mode:"sitemap",url:sm,origin});
+            // Un fichier référencé qui répond « introuvable » est un défaut du site ;
+            // un fichier qui ne répond pas rend la mesure incomplète. Les deux sont
+            // notés pour le rapport au lieu d'être ignorés en silence.
+            if(parsed.found===false){
+              const probe={url:sm,finalUrl:parsed.finalUrl||sm,status:parsed.status||0,outcome:parsed.outcome||"api-error",declared:declaredSet.has(sm)};
+              const conclusive=SITEMAP_ABSENT.has(probe.outcome);
+              (conclusive?broken:unread).push(probe);
+              log("⚠ "+(probe.declared?"Plan de site déclaré dans robots.txt":"Sous-sitemap")+(conclusive?" introuvable : ":" non lu : ")+short(sm,origin)+" — "+sitemapOutcomeLabel(probe), "warnl");
+            }
             for(const u of parsed.pages||[]) if(foundPages.size<MAX_AUDIT_PAGES) foundPages.add(u);
             for(const child of parsed.sitemaps||[]) if(!sitemapSeen.has(child)){
               sitemapSeen.add(child); pending.push(child);
             }
-          }catch(e){ log("⚠ Sitemap ignoré : "+sm+" ("+e.message+")", "warnl"); }
+          }catch(e){ unread.push({url:sm,finalUrl:sm,status:e.status||0,outcome:"api-error",declared:declaredSet.has(sm)}); log("⚠ Sous-sitemap non lu : "+short(sm,origin)+" ("+e.message+")", "warnl"); }
           smDone++; setBar(3+5*(smDone/Math.max(smDone+pending.length,1)));
         }
       }
       await Promise.all(Array.from({length:Math.min(4,pending.length)},()=>sitemapWorker()));
       disc.pages=[...foundPages].sort((a,b)=>a.localeCompare(b));
       disc.truncated=foundPages.size>=MAX_AUDIT_PAGES && pending.length>0;
+      disc.sitemapUnread=unread;
+      disc.sitemapBroken=broken;
     }
-    log("✓ "+origin+" — "+(disc.sitemapFound? disc.pages.length+" pages trouvées dans le sitemap":"pas de sitemap, exploration depuis l'accueil"), "okl");
+    const sitemapSummary=disc.sitemapFound?plur(disc.pages.length,"page trouvée","pages trouvées")+" dans le plan de site"+(disc.sitemapUrl?" ("+short(disc.sitemapUrl,origin)+")":"")
+      :(disc.sitemapBlocked||disc.sitemapUnverifiable)?"plan de site non vérifiable ("+(SITEMAP_CAUSE[disc.sitemapBlockedKind||disc.sitemapUnverifiable]||"réponse non concluante")+"), exploration depuis l'accueil"
+      :"aucun plan de site aux adresses habituelles, exploration depuis l'accueil";
+    log((disc.sitemapFound?"✓ ":"⚠ ")+origin+" — "+sitemapSummary, disc.sitemapFound?"okl":"warnl");
     if(disc.truncated) log("⚠ Plafond de sécurité atteint : "+MAX_AUDIT_PAGES+" pages seront analysées.", "warnl");
     setBar(8);
 
@@ -750,7 +820,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
       origin,disc,pages,deadPages,barrier:auditBarrier,
       clientName:options.clientName||"",contactName:options.contactName||"",
       linksChecked:0,previous:null,global:null,scores:null,counts:null,
-      auditMeta:{scoreVersion:"2.6",requested:pagesAll.length,successful:pages.length,transient:deadPages.filter(p=>p.transient).length,confidence:"non concluante",conclusive:false},
+      auditMeta:{scoreVersion:"2.7",requested:pagesAll.length,successful:pages.length,transient:deadPages.filter(p=>p.transient).length,confidence:"non concluante",conclusive:false},
     };
   }
   const n = Math.max(1,pages.length);
@@ -1060,14 +1130,43 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
     body:"L'URL canonique dit à Google quelle est l'adresse « officielle » d'une page — utile contre le contenu dupliqué technique.",
     where:noCanon.slice(0,8).map(p=>"<code>"+esc(sh(p.url))+"</code>"),
     steps:[isWP?"L'extension SEO (Yoast/RankMath) la génère automatiquement — vérifier qu'elle est active sur ces pages.":"Ajouter <code>&lt;link rel=\"canonical\" href=\"…\"&gt;</code> dans le <code>&lt;head&gt;</code>."], effort:"30 min", gain:"faible"});
-  if(!disc.sitemapFound&&disc.sitemapBlocked) issues.push({sev:"info",cat:"fondations",title:"Plan de site non vérifiable : accès refusé au robot d'audit",
-    body:"Le serveur a refusé de montrer le sitemap à notre robot (erreur "+esc(disc.sitemapBlocked)+"). C'est presque toujours un pare-feu ou une protection anti-robot, pas une absence réelle de sitemap. Ce point ne réduit pas le score.",
-    where:["<code>"+esc(origin)+"/sitemap.xml</code> — erreur "+esc(disc.sitemapBlocked)],
-    steps:["Relancer l'audit plus tard (les pare-feu bloquent souvent après plusieurs audits rapprochés).","Vérifier le sitemap dans Google Search Console, qui n'est pas bloqué.","Si le client le souhaite, autoriser l'agent « PaparmaneSEO » dans son pare-feu (Wordfence, Cloudflare…)."],effort:"5 min",gain:"fiabilité de la mesure"});
+  const sitemapProbes=disc.sitemapProbes||[];
+  const sitemapDeclaredSet=new Set(disc.sitemapDeclared||[]);
+  const sitemapLine=p=>"<code>"+esc(sh(p.url))+"</code>"+(sitemapDeclaredSet.has(p.url)||p.declared?" (déclaré dans robots.txt)":"")+" — "+esc(sitemapOutcomeLabel(p));
+  const sitemapWhere=sitemapProbes.length?sitemapProbes.map(sitemapLine):["<code>"+esc(origin)+"/sitemap.xml</code>"];
+  const sitemapInconclusive=sitemapProbes.filter(p=>p.outcome!=="found"&&!SITEMAP_ABSENT.has(p.outcome));
+  if(!disc.sitemapFound&&disc.sitemapBlocked) issues.push({sev:"info",cat:"fondations",title:disc.sitemapBlockedKind==="challenge"?"Plan de site non vérifiable : page anti-robot servie à la place":"Plan de site non vérifiable : accès refusé au robot d'audit",
+    body:"Le serveur n'a pas montré le plan de site à notre robot"+(disc.sitemapBlockedKind==="challenge"?" : il a renvoyé une page de vérification anti-robot (Cloudflare, Wordfence…) à la place":" (erreur "+esc(disc.sitemapBlocked)+")")+". C'est presque toujours un pare-feu ou une protection anti-robot, pas une absence réelle de plan de site. Ce point ne réduit pas le score, mais l'audit est marqué « provisoire ».",
+    where:sitemapWhere,
+    steps:["Relancer l'audit plus tard (les pare-feu bloquent souvent après plusieurs audits rapprochés).","Vérifier le plan de site dans Google Search Console, qui n'est pas bloqué.","Si le client le souhaite, autoriser l'agent « PaparmaneSEO » dans son pare-feu (Wordfence, Cloudflare…)."],effort:"5 min",gain:"fiabilité de la mesure"});
+  else if(!disc.sitemapFound&&disc.sitemapUnverifiable){
+    const TEXT={timeout:["le serveur n'a pas répondu à temps","aucune réponse n'est arrivée dans le délai"],"server-error":["le serveur a renvoyé une erreur","le serveur a répondu par une erreur (5xx)"],empty:["le serveur a renvoyé un fichier vide","le serveur a répondu par un fichier vide"],interstitial:["une page intermédiaire s'est interposée","le serveur a redirigé vers une page intermédiaire (vérification ou attente)"],error:["la connexion a échoué","la connexion a échoué"],"api-error":["notre outil a échoué","notre outil d'audit a échoué (le site n'y est pour rien)"],budget:["la lecture n'a pas pu être menée à terme","la lecture n'a pas pu être menée à terme"]};
+    const [title,detail]=TEXT[disc.sitemapUnverifiable]||TEXT.error;
+    const allRetried=sitemapInconclusive.length>0&&sitemapInconclusive.every(p=>p.retried);
+    const scope=sitemapInconclusive.length===sitemapProbes.length?"Pour chacune, ":"Pour "+plur(sitemapInconclusive.length,"d'entre elles","d'entre elles")+", ";
+    issues.push({sev:"info",cat:"fondations",title:"Plan de site non vérifiable : "+title,
+      body:"Notre robot a demandé le plan de site à "+plur(sitemapProbes.length,"adresse","adresses")+". "+scope+detail+(allRetried?", même à la seconde tentative":"")+(sitemapInconclusive.length<sitemapProbes.length?" ; les autres ont répondu « introuvable »":"")+". Cela ne prouve pas qu'il n'y a pas de plan de site : ce point ne réduit pas le score, mais l'audit est marqué « provisoire ».",
+      where:sitemapWhere,
+      steps:["Ouvrir <code>"+esc(origin)+"/sitemap_index.xml</code> ou <code>"+esc(origin)+"/sitemap.xml</code> dans le navigateur pour vérifier à la main.","Relancer l'audit à un moment plus calme pour le serveur.","Vérifier le plan de site dans Google Search Console."],effort:"5 min",gain:"fiabilité de la mesure"});
+  }
   else if(!disc.sitemapFound) issues.push({sev:"warn",cat:"fondations",title:"Aucun plan de site (sitemap.xml) trouvé",
-    body:"Le sitemap aide Google à découvrir toutes les pages. Sans lui, certaines pages peuvent rester invisibles.",
-    where:["<code>"+esc(origin)+"/sitemap.xml</code> — introuvable"],
-    steps:[isWP?"Activer le sitemap dans l'extension SEO (Yoast : réglé par défaut).":"Générer un sitemap.xml et le déposer à la racine du site.","Le déclarer dans robots.txt et dans Google Search Console."], effort:"30 min", gain:"moyen"});
+    body:"Le plan de site aide Google à découvrir toutes les pages. Sans lui, certaines pages peuvent rester invisibles. "+(disc.sitemapDeclaredMissing?.length?"<b>Le fichier robots.txt annonce un plan de site à "+disc.sitemapDeclaredMissing.map(u=>"<code>"+esc(sh(u))+"</code>").join(", ")+", mais cette adresse n'en renvoie pas</b> : Google la suit pour rien. ":"")+"Chaque adresse ci-dessous a été demandée, et aucune ne renvoie un plan de site.",
+    where:sitemapWhere,
+    steps:[isWP?"Activer le plan de site dans l'extension SEO (Yoast : réglé par défaut).":"Générer un sitemap.xml et le déposer à la racine du site.","Le déclarer dans robots.txt et dans Google Search Console."], effort:"30 min", gain:"moyen"});
+  // Plan de site trouvé, mais des fichiers annoncés (par robots.txt ou par l'index) ne mènent à rien.
+  const sitemapBroken=[...(disc.sitemapDeclaredMissing||[]).filter(u=>!(disc.sitemapBroken||[]).some(p=>p.url===u)).map(u=>sitemapProbes.find(p=>p.url===u)||{url:u,outcome:"missing",status:0}),...(disc.sitemapBroken||[])];
+  if(disc.sitemapFound&&sitemapBroken.length) issues.push({sev:"warn",cat:"fondations",title:plur(sitemapBroken.length,"fichier annoncé du plan de site ne mène à rien","fichiers annoncés du plan de site ne mènent à rien"),
+    body:"Le plan de site principal a été lu, mais "+(sitemapBroken.some(p=>p.declared||sitemapDeclaredSet.has(p.url))?"le fichier robots.txt ou l'index":"l'index")+" annonce des fichiers qui répondent « introuvable » ou par une page ordinaire. Google les demande pour rien, et les pages qu'ils devaient lister ne lui sont pas annoncées.",
+    where:sitemapBroken.slice(0,10).map(sitemapLine),
+    steps:["Corriger ou retirer ces adresses (ligne <code>Sitemap:</code> du robots.txt, ou réglages de l'extension SEO).","Soumettre à nouveau le plan de site dans Google Search Console."],effort:"15 min",gain:"exploration"});
+  if(disc.robots?.unverifiable) issues.push({sev:"info",cat:"indexation",title:"Fichier robots.txt non vérifiable",
+    body:"Notre robot n'a pas pu lire le fichier <code>robots.txt</code>. Les états « autorisé par défaut » de la section Visibilité IA sont donc une hypothèse, pas une observation, et l'audit est marqué « provisoire ». Ce point ne réduit pas le score.",
+    where:["<code>"+esc(origin)+"/robots.txt</code> — "+esc(sitemapOutcomeLabel({outcome:disc.robots.unverifiable,status:disc.robots.status}))],
+    steps:["Ouvrir <code>"+esc(origin)+"/robots.txt</code> dans le navigateur pour vérifier à la main.","Relancer l'audit plus tard."],effort:"2 min",gain:"fiabilité de la mesure"});
+  if(disc.sitemapFound&&disc.sitemapUnread?.length) issues.push({sev:"info",cat:"fondations",title:plur(disc.sitemapUnread.length,"sous-sitemap n'a pas pu être lu","sous-sitemaps n'ont pas pu être lus"),
+    body:"L'index du plan de site a été lu, mais certains fichiers qu'il référence n'ont pas pu être lus (la réponse de chacun est indiquée ci-dessous). Les pages qu'ils listent n'ont donc pas été auditées : ce point ne réduit pas le score, mais l'audit est marqué « provisoire ».",
+    where:disc.sitemapUnread.slice(0,10).map(sitemapLine),
+    steps:["Ouvrir ces fichiers dans le navigateur pour vérifier qu'ils répondent.","Relancer l'audit plus tard."],effort:"5 min",gain:"fiabilité de la mesure"});
 
   // ---- Qualité web et signaux techniques observables sans donnée payante ----
   const measuredResponses=pages.filter(p=>Number.isFinite(p.response?.elapsedMs)&&p.response.elapsedMs>0);
@@ -1365,7 +1464,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   if(pages.every(p=>p.https)) wins.push(["Site sécurisé (HTTPS)","exigé par Google."]);
   if(noViewport.length===0) wins.push(["Adapté au mobile","balise viewport présente partout."]);
   if(pages.every(p=>p.lang)) wins.push(["Langue déclarée",(pages[0].lang||"")+" — bon signal local."]);
-  if(disc.sitemapFound) wins.push(["Plan de site présent","Google découvre facilement les pages."]);
+  if(disc.sitemapFound) wins.push(["Plan de site présent",(disc.sitemapUrl?sh(disc.sitemapUrl)+" — ":"")+"Google découvre facilement les pages."]);
   if(disc.robots?.exists) wins.push(["robots.txt en place","directives d'exploration définies."]);
   if(dead.length===0&&linkResults.length>unverifiable.length) wins.push(["Aucun lien interne brisé",(linkResults.length-unverifiable.length)+" liens vérifiés."]);
   if(preciseIdentity.length) wins.push(["Identité d'entreprise précise",preciseIdentity.slice(0,3).join(", ")+" — le type le plus précis possible, c'est exactement ce que Google attend."]);
@@ -1410,7 +1509,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   const linkPenaltyUnits=dead.length+inaccessiblePublicPages.length*2+orphanPages.length*.5;
   const linkPopulation=Math.max(1,linkResults.length+pagesAll.length);
   const scores = {
-    fondations: Math.round(100*( (pages.every(p=>p.https)?0.3:0) + 0.2*ratio(noViewport.length,n) + 0.1*ratio(noLang.length,n) + 0.2*ratio(noCanon.length,n) + (disc.sitemapFound||disc.sitemapBlocked?0.2:0.05) )),
+    fondations: Math.round(100*( (pages.every(p=>p.https)?0.3:0) + 0.2*ratio(noViewport.length,n) + 0.1*ratio(noLang.length,n) + 0.2*ratio(noCanon.length,n) + (disc.sitemapFound||disc.sitemapBlocked||disc.sitemapUnverifiable?0.2:0.05) )),
     balises: Math.round(100*(0.5*ratio(pages.filter(p=>!p.title||p.titleLen>60||dupT.some(g=>g.includes(p))).length,n) + 0.5*ratio(pages.filter(p=>!p.desc||p.descLen>165||dupD.some(g=>g.includes(p))).length,n))),
     structure: Math.round(100*ratio(h1Zero.length+h1Multi.length,n)),
     images: contentTotal? Math.round(100*(1-contentBad/contentTotal)) : 100,
@@ -1472,7 +1571,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   const quickWins=issues.filter(i=>/\b(?:3|5|10|15|20|30) min|~(?:3|5|10|15|20|30) min/i.test(i.effort||"")).length;
   const proofCount=issues.reduce((sum,i)=>sum+(i.where?.length||0),0);
   const opportunityScore=Math.max(0,Math.min(100,Math.round((100-global)*1.05+counts.crit*4+counts.warn*1.5)));
-  const auditMeta={scoreVersion:"2.6",requested:pagesAll.length,successful:pages.length,transient:transientPages.length,confidence:transientPages.length||disc.sitemapBlocked?"provisoire":"élevée",conclusive:true};
+  const auditMeta={scoreVersion:"2.7",requested:pagesAll.length,successful:pages.length,transient:transientPages.length,confidence:transientPages.length||disc.sitemapBlocked||disc.sitemapUnverifiable||disc.sitemapUnread?.length||disc.robots?.unverifiable?"provisoire":"élevée",conclusive:true};
   const avgResources=pages.length?Math.round(pages.reduce((sum,p)=>sum+(p.resources?.total||0),0)/pages.length):0;
   const homepageStrictImages=(homepage?.images||[]).filter(im=>im.cls!=="tech");
   const homepageStrictFlagged=homepageStrictImages.filter(im=>im.alt===null||im.alt==="");
@@ -2134,6 +2233,7 @@ function renderReport(m){
       <div class="track"><div class="fill" style="width:${a.score}%;background:${barColor(a.score)}"></div></div>
       <p>${esc(a.detail)}</p></div>`).join("")}</div>
     <p class="sec-intro">Le tableau ci-dessous montre précisément quels robots ont le droit de lire le site et à quel usage ils servent.</p>
+    ${m.disc.robots?.unverifiable?`<div class="note"><b>Fichier robots.txt non vérifiable</b> — ${esc(sitemapOutcomeLabel({outcome:m.disc.robots.unverifiable,status:m.disc.robots.status}))} : les états « autorisé par défaut » ci-dessous sont une hypothèse, pas une observation.</div>`:""}
     <div class="tbl-wrap"><table>
       <thead><tr><th>Robot</th><th>Ce qu'il alimente</th><th class="c">État</th><th>Conséquence si bloqué</th></tr></thead>
       <tbody>${m.disc.aiBots.map(botRow).join("")}</tbody>
@@ -2164,7 +2264,7 @@ function renderReport(m){
 
     <div class="note"><b>Méthodologie — score v${esc(m.auditMeta.scoreVersion)}, confiance ${esc(m.auditMeta.confidence)}.</b> Rapport produit par le moteur d'analyse Paparmane :
       ${m.pages.length} pages crawlées, ${m.pages.reduce((a,p)=>a+(p.images||[]).length,0)} images inspectées,
-      ${m.linksChecked} liens internes vérifiés, robots.txt, indexabilité META/HTTP, canoniques, hiérarchie H1–H6, ALT strict et sémantique, ressources HTML, iFrames, favicon, hreflang, données structurées et llms.txt analysés. Les URL et les liens sont triés avant échantillonnage pour rendre deux audits comparables; les erreurs réseau sont relancées une fois. Le temps de réponse est un indicateur ponctuel et ne modifie pas le score. Les volumes Google, estimations de trafic, pages les plus visibles, concurrents organiques, backlinks et mentions IA affichés comme tels proviennent de DataForSEO; Paparmane ne fabrique jamais ces chiffres et les données externes ne modifient pas le score technique.</div>
+      ${m.linksChecked} liens internes vérifiés, robots.txt, indexabilité META/HTTP, canoniques, hiérarchie H1–H6, ALT strict et sémantique, ressources HTML, iFrames, favicon, hreflang, données structurées et llms.txt analysés. Les URL et les liens sont triés avant échantillonnage pour rendre deux audits comparables; les erreurs réseau sont relancées une fois. Le plan de site est cherché à /sitemap.xml, aux adresses déclarées dans robots.txt, puis à sitemap_index.xml, wp-sitemap.xml et sitemaps.xml; une adresse restée sans réponse claire est redemandée une seconde fois. Une absence de réponse, une erreur du serveur, un refus ou une page anti-robot sont rapportés « non vérifiable », jamais comptés comme une absence : seule une réponse « introuvable » à chaque adresse conclut à l'absence. Le temps de réponse est un indicateur ponctuel et ne modifie pas le score. Les volumes Google, estimations de trafic, pages les plus visibles, concurrents organiques, backlinks et mentions IA affichés comme tels proviennent de DataForSEO; Paparmane ne fabrique jamais ces chiffres et les données externes ne modifient pas le score technique.</div>
 
     <div class="toolbar">
       <button class="btn ghost" onclick="window.print()">Imprimer / PDF client</button>
