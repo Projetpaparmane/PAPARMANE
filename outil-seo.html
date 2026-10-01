@@ -1783,6 +1783,12 @@ function renderReport(m){
   if(_pf) _pf.textContent=(m.clientName||"").trim()
     ? "Préparé pour "+(m.clientName||"").trim()
     : "Rapport préparé par Paparmane";
+  // Le navigateur nomme le PDF d'après le titre de la page : on y ajoute le
+  // nom du client (ou, à défaut, le domaine audité). Caractères interdits dans
+  // un nom de fichier retirés.
+  const pdfName=((m.clientName||"").trim()||String(m.origin||"").replace(/^https?:\/\//,"").replace(/^www\./,"").replace(/\/$/,""))
+    .replace(/[\\/:*?"<>|]+/g," ").replace(/\s+/g," ").trim().slice(0,80);
+  document.title="Outil SEO — PAPARMANE"+(pdfName?" — "+pdfName:"");
   if(m.auditMeta?.conclusive===false){renderInconclusiveReport(m);return;}
   const sh=u=>short(u,m.origin);
   const today = new Date().toLocaleDateString("fr-CA",{year:"numeric",month:"long",day:"numeric"});
