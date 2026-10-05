@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>App bénévole, jour J · Récréaction</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=Barlow:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#14201B}a:hover{color:#000000}
+</style>
+<link rel="stylesheet" href="prototype.css">
+<script src="runtime.js" defer></script>
+</head>
+<body>
+<a class="proto-home" href="index.html">Tous les écrans</a>
+<div id="dc-root"></div>
+<template id="dc-template">
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #EEF0EA; color: #14201B; font-family: 'Barlow', sans-serif; display: flex; flex-direction: column; overflow: hidden">
+
+<header style="flex: none; display: flex; align-items: center; justify-content: space-between; padding: 20px 16px 6px">
+<div>
+<div style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; color: #2E7D4F"><span style="width: 8px; height: 8px; border-radius: 999px; background: #2E7D4F"></span>BÉNÉVOLE · EN POSTE</div>
+<h1 style="margin: 2px 0 0; font-size: 20px; font-weight: 700">Ravito 2 · km 12,5</h1>
+</div>
+<span style="background: #14201B; color: #FFFFFF; border-radius: 999px; padding: 6px 12px; font-size: 13px; font-weight: 700">7 h à 11 h</span>
+</header>
+
+<main style="flex: 1; min-height: 0; overflow: hidden; padding: 4px 16px 12px; display: flex; flex-direction: column; gap: 10px">
+
+<section style="background: #FFFFFF; border-radius: 18px; padding: 10px 10px 10px 14px; display: flex; align-items: center; gap: 12px">
+<span aria-hidden="true" style="width: 32px; height: 32px; flex: none; border-radius: 999px; background: #2E7D4F; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"></path></svg></span>
+<div style="flex-grow: 1; min-width: 0">
+<div style="font-size: 15px; font-weight: 700">Arrivée confirmée à 6 h 52</div>
+<div style="font-size: 13px; color: #4A5650">Responsable du poste : Isabelle M.</div>
+</div>
+<button type="button" aria-label="Appeler Isabelle" style="width: 44px; height: 44px; flex: none; border: 2px solid #14201B; border-radius: 999px; background: transparent; color: #14201B; display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"></path></svg></button>
+</section>
+
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+<button type="button" style="min-height: 112px; border: 0; border-radius: 18px; background: #C81E1E; color: #FFFFFF; padding: 14px; text-align: left; display: flex; flex-direction: column; justify-content: space-between; gap: 10px; font-family: 'Barlow', sans-serif; cursor: pointer">
+<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9.5 17h-19z"></path><path d="M12 10v4"></path><path d="M12 17.5v.5"></path></svg>
+<span><span style="display: block; font-size: 16px; font-weight: 700; line-height: 1.2">Coureur en difficulté</span><span style="display: block; margin-top: 2px; font-size: 12px">Scanne son dossard</span></span>
+</button>
+<button type="button" style="min-height: 112px; border: 0; border-radius: 18px; background: #14201B; color: #FFFFFF; padding: 14px; text-align: left; display: flex; flex-direction: column; justify-content: space-between; gap: 10px; font-family: 'Barlow', sans-serif; cursor: pointer">
+<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FF5B1A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4"></path><path d="M5 4h12l-2 4 2 4H5"></path></svg>
+<span><span style="display: block; font-size: 16px; font-weight: 700; line-height: 1.2">Abandon d’un coureur</span><span style="display: block; margin-top: 2px; font-size: 12px; color: #C9D2CC">Scanne son dossard · navette</span></span>
+</button>
+</div>
+
+<section aria-label="Niveau des stocks" style="background: #FFFFFF; border-radius: 18px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px">
+<h2 style="margin: 0; font-size: 16px; font-weight: 700">Niveau des stocks</h2>
+<div style="font-size: 14px; font-weight: 600">Eau</div>
+<div role="group" aria-label="Niveau d’eau" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px">
+<sc-for list="{{water}}" as="l" hint-placeholder-count="4">
+<button type="button" aria-pressed="{{l.pressed}}" onClick="{{l.pick}}" style="height: 44px; border-radius: 10px; border: 2px solid {{l.border}}; background: {{l.bg}}; color: {{l.fg}}; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer">{{l.label}}</button>
+</sc-for>
+</div>
+<div style="font-size: 14px; font-weight: 600">Gels et fruits</div>
+<div role="group" aria-label="Niveau des gels et fruits" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px">
+<sc-for list="{{gels}}" as="l" hint-placeholder-count="4">
+<button type="button" aria-pressed="{{l.pressed}}" onClick="{{l.pick}}" style="height: 44px; border-radius: 10px; border: 2px solid {{l.border}}; background: {{l.bg}}; color: {{l.fg}}; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer">{{l.label}}</button>
+</sc-for>
+</div>
+<sc-if value="{{needRefill}}" hint-placeholder-val="{{true}}">
+<div role="status" style="display: flex; align-items: center; gap: 8px; background: #FFE6D2; border-radius: 10px; padding: 8px 10px; font-size: 13px; line-height: 1.35"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A33A00" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M3 7h11v9H3z"></path><path d="M14 10h4l3 3v3h-7"></path><circle cx="7" cy="17.5" r="1.8"></circle><circle cx="17" cy="17.5" r="1.8"></circle></svg><span>{{refillText}}</span></div>
+</sc-if>
+</section>
+
+<section aria-label="Messages du poste de commandement" style="background: #FFFFFF; border-radius: 18px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px">
+<h2 style="margin: 0; font-size: 16px; font-weight: 700">Messages de l’organisation</h2>
+<div style="font-size: 14px; line-height: 1.35"><strong>10 h 15</strong> · Chaleur : offrez de l’eau à chaque coureur, même s’il ne la demande pas.</div>
+<div style="padding-top: 8px; border-top: 1px solid #E4E8E0; font-size: 14px; line-height: 1.35"><strong>9 h 40</strong> · Les coureurs du 50 km passent chez vous entre 9 h 30 et 11 h.</div>
+</section>
+
+</main>
+
+<nav aria-label="Navigation bénévole" style="flex: none; height: 80px; box-sizing: border-box; padding: 6px 6px 20px; background: #FFFFFF; border-top: 1px solid #D9DDD5; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr))">
+<a href="benevole-jour-j.html" aria-current="page" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-decoration: none; color: #14201B; font-size: 11px; font-weight: 700"><span style="display: flex; align-items: center; justify-content: center; width: 52px; height: 28px; border-radius: 999px; background: #FF5B1A"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11z"></path><circle cx="12" cy="10" r="2.2"></circle></svg></span><span>Mon poste</span></a>
+<button type="button" style="border: 0; background: transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #5C6862; font-family: 'Barlow', sans-serif; font-size: 11px; font-weight: 600; cursor: pointer"><span style="display: flex; align-items: center; justify-content: center; width: 52px; height: 28px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"></path><path d="M9 4v14"></path><path d="M15 6v14"></path></svg></span><span>Carte</span></button>
+<button type="button" style="border: 0; background: transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #5C6862; font-family: 'Barlow', sans-serif; font-size: 11px; font-weight: 600; cursor: pointer"><span style="display: flex; align-items: center; justify-content: center; width: 52px; height: 28px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"></path></svg></span><span>Messages</span></button>
+<button type="button" style="border: 0; background: transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #5C6862; font-family: 'Barlow', sans-serif; font-size: 11px; font-weight: 600; cursor: pointer"><span style="display: flex; align-items: center; justify-content: center; width: 52px; height: 28px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16v4a2 2 0 0 0 0 4v4H4v-4a2 2 0 0 0 0-4z"></path><path d="M14 7v2M14 11v2M14 15v2"></path></svg></span><span>Billet repas</span></button>
+</nav>
+
+</div>
+</template>
+<script type="text/x-dc" id="dc-logic">
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const water = st.water || '30';
+    const gels = st.gels || 'moitie';
+    const make = (opts, current, key) => opts.map((o) => {
+      const on = o.id === current;
+      return {
+        label: o.label,
+        pressed: on ? 'true' : 'false',
+        bg: on ? (o.low ? '#E8A200' : '#14201B') : '#FFFFFF',
+        fg: on ? (o.low ? '#14201B' : '#FFFFFF') : '#14201B',
+        border: on ? (o.low ? '#E8A200' : '#14201B') : '#D9DDD5',
+        pick: () => {
+          const next = {};
+          next[key] = o.id;
+          this.setState(next);
+        }
+      };
+    });
+    const waterOpts = [
+      { id: 'plein', label: 'Plein' },
+      { id: '70', label: '70 %' },
+      { id: '30', label: '30 %', low: true },
+      { id: 'vide', label: 'Vide', low: true }
+    ];
+    const gelOpts = [
+      { id: 'plein', label: 'Plein' },
+      { id: 'moitie', label: 'Moitié' },
+      { id: 'bas', label: 'Bas', low: true },
+      { id: 'vide', label: 'Vide', low: true }
+    ];
+    const waterLow = water === '30' || water === 'vide';
+    const gelsLow = gels === 'bas' || gels === 'vide';
+    let refillText = '';
+    if (waterLow && gelsLow) refillText = 'Réapprovisionnement demandé : eau, gels et fruits. Le camion arrive dans 10 min environ.';
+    else if (waterLow) refillText = 'Réapprovisionnement d’eau demandé. Le camion arrive dans 10 min environ.';
+    else if (gelsLow) refillText = 'Réapprovisionnement de gels et fruits demandé au poste de commandement.';
+    return {
+      water: make(waterOpts, water, 'water'),
+      gels: make(gelOpts, gels, 'gels'),
+      needRefill: waterLow || gelsLow,
+      refillText: refillText
+    };
+  }
+}
+</script>
+</body>
+</html>

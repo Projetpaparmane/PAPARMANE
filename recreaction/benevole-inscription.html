@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Devenir bénévole · Récréaction</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=Barlow:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#14201B}a:hover{color:#000000}
+</style>
+<link rel="stylesheet" href="prototype.css">
+<script src="runtime.js" defer></script>
+</head>
+<body>
+<a class="proto-home" href="index.html">Tous les écrans</a>
+<div id="dc-root"></div>
+<template id="dc-template">
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #EEF0EA; color: #14201B; font-family: 'Barlow', sans-serif; display: flex; flex-direction: column; overflow: hidden">
+
+<header style="flex: none; display: flex; align-items: center; gap: 6px; padding: 20px 12px 6px">
+<button type="button" aria-label="Retour" style="width: 44px; height: 44px; flex: none; border: 0; background: transparent; color: #14201B; border-radius: 999px; display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg></button>
+<div style="flex-grow: 1">
+<h1 style="margin: 0; font-size: 20px; font-weight: 700">Devenir bénévole</h1>
+<div style="font-size: 13px; color: #4A5650">Trail des Crêtes 2026 · 16 et 17 octobre</div>
+</div>
+</header>
+
+<main style="flex: 1; min-height: 0; overflow: hidden; padding: 4px 16px 12px; display: flex; flex-direction: column; gap: 10px">
+
+<ul aria-label="Ce qui est inclus" style="list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px">
+<li style="background: #FFFFFF; border-radius: 999px; padding: 4px 10px; font-size: 13px; font-weight: 600">Repas inclus</li>
+<li style="background: #FFFFFF; border-radius: 999px; padding: 4px 10px; font-size: 13px; font-weight: 600">T-shirt bénévole</li>
+<li style="background: #FFFFFF; border-radius: 999px; padding: 4px 10px; font-size: 13px; font-weight: 600">Attestation d’heures</li>
+<li style="background: #FF5B1A; color: #14201B; border-radius: 999px; padding: 4px 10px; font-size: 13px; font-weight: 700">-50 % sur ta prochaine inscription</li>
+</ul>
+
+<fieldset style="border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; min-width: 0">
+<legend style="padding: 0; margin-bottom: 6px; font-size: 15px; font-weight: 700">Choisis ton poste</legend>
+<sc-for list="{{postes}}" as="p" hint-placeholder-count="5">
+<label style="display: flex; align-items: center; gap: 12px; background: #FFFFFF; border: 2px solid {{p.border}}; border-radius: 14px; padding: 7px 12px; cursor: pointer; opacity: {{p.opacity}}">
+<input type="radio" name="poste" value="{{p.id}}" checked="{{p.selected}}" disabled="{{p.full}}" onChange="{{p.pick}}" style="width: 20px; height: 20px; margin: 0; flex: none; accent-color: #14201B">
+<span style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column">
+<span style="font-size: 15px; font-weight: 700">{{p.name}}</span>
+<span style="font-size: 12px; color: #4A5650">{{p.time}}</span>
+</span>
+<span style="flex: none; width: 80px; display: flex; flex-direction: column; align-items: flex-end; gap: 5px">
+<span style="font-size: 12px; font-weight: 700; color: {{p.noteColor}}">{{p.note}}</span>
+<span style="display: block; width: 80px; height: 6px; border-radius: 999px; background: #E4E8E0; overflow: hidden"><span style="display: block; height: 6px; width: {{p.pct}}; border-radius: 999px; background: {{p.bar}}"></span></span>
+</span>
+</label>
+</sc-for>
+</fieldset>
+
+<div>
+<div style="font-size: 15px; font-weight: 700; margin-bottom: 8px">Tes compétences <span style="font-weight: 500; color: #4A5650">(facultatif)</span></div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px">
+<sc-for list="{{skills}}" as="k" hint-placeholder-count="4">
+<button type="button" onClick="{{k.toggle}}" aria-pressed="{{k.pressed}}" style="height: 44px; padding: 0 14px; border-radius: 999px; border: 2px solid {{k.border}}; background: {{k.bg}}; color: {{k.fg}}; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer">{{k.label}}</button>
+</sc-for>
+</div>
+</div>
+
+<label style="display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.35; cursor: pointer">
+<input type="checkbox" checked="{{signed}}" onChange="{{toggleSigned}}" style="width: 20px; height: 20px; margin: 0; flex: none; accent-color: #14201B">
+<span>Je signe l’entente de bénévolat (signature électronique).</span>
+</label>
+
+</main>
+
+<div style="flex: none; padding: 12px 16px 24px; background: #FFFFFF; border-top: 1px solid #D9DDD5">
+<sc-if value="{{canJoin}}" hint-placeholder-val="{{true}}">
+<button type="button" onClick="{{join}}" style="width: 100%; height: 54px; border: 0; border-radius: 14px; background: #FF5B1A; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 17px; font-weight: 700; cursor: pointer">Je m’inscris : {{selName}}</button>
+</sc-if>
+<sc-if value="{{needSign}}" hint-placeholder-val="{{false}}">
+<button type="button" disabled="{{true}}" style="width: 100%; height: 54px; border: 0; border-radius: 14px; background: #E4E8E0; color: #4A5650; font-family: 'Barlow', sans-serif; font-size: 16px; font-weight: 700">Signe l’entente pour continuer</button>
+</sc-if>
+<sc-if value="{{joined}}" hint-placeholder-val="{{false}}">
+<div role="status" style="display: flex; flex-direction: column; gap: 6px; background: #E3F1E8; border-radius: 14px; padding: 12px 14px">
+<div style="font-size: 16px; font-weight: 700">C’est noté, merci!</div>
+<div style="font-size: 13px; line-height: 1.35">Ta fiche de poste et une formation de 5 minutes t’attendent dans l’app. On te rappelle tout à J-7.</div>
+<a href="benevole-jour-j.html" style="min-height: 44px; display: inline-flex; align-items: center; gap: 4px; font-size: 14px; font-weight: 700">Voir l’app bénévole le jour J<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"></path></svg></a>
+</div>
+</sc-if>
+</div>
+
+</div>
+</template>
+<script type="text/x-dc" id="dc-logic">
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const poste = st.poste || 'r2';
+    const signed = st.signed !== false;
+    const joined = st.joined === true;
+    const sk = st.skills || { soins: true };
+    const list = [
+      { id: 'dossards', name: 'Remise des dossards', time: 'Vendredi, 16 h à 20 h', have: 6, need: 8 },
+      { id: 'balisage', name: 'Balisage du parcours', time: 'Vendredi, 13 h à 17 h · bonne forme', have: 4, need: 6 },
+      { id: 'r2', name: 'Ravito 2 · km 12,5', time: 'Samedi, 7 h à 11 h', have: 6, need: 8 },
+      { id: 'sig', name: 'Signaleur · chemin du Lac', time: 'Samedi, 7 h 30 à 10 h 30 · formation 15 min', have: 11, need: 12 },
+      { id: 'arr', name: 'Arrivée et médailles', time: 'Samedi, 9 h à 13 h', have: 10, need: 10 }
+    ];
+    const sel = list.find((p) => p.id === poste) || list[2];
+    const postes = list.map((p) => {
+      const full = p.have >= p.need;
+      const missing = p.need - p.have;
+      const on = p.id === sel.id;
+      return {
+        id: p.id,
+        name: p.name,
+        time: p.time,
+        full: full,
+        selected: on,
+        border: on ? '#14201B' : '#FFFFFF',
+        opacity: full ? '0.55' : '1',
+        note: full ? 'Complet' : (missing >= 2 ? 'Il manque ' + missing : p.have + ' sur ' + p.need),
+        noteColor: full ? '#4A5650' : (missing >= 2 ? '#A33A00' : '#4A5650'),
+        pct: Math.round((p.have / p.need) * 100) + '%',
+        bar: full ? '#2E7D4F' : (missing >= 2 ? '#E8A200' : '#14201B'),
+        pick: () => this.setState({ poste: p.id, joined: false })
+      };
+    });
+    const skillList = [
+      { id: 'soins', label: 'Premiers soins' },
+      { id: 'permis', label: 'Permis de conduire' },
+      { id: 'anglais', label: 'Anglais' },
+      { id: 'radio', label: 'Radio' }
+    ];
+    return {
+      postes: postes,
+      skills: skillList.map((k) => {
+        const on = sk[k.id] === true;
+        return {
+          label: k.label,
+          pressed: on ? 'true' : 'false',
+          bg: on ? '#14201B' : '#FFFFFF',
+          fg: on ? '#FFFFFF' : '#14201B',
+          border: on ? '#14201B' : '#D9DDD5',
+          toggle: () => {
+            const next = Object.assign({}, sk);
+            next[k.id] = !on;
+            this.setState({ skills: next });
+          }
+        };
+      }),
+      signed: signed,
+      toggleSigned: () => this.setState({ signed: !signed, joined: false }),
+      selName: sel.name,
+      canJoin: signed && !joined,
+      needSign: !signed,
+      joined: joined && signed,
+      join: () => this.setState({ joined: true })
+    };
+  }
+}
+</script>
+</body>
+</html>

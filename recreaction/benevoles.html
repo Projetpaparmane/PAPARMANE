@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Bénévoles, couverture des postes · Récréaction</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=Barlow:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#14201B}a:hover{color:#000000}
+</style>
+<link rel="stylesheet" href="prototype.css">
+<script src="runtime.js" defer></script>
+</head>
+<body>
+<a class="proto-home" href="index.html">Tous les écrans</a>
+<div id="dc-root"></div>
+<template id="dc-template">
+<div style="min-height: 100vh; box-sizing: border-box; background: #EEF0EA; color: #14201B; font-family: 'Barlow', sans-serif">
+<div style="max-width: 1440px; margin: 0 auto; box-sizing: border-box; padding: 24px 32px 40px; display: flex; flex-direction: column; gap: 20px">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px">
+<div style="display: flex; align-items: center; gap: 8px">
+<span aria-hidden="true" style="width: 32px; height: 32px; border-radius: 8px; background: #FF5B1A; color: #14201B; display: flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700">R</span>
+<span style="font-family: 'Barlow Condensed', sans-serif; font-size: 28px; font-weight: 700">Récréaction</span>
+<span style="margin-left: 6px; padding-left: 12px; border-left: 1px solid #C5CBC2; font-size: 14px; font-weight: 600; color: #4A5650">Espace organisateur</span>
+</div>
+<div style="flex: 1 1 280px; min-width: 0">
+<h1 style="margin: 0; font-size: 24px; font-weight: 700; line-height: 1.2">Bénévoles</h1>
+<div style="font-size: 14px; color: #4A5650">Trail des Crêtes 2026 · samedi 17 octobre</div>
+</div>
+<span style="display: inline-flex; align-items: center; gap: 8px; background: #14201B; color: #FFFFFF; border-radius: 999px; padding: 8px 14px; font-size: 14px; font-weight: 700"><span style="width: 8px; height: 8px; border-radius: 999px; background: #FF5B1A"></span>En direct · 10 h 44</span>
+</header>
+
+<nav aria-label="Sections de l’espace organisateur" style="display: flex; flex-wrap: wrap; gap: 8px">
+<a href="organisateur.html" style="height: 44px; box-sizing: border-box; padding: 0 18px; border-radius: 999px; border: 2px solid #D9DDD5; background: #FFFFFF; color: #14201B; display: inline-flex; align-items: center; font-size: 15px; font-weight: 700; text-decoration: none">Poste de commandement</a>
+<a href="benevoles.html" aria-current="page" style="height: 44px; box-sizing: border-box; padding: 0 18px; border-radius: 999px; border: 2px solid #14201B; background: #14201B; color: #FFFFFF; display: inline-flex; align-items: center; font-size: 15px; font-weight: 700; text-decoration: none">Bénévoles</a>
+<a href="infolettres.html" style="height: 44px; box-sizing: border-box; padding: 0 18px; border-radius: 999px; border: 2px solid #D9DDD5; background: #FFFFFF; color: #14201B; display: inline-flex; align-items: center; font-size: 15px; font-weight: 700; text-decoration: none">Infolettres</a>
+</nav>
+
+<nav aria-label="Vues des bénévoles" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: -8px">
+<a href="benevoles.html" aria-current="page" style="height: 44px; box-sizing: border-box; padding: 0 14px; border-radius: 10px; border: 2px solid #14201B; background: #FFFFFF; color: #14201B; display: inline-flex; align-items: center; font-size: 14px; font-weight: 700; text-decoration: none">Couverture des postes</a>
+<a href="benevoles-repertoire.html" style="height: 44px; box-sizing: border-box; padding: 0 14px; border-radius: 10px; border: 2px solid transparent; background: transparent; color: #4A5650; display: inline-flex; align-items: center; font-size: 14px; font-weight: 700; text-decoration: none">Répertoire et contacts</a>
+</nav>
+
+<section aria-label="Indicateurs des bénévoles" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px">
+<div style="background: #FFFFFF; border-radius: 16px; padding: 14px 16px">
+<div style="font-size: 13px; font-weight: 600; color: #4A5650">Bénévoles inscrits</div>
+<div style="font-family: 'Barlow Condensed', sans-serif; font-size: 40px; font-weight: 700; line-height: 1.05">86</div>
+<div style="font-size: 12px; color: #4A5650">sur les 3 jours</div>
+</div>
+<div style="background: #FFFFFF; border-radius: 16px; padding: 14px 16px">
+<div style="font-size: 13px; font-weight: 600; color: #4A5650">Présents aujourd’hui</div>
+<div style="font-family: 'Barlow Condensed', sans-serif; font-size: 40px; font-weight: 700; line-height: 1.05">68</div>
+<div style="font-size: 12px; color: #4A5650">sur 72 attendus · arrivée par code QR</div>
+</div>
+<div style="background: #FFFFFF; border: 2px solid {{incBorder}}; border-radius: 16px; padding: 12px 14px">
+<div style="font-size: 13px; font-weight: 700; color: {{incLabel}}">Postes incomplets</div>
+<div style="font-family: 'Barlow Condensed', sans-serif; font-size: 40px; font-weight: 700; line-height: 1.05">{{incomplete}}</div>
+<div style="font-size: 12px; color: #4A5650">{{incNote}}</div>
+</div>
+<div style="background: #FFFFFF; border-radius: 16px; padding: 14px 16px">
+<div style="font-size: 13px; font-weight: 600; color: #4A5650">Volants disponibles</div>
+<div style="font-family: 'Barlow Condensed', sans-serif; font-size: 40px; font-weight: 700; line-height: 1.05">{{volants}}</div>
+<div style="font-size: 12px; color: #4A5650">en réserve au village</div>
+</div>
+<div style="background: #FFFFFF; border-radius: 16px; padding: 14px 16px">
+<div style="font-size: 13px; font-weight: 600; color: #4A5650">Heures de bénévolat</div>
+<div style="font-family: 'Barlow Condensed', sans-serif; font-size: 40px; font-weight: 700; line-height: 1.05">412 h</div>
+<div style="font-size: 12px; color: #4A5650">attestations envoyées après l’événement</div>
+</div>
+</section>
+
+<div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start">
+
+<section aria-label="Couverture des postes" style="flex: 999 1 600px; min-width: 0; background: #FFFFFF; border-radius: 20px; padding: 16px 18px; display: flex; flex-direction: column">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 12px; margin-bottom: 8px">
+<h2 style="margin: 0; font-size: 18px; font-weight: 700">Couverture des postes · aujourd’hui</h2>
+<span style="font-size: 13px; color: #4A5650">Présents / requis</span>
+</div>
+<sc-for list="{{postes}}" as="p" hint-placeholder-count="9">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 9px 0; border-top: 1px solid #E4E8E0">
+<div style="flex: 1 1 220px; min-width: 0">
+<div style="font-size: 15px; font-weight: 700">{{p.name}}</div>
+<div style="font-size: 13px; color: #4A5650">{{p.time}}</div>
+</div>
+<div style="flex: 0 0 170px; display: flex; align-items: center; gap: 10px">
+<div style="flex-grow: 1; height: 8px; border-radius: 999px; background: #E4E8E0; overflow: hidden"><div style="height: 8px; width: {{p.pct}}; border-radius: 999px; background: {{p.bar}}"></div></div>
+<span style="width: 44px; text-align: right; font-size: 14px; font-weight: 700">{{p.ratio}}</span>
+</div>
+<span style="flex: 0 0 104px; box-sizing: border-box; text-align: center; border-radius: 6px; padding: 3px 8px; font-size: 12px; font-weight: 700; background: {{p.chipBg}}; color: {{p.chipFg}}">{{p.status}}</span>
+<div style="flex: 0 0 168px; display: flex; justify-content: flex-end">
+<sc-if value="{{p.canAssign}}" hint-placeholder-val="{{false}}">
+<button type="button" onClick="{{p.assign}}" style="height: 44px; padding: 0 14px; border: 0; border-radius: 10px; background: #FF5B1A; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer">Affecter un volant</button>
+</sc-if>
+</div>
+</div>
+</sc-for>
+</section>
+
+<aside style="flex: 1 1 360px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+
+<section style="background: #FFFFFF; border: 2px solid #E8A200; border-radius: 20px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px">
+<h2 style="margin: 0; font-size: 17px; font-weight: 700">Absents au ravito 2</h2>
+<div style="font-size: 14px">Kim L., Paul R. et Sarah D.</div>
+<div style="font-size: 13px; color: #4A5650">Texto automatique envoyé à 6 h 55, sans réponse.</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<button type="button" style="height: 44px; padding: 0 14px; border: 0; border-radius: 10px; background: #14201B; color: #FFFFFF; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer">Relancer</button>
+<button type="button" style="height: 44px; padding: 0 14px; border: 2px solid #14201B; border-radius: 10px; background: transparent; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer">Retirer de l’horaire</button>
+<a href="benevoles-repertoire.html" style="min-height: 44px; display: inline-flex; align-items: center; font-size: 14px; font-weight: 700">Voir leurs coordonnées</a>
+</div>
+</section>
+
+<section style="background: #FFFFFF; border-radius: 20px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px">
+<h2 style="margin: 0 0 4px; font-size: 17px; font-weight: 700">Signalements des bénévoles</h2>
+<div style="display: flex; gap: 12px; padding: 8px 0; border-top: 1px solid #E4E8E0; font-size: 14px; line-height: 1.35">
+<span style="flex: none; width: 50px; font-weight: 700">10 h 43</span>
+<span style="flex-grow: 1">Hugo T., signaleur au km 9 : dossard 1502 retrouvé, simple crampe, il repart.<br><span style="display: inline-block; margin-top: 4px; background: #E3F1E8; border-radius: 6px; padding: 1px 8px; font-size: 12px; font-weight: 700">Incident fermé</span></span>
+</div>
+<div style="display: flex; gap: 12px; padding: 8px 0; border-top: 1px solid #E4E8E0; font-size: 14px; line-height: 1.35">
+<span style="flex: none; width: 50px; font-weight: 700">10 h 31</span>
+<span style="flex-grow: 1">Ravito 2 : eau à 30 %, réapprovisionnement demandé.<br><span style="display: inline-block; margin-top: 4px; background: #FFE6D2; border-radius: 6px; padding: 1px 8px; font-size: 12px; font-weight: 700">Camion en route</span></span>
+</div>
+<div style="display: flex; gap: 12px; padding: 8px 0; border-top: 1px solid #E4E8E0; font-size: 14px; line-height: 1.35">
+<span style="flex: none; width: 50px; font-weight: 700">10 h 12</span>
+<span style="flex-grow: 1">Ravito 1 : abandon du dossard 0219, navette demandée.</span>
+</div>
+</section>
+
+<section aria-label="Message aux bénévoles" style="background: #FFFFFF; border-radius: 20px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px">
+<h2 style="margin: 0; font-size: 17px; font-weight: 700">Message aux bénévoles</h2>
+<div role="group" aria-label="Destinataires" style="display: flex; flex-wrap: wrap; gap: 6px">
+<sc-for list="{{audiences}}" as="a" hint-placeholder-count="3">
+<button type="button" aria-pressed="{{a.pressed}}" onClick="{{a.pick}}" style="height: 40px; padding: 0 12px; border-radius: 999px; border: 2px solid {{a.border}}; background: {{a.bg}}; color: {{a.fg}}; font-family: 'Barlow', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer">{{a.label}}</button>
+</sc-for>
+</div>
+<label for="msg" style="font-size: 13px; font-weight: 700">Message</label>
+<textarea id="msg" value="{{msg}}" onChange="{{setMsg}}" rows="3" style="box-sizing: border-box; width: 100%; border: 2px solid #D9DDD5; border-radius: 12px; padding: 10px 12px; background: #FFFFFF; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 15px; resize: vertical"></textarea>
+<sc-if value="{{notSent}}" hint-placeholder-val="{{true}}">
+<button type="button" onClick="{{send}}" style="height: 44px; border: 0; border-radius: 10px; background: #FF5B1A; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer">{{sendLabel}}</button>
+</sc-if>
+<sc-if value="{{sent}}" hint-placeholder-val="{{false}}">
+<div role="status" style="background: #E3F1E8; border-radius: 10px; padding: 10px 12px; font-size: 14px; font-weight: 600">{{sentText}}</div>
+</sc-if>
+</section>
+
+</aside>
+</div>
+
+</div>
+</div>
+</template>
+<script type="text/x-dc" id="dc-logic">
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const added = st.added || {};
+    const audience = st.audience || 'r2';
+    const sent = st.sent === true;
+    const msg = st.msg === undefined ? 'Un volant arrive pour vous aider. Le camion d’eau est à 10 minutes.' : st.msg;
+    const data = [
+      { id: 'depart', name: 'Départ et sas', time: '6 h 30 à 9 h', req: 8, present: 8 },
+      { id: 'stat', name: 'Stationnement', time: '6 h à 9 h', req: 6, present: 6 },
+      { id: 'r1', name: 'Ravito 1 · km 5,5', time: '7 h à 11 h', req: 6, present: 6 },
+      { id: 'r2', name: 'Ravito 2 · km 12,5', time: '7 h à 11 h', req: 8, present: 5 },
+      { id: 'r3', name: 'Ravito 3 · km 19', time: '8 h à 13 h', req: 6, present: 6 },
+      { id: 'sig', name: 'Signaleurs · chemin du Lac', time: '7 h 30 à 10 h 30', req: 12, present: 11 },
+      { id: 'arr', name: 'Arrivée et médailles', time: '9 h à 13 h', req: 10, present: 10 },
+      { id: 'nav', name: 'Navette des abandons', time: '8 h à 14 h', req: 2, present: 2 },
+      { id: 'vil', name: 'Village et kiosques', time: '8 h à 14 h', req: 8, present: 8 }
+    ];
+    let used = 0;
+    Object.keys(added).forEach((k) => { used += added[k]; });
+    const volants = 6 - used;
+    let incomplete = 0;
+    const postes = data.map((p) => {
+      const present = p.present + (added[p.id] || 0);
+      const gap = p.req - present;
+      if (gap > 0) incomplete += 1;
+      let status = 'Complet';
+      let chipBg = '#E3F1E8';
+      let chipFg = '#14201B';
+      let bar = '#2E7D4F';
+      if (gap === 1) { status = 'Il manque 1'; chipBg = '#FFE6D2'; bar = '#E8A200'; }
+      if (gap >= 2) { status = 'Il manque ' + gap; chipBg = '#C81E1E'; chipFg = '#FFFFFF'; bar = '#C81E1E'; }
+      return {
+        name: p.name,
+        time: p.time,
+        ratio: present + '/' + p.req,
+        pct: Math.min(100, Math.round((present / p.req) * 100)) + '%',
+        bar: bar,
+        status: status,
+        chipBg: chipBg,
+        chipFg: chipFg,
+        canAssign: gap > 0 && volants > 0,
+        assign: () => {
+          const next = Object.assign({}, added);
+          next[p.id] = (next[p.id] || 0) + 1;
+          this.setState({ added: next });
+        }
+      };
+    });
+    const audData = [
+      { id: 'tous', label: 'Tous (68)', count: 68 },
+      { id: 'r2', label: 'Ravito 2 (5)', count: 5 },
+      { id: 'sig', label: 'Signaleurs (11)', count: 11 }
+    ];
+    const aud = audData.find((a) => a.id === audience) || audData[1];
+    return {
+      postes: postes,
+      volants: volants,
+      incomplete: incomplete,
+      incBorder: incomplete > 0 ? '#C81E1E' : '#2E7D4F',
+      incLabel: incomplete > 0 ? '#C81E1E' : '#2E7D4F',
+      incNote: incomplete > 0 ? 'Ravito 2 et signaleurs' : 'Tous les postes sont couverts',
+      audiences: audData.map((a) => {
+        const on = a.id === aud.id;
+        return {
+          label: a.label,
+          pressed: on ? 'true' : 'false',
+          bg: on ? '#14201B' : '#FFFFFF',
+          fg: on ? '#FFFFFF' : '#14201B',
+          border: on ? '#14201B' : '#D9DDD5',
+          pick: () => this.setState({ audience: a.id, sent: false })
+        };
+      }),
+      msg: msg,
+      setMsg: (e) => this.setState({ msg: e.target.value, sent: false }),
+      sendLabel: 'Envoyer à ' + aud.count + ' bénévole' + (aud.count > 1 ? 's' : ''),
+      notSent: !sent,
+      sent: sent,
+      send: () => this.setState({ sent: true }),
+      sentText: 'Envoyé à ' + aud.count + ' bénévole' + (aud.count > 1 ? 's' : '') + ' par notification et texto.'
+    };
+  }
+}
+</script>
+</body>
+</html>

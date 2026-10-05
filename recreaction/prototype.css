@@ -1,0 +1,70 @@
+/* Habillage du prototype autour des écrans à taille fixe (téléphone, courriel, écran géant). */
+body.screen-fixed {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 32px;
+  background: #D9DDD5;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+body.screen-fixed #dc-root > * {
+  box-shadow: 0 24px 60px rgba(20, 32, 27, 0.22);
+}
+
+body.screen-phone #dc-root > * {
+  border-radius: 36px;
+}
+
+body.screen-tv #dc-root > *,
+body.screen-email #dc-root > * {
+  border-radius: 12px;
+}
+
+@media (max-width: 600px) {
+  body.screen-fixed {
+    padding: 0;
+  }
+  body.screen-phone {
+    background: #EEF0EA;
+  }
+  body.screen-fixed #dc-root > * {
+    box-shadow: none;
+    border-radius: 0;
+  }
+}
+
+/* Retour à la liste des écrans (masqué sur téléphone pour ne pas cacher l'app). */
+.proto-home {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: #14201B;
+  color: #FFFFFF;
+  font: 700 14px/1 'Barlow', sans-serif;
+  text-decoration: none;
+  box-shadow: 0 8px 24px rgba(20, 32, 27, 0.25);
+}
+
+.proto-home:hover {
+  color: #FF5B1A;
+}
+
+.proto-home:focus-visible {
+  outline: 3px solid #FF5B1A;
+  outline-offset: 2px;
+}
+
+@media (max-width: 700px) {
+  .proto-home {
+    display: none;
+  }
+}

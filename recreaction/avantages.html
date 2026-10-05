@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Sac du coureur numérique · Récréaction</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=Barlow:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#14201B}a:hover{color:#000000}
+</style>
+<link rel="stylesheet" href="prototype.css">
+<script src="runtime.js" defer></script>
+</head>
+<body>
+<a class="proto-home" href="index.html">Tous les écrans</a>
+<div id="dc-root"></div>
+<template id="dc-template">
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #EEF0EA; color: #14201B; font-family: 'Barlow', sans-serif; display: flex; flex-direction: column; overflow: hidden">
+
+<header style="flex: none; padding: 20px 16px 6px">
+<h1 style="margin: 0; font-size: 24px; font-weight: 700">Ton sac du coureur</h1>
+<p style="margin: 2px 0 0; font-size: 14px; color: #4A5650">6 offres choisies pour toi · Trail des Crêtes</p>
+</header>
+
+<main style="flex: 1; min-height: 0; overflow: hidden; padding: 6px 16px 12px; display: flex; flex-direction: column; gap: 10px">
+
+<div style="display: flex; align-items: center; gap: 12px; background: #FFFFFF; border-radius: 16px; padding: 10px 10px 10px 14px">
+<div style="flex-grow: 1">
+<div style="font-size: 15px; font-weight: 700">Offres personnalisées</div>
+<div style="font-size: 12px; color: #4A5650; line-height: 1.35">Selon ta distance et ta région, jamais ta santé. Les commanditaires ne voient jamais tes coordonnées.</div>
+</div>
+<button type="button" role="switch" aria-checked="{{onStr}}" aria-label="Offres personnalisées" onClick="{{toggle}}" style="width: 60px; height: 44px; flex: none; padding: 0; border: 0; background: transparent; display: flex; align-items: center; justify-content: center; cursor: pointer">
+<span style="width: 54px; height: 32px; box-sizing: border-box; padding: 3px; border-radius: 999px; background: {{trackBg}}; display: flex; justify-content: {{knobJustify}}"><span style="display: block; width: 26px; height: 26px; border-radius: 999px; background: #FFFFFF"></span></span>
+</button>
+</div>
+
+<div style="display: flex; gap: 8px; overflow: hidden">
+<button type="button" aria-pressed="true" style="flex: none; height: 40px; padding: 0 14px; border-radius: 999px; border: 2px solid #14201B; background: #14201B; color: #FFFFFF; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700">Toutes</button>
+<button type="button" aria-pressed="false" style="flex: none; height: 40px; padding: 0 14px; border-radius: 999px; border: 2px solid #D9DDD5; background: #FFFFFF; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 600">En ville ce week-end</button>
+<button type="button" aria-pressed="false" style="flex: none; height: 40px; padding: 0 14px; border-radius: 999px; border: 2px solid #D9DDD5; background: #FFFFFF; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 600">Après la course</button>
+<button type="button" aria-pressed="false" style="flex: none; height: 40px; padding: 0 14px; border-radius: 999px; border: 2px solid #D9DDD5; background: #FFFFFF; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 600">Équipement</button>
+</div>
+
+<sc-for list="{{offers}}" as="o" hint-placeholder-count="4">
+<article style="background: #FFFFFF; border-radius: 16px; padding: 12px 14px; display: flex; gap: 12px; align-items: flex-start">
+<span aria-hidden="true" style="width: 44px; height: 44px; flex: none; border-radius: 12px; background: {{o.logoBg}}; color: {{o.logoFg}}; display: flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', sans-serif; font-size: 18px; font-weight: 700">{{o.initials}}</span>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 8px">
+<span style="font-size: 13px; font-weight: 600; color: #4A5650">{{o.brand}}</span>
+<span style="font-family: 'Barlow Condensed', sans-serif; font-size: 19px; font-weight: 700; line-height: 1.3; background: #FF5B1A; color: #14201B; border-radius: 8px; padding: 0 8px">{{o.discount}}</span>
+</div>
+<div style="font-size: 15px; font-weight: 700; line-height: 1.25">{{o.title}}</div>
+<div style="font-size: 12px; color: #4A5650">{{o.reason}}</div>
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 4px">
+<span style="font-size: 12px; color: #4A5650">{{o.meta}}</span>
+<button type="button" style="height: 44px; padding: 0 14px; border: 2px solid #14201B; border-radius: 12px; background: transparent; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer">{{o.cta}}</button>
+</div>
+</div>
+</article>
+</sc-for>
+
+</main>
+
+<nav aria-label="Navigation principale" style="flex: none; height: 80px; box-sizing: border-box; padding: 6px 6px 20px; background: #FFFFFF; border-top: 1px solid #D9DDD5; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr))">
+<a href="accueil.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-decoration: none; color: #5C6862; font-size: 11px; font-weight: 600"><span style="display: flex; align-items: center; justify-content: center; width: 52px; height: 28px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"></path><path d="M5 10v10h14V10"></path></svg></span><span>Accueil</span></a>
+<a href="jour-j.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-decoration: none; color: #5C6862; font-size: 11px; font-weight: 600"><span style="display: flex; align-items: center; justify-content: center; width: 52px; height: 28px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="18" r="2"></circle><circle cx="18" cy="6" r="2"></circle><path d="M8 18h6a3 3 0 0 0 0-6h-4a3 3 0 0 1 0-6h6"></path></svg></span><span>Parcours</span></a>
+<a href="dossard.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-decoration: none; color: #5C6862; font-size: 11px; font-weight: 600"><span style="display: flex; align-items: center; justify-content: center; width: 52px; height: 28px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"></rect><path d="M8 10h8"></path><path d="M8 14h5"></path></svg></span><span>Dossard</span></a>
+<a href="photos.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-decoration: none; color: #5C6862; font-size: 11px; font-weight: 600"><span style="display: flex; align-items: center; justify-content: center; width: 52px; height: 28px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg></span><span>Photos</span></a>
+<a href="avantages.html" aria-current="page" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-decoration: none; color: #14201B; font-size: 11px; font-weight: 700"><span style="display: flex; align-items: center; justify-content: center; width: 52px; height: 28px; border-radius: 999px; background: #FF5B1A"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12V4h8l10 10-8 8z"></path><circle cx="7.5" cy="8.5" r="1.5"></circle></svg></span><span>Avantages</span></a>
+</nav>
+
+</div>
+</template>
+<script type="text/x-dc" id="dc-logic">
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const on = st.perso !== false;
+    const list = [
+      { initials: 'PS', brand: 'Physio Sommet', discount: '-20 %', title: 'Massage de récupération sur le site', reason: 'Après ta course · tente B, près de l’arrivée', meta: 'Samedi, 11 h à 16 h', cta: 'Réserver', logoBg: '#2E5E8C', logoFg: '#FFFFFF' },
+      { initials: 'BF', brand: 'Boutique Foulée', discount: '-25 %', title: 'Chaussures de trail', reason: 'Parce que tu prépares ton premier 25 km', meta: 'Jusqu’au 30 novembre', cta: 'Voir le code', logoBg: '#14201B', logoFg: '#FF5B1A' },
+      { initials: 'CV', brand: 'Café du Village', discount: '-20 %', title: 'Brunch sur présentation de ton dossard numérique', reason: 'Tu viens de l’extérieur de la région', meta: 'Samedi et dimanche', cta: 'Utiliser', logoBg: '#7A4A2A', logoFg: '#FFFFFF' },
+      { initials: 'E+', brand: 'Électro+', discount: '-30 %', title: 'Boissons d’effort', reason: 'Selon ton plan de course : 500 ml par heure', meta: 'Commande en ligne', cta: 'Voir le code', logoBg: '#E4E8E0', logoFg: '#14201B' },
+      { initials: 'TC', brand: 'Trail des Crêtes 2027', discount: '-15 %', title: 'Inscription hâtive', reason: 'Réservée aux finissants de 2026', meta: 'Dès le 1er décembre', cta: 'M’avertir', logoBg: '#FF5B1A', logoFg: '#14201B' }
+    ];
+    return {
+      offers: list.map((o) => ({
+        initials: o.initials,
+        brand: o.brand,
+        discount: o.discount,
+        title: o.title,
+        reason: on ? o.reason : 'Offre ouverte à tous les participants',
+        meta: o.meta,
+        cta: o.cta,
+        logoBg: o.logoBg,
+        logoFg: o.logoFg
+      })),
+      onStr: on ? 'true' : 'false',
+      trackBg: on ? '#14201B' : '#7D8781',
+      knobJustify: on ? 'flex-end' : 'flex-start',
+      toggle: () => this.setState({ perso: !on })
+    };
+  }
+}
+</script>
+</body>
+</html>

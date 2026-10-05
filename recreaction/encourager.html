@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Encourager un coureur · Récréaction</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=Barlow:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#14201B}a:hover{color:#000000}
+</style>
+<link rel="stylesheet" href="prototype.css">
+<script src="runtime.js" defer></script>
+</head>
+<body>
+<a class="proto-home" href="index.html">Tous les écrans</a>
+<div id="dc-root"></div>
+<template id="dc-template">
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #EEF0EA; color: #14201B; font-family: 'Barlow', sans-serif; display: flex; flex-direction: column; overflow: hidden">
+
+<header style="flex: none; display: flex; align-items: center; justify-content: space-between; padding: 18px 16px 8px">
+<div style="display: flex; align-items: center; gap: 8px">
+<span aria-hidden="true" style="width: 28px; height: 28px; border-radius: 8px; background: #FF5B1A; color: #14201B; display: flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', sans-serif; font-size: 18px; font-weight: 700">R</span>
+<span style="font-family: 'Barlow Condensed', sans-serif; font-size: 24px; font-weight: 700">Récréaction</span>
+</div>
+<span style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; color: #A33A00"><span style="width: 8px; height: 8px; border-radius: 999px; background: #FF5B1A"></span>SUIVI EN DIRECT</span>
+</header>
+
+<main style="flex: 1; min-height: 0; overflow: hidden; padding: 4px 16px 12px; display: flex; flex-direction: column; gap: 10px">
+
+<section aria-label="Coureur suivi" style="background: #14201B; color: #FFFFFF; border-radius: 20px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; align-items: center; gap: 12px">
+<span aria-hidden="true" style="width: 46px; height: 46px; flex: none; border-radius: 999px; background: #FF5B1A; color: #14201B; display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 700">FL</span>
+<div style="flex-grow: 1; min-width: 0">
+<div style="font-size: 19px; font-weight: 700">François Lavoie</div>
+<div style="font-size: 13px; color: #C9D2CC">Dossard 0512 · 25 km</div>
+</div>
+<span style="font-family: 'Barlow Condensed', sans-serif; font-size: 28px; font-weight: 700; color: #FF5B1A">km 16,4</span>
+</div>
+<div style="height: 8px; border-radius: 999px; background: #33443C"><div style="width: 66%; height: 8px; border-radius: 999px; background: #FF5B1A"></div></div>
+<div style="display: flex; justify-content: space-between; font-size: 13px; color: #C9D2CC">
+<span>Temps : 1:58:20</span>
+<span>Arrivée prévue vers 11 h 05</span>
+</div>
+</section>
+
+<h1 style="margin: 4px 0 0; font-size: 22px; font-weight: 700; line-height: 1.2">Envoie-lui un message vocal</h1>
+
+<section aria-label="Enregistrement" style="background: #FFFFFF; border-radius: 20px; padding: 14px 16px">
+<sc-if value="{{isIdle}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; align-items: center; gap: 14px">
+<button type="button" onClick="{{record}}" aria-label="Enregistrer un message" style="width: 64px; height: 64px; flex: none; border: 0; border-radius: 999px; background: #FF5B1A; color: #14201B; display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0"></path><path d="M12 18v3"></path></svg></button>
+<div>
+<div style="font-size: 16px; font-weight: 700">Appuie pour enregistrer</div>
+<div style="font-size: 13px; color: #4A5650">15 secondes maximum</div>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{isDone}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; align-items: center; gap: 14px">
+<button type="button" aria-label="Réécouter le message" style="width: 64px; height: 64px; flex: none; border: 0; border-radius: 999px; background: #14201B; color: #FFFFFF; display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l12 7-12 7z" fill="currentColor"></path></svg></button>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+<div style="display: flex; align-items: center; gap: 2px; height: 32px; overflow: hidden">
+<sc-for list="{{bars}}" as="b" hint-placeholder-count="20"><span style="flex: none; width: 3px; border-radius: 2px; background: #14201B; height: {{b.h}}"></span></sc-for>
+</div>
+<div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: #4A5650">
+<span>0:06 · « Continue papa! Tu es capable! »</span>
+<button type="button" onClick="{{reset}}" style="min-height: 44px; padding: 0; border: 0; background: transparent; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 13px; font-weight: 700; text-decoration: underline; cursor: pointer">Refaire</button>
+</div>
+</div>
+</div>
+</sc-if>
+</section>
+
+<div style="display: flex; flex-direction: column; gap: 4px">
+<label for="prenom" style="font-size: 14px; font-weight: 700">Ton prénom</label>
+<input id="prenom" type="text" value="{{name}}" onChange="{{setName}}" style="height: 46px; box-sizing: border-box; border: 2px solid #D9DDD5; border-radius: 12px; padding: 0 12px; background: #FFFFFF; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 16px">
+</div>
+
+<fieldset style="border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; min-width: 0">
+<legend style="padding: 0; margin-bottom: 6px; font-size: 14px; font-weight: 700">Quand doit-il l’entendre?</legend>
+<sc-for list="{{whens}}" as="w" hint-placeholder-count="3">
+<label style="display: flex; align-items: center; gap: 10px; min-height: 46px; box-sizing: border-box; padding: 6px 12px; background: #FFFFFF; border: 2px solid {{w.border}}; border-radius: 12px; cursor: pointer">
+<input type="radio" name="moment" value="{{w.id}}" checked="{{w.selected}}" onChange="{{w.pick}}" style="width: 18px; height: 18px; margin: 0; flex: none; accent-color: #14201B">
+<span style="flex-grow: 1; font-size: 15px; font-weight: 600">{{w.label}}</span>
+<span style="font-size: 12px; font-weight: 700; color: #A33A00">{{w.tag}}</span>
+</label>
+</sc-for>
+</fieldset>
+
+<div style="display: flex; gap: 10px; align-items: flex-start; background: #FFFFFF; border-radius: 12px; padding: 10px 12px; font-size: 13px; line-height: 1.35">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#14201B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; margin-top: 1px"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+<span><strong>Message privé.</strong> Seul François l’entendra. Il n’est jamais affiché ni partagé, et il est supprimé après la course.</span>
+</div>
+
+</main>
+
+<div style="flex: none; padding: 10px 16px 22px; background: #FFFFFF; border-top: 1px solid #D9DDD5">
+<sc-if value="{{canSend}}" hint-placeholder-val="{{true}}">
+<button type="button" onClick="{{send}}" style="width: 100%; height: 54px; border: 0; border-radius: 14px; background: #FF5B1A; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 17px; font-weight: 700; cursor: pointer">Envoyer à François</button>
+</sc-if>
+<sc-if value="{{cannotSend}}" hint-placeholder-val="{{false}}">
+<button type="button" disabled="{{true}}" style="width: 100%; height: 54px; border: 0; border-radius: 14px; background: #E4E8E0; color: #4A5650; font-family: 'Barlow', sans-serif; font-size: 16px; font-weight: 700">Enregistre d’abord ton message</button>
+</sc-if>
+<sc-if value="{{isSent}}" hint-placeholder-val="{{false}}">
+<div role="status" style="display: flex; align-items: center; gap: 12px; background: #E3F1E8; border-radius: 14px; padding: 12px 14px">
+<span aria-hidden="true" style="width: 32px; height: 32px; flex: none; border-radius: 999px; background: #2E7D4F; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"></path></svg></span>
+<div>
+<div style="font-size: 16px; font-weight: 700">Message envoyé!</div>
+<div style="font-size: 13px; line-height: 1.35">François l’entendra {{whenText}}. Tu recevras une notification quand il l’aura écouté.</div>
+</div>
+</div>
+</sc-if>
+</div>
+
+</div>
+</template>
+<script type="text/x-dc" id="dc-logic">
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const rec = st.rec || 'done';
+    const when = st.when || '20';
+    const sent = st.sent === true;
+    const name = st.name === undefined ? 'Léa' : st.name;
+    const bars = [];
+    for (let i = 0; i < 44; i++) {
+      const h = 5 + Math.round(Math.abs(Math.sin(i * 0.9) * Math.cos(i * 0.37)) * 25);
+      bars.push({ h: h + 'px' });
+    }
+    const options = [
+      { id: 'now', label: 'Tout de suite', tag: '', text: 'dès maintenant' },
+      { id: '20', label: 'Au km 20 · dernière montée', tag: 'Conseillé', text: 'au km 20, avant la dernière montée' },
+      { id: 'fin', label: 'À 1 km de l’arrivée', tag: '', text: 'à 1 km de l’arrivée' }
+    ];
+    const sel = options.find((o) => o.id === when) || options[1];
+    return {
+      bars: bars,
+      isIdle: rec === 'idle',
+      isDone: rec === 'done',
+      record: () => this.setState({ rec: 'done' }),
+      reset: () => this.setState({ rec: 'idle', sent: false }),
+      name: name,
+      setName: (e) => this.setState({ name: e.target.value }),
+      whens: options.map((o) => ({
+        id: o.id,
+        label: o.label,
+        tag: o.tag,
+        selected: o.id === sel.id,
+        border: o.id === sel.id ? '#14201B' : '#FFFFFF',
+        pick: () => this.setState({ when: o.id })
+      })),
+      canSend: rec === 'done' && !sent,
+      cannotSend: rec === 'idle',
+      isSent: sent,
+      send: () => this.setState({ sent: true }),
+      whenText: sel.text
+    };
+  }
+}
+</script>
+</body>
+</html>
