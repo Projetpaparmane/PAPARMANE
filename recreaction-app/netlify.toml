@@ -1,0 +1,9 @@
+# Site Netlify de l'app Récréaction. Dans Netlify, régler « Base directory » sur recreaction-app.
+[build]
+  command = "npm run build"
+  publish = ".next"
+  # Pas de nouveau déploiement quand seul le site de l'agence a changé.
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- ."
+
+[build.environment]
+  NODE_VERSION = "22"
