@@ -30,3 +30,11 @@
   for = "/assets/vendor/*"
   [headers.values]
     Cache-Control = "public, max-age=604800"
+
+# Le code source de l'app Récréaction (dossier recreaction-app) est publié par son propre site Netlify,
+# pas par le site de l'agence.
+[[redirects]]
+  from = "/recreaction-app/*"
+  to = "/404.html"
+  status = 404
+  force = true
