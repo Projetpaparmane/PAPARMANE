@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Inscription au Trail des Crêtes · Récréaction</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=Barlow:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#14201B}a:hover{color:#000000}
+</style>
+<link rel="stylesheet" href="prototype.css">
+<script src="runtime.js" defer></script>
+</head>
+<body>
+<a class="proto-home" href="index.html">Tous les écrans</a>
+<div id="dc-root"></div>
+<template id="dc-template">
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #EEF0EA; color: #14201B; font-family: 'Barlow', sans-serif; display: flex; flex-direction: column; overflow: hidden">
+
+<header style="flex: none; display: flex; align-items: center; gap: 6px; padding: 20px 12px 8px">
+<button type="button" aria-label="Retour" style="width: 44px; height: 44px; flex: none; border: 0; background: transparent; color: #14201B; border-radius: 999px; display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg></button>
+<div style="flex-grow: 1">
+<h1 style="margin: 0; font-size: 18px; font-weight: 700">Inscription</h1>
+<div style="font-size: 13px; color: #4A5650">Étape 2 sur 3 · Distance et options</div>
+</div>
+</header>
+
+<main style="flex: 1; min-height: 0; overflow: hidden; padding: 2px 16px 12px; display: flex; flex-direction: column; gap: 8px">
+
+<section style="background: #14201B; color: #FFFFFF; border-radius: 16px; padding: 10px 14px; display: flex; align-items: center; gap: 12px">
+<div style="width: 44px; height: 44px; flex: none; border-radius: 10px; background: #FF5B1A; color: #14201B; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1">
+<span style="font-family: 'Barlow Condensed', sans-serif; font-size: 21px; font-weight: 700">17</span>
+<span style="font-size: 10px; font-weight: 700; letter-spacing: 0.08em">OCT</span>
+</div>
+<div>
+<div style="font-family: 'Barlow Condensed', sans-serif; font-size: 21px; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; line-height: 1.1">Trail des Crêtes 2026</div>
+<div style="font-size: 13px; color: #C9D2CC">Val-des-Crêtes, QC · 4 distances</div>
+</div>
+</section>
+
+<fieldset style="border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0">
+<legend style="padding: 0; margin-bottom: 8px; font-size: 15px; font-weight: 700">Choisis ta distance</legend>
+<sc-for list="{{distances}}" as="d" hint-placeholder-count="4">
+<label style="display: flex; align-items: center; gap: 12px; background: #FFFFFF; border: 2px solid {{d.border}}; border-radius: 14px; padding: 6px 14px; cursor: pointer">
+<input type="radio" name="distance" value="{{d.id}}" checked="{{d.selected}}" onChange="{{d.pick}}" style="width: 20px; height: 20px; margin: 0; flex: none; accent-color: #14201B">
+<span style="flex-grow: 1; display: flex; flex-direction: column">
+<span style="font-size: 16px; font-weight: 700">{{d.name}}</span>
+<span style="font-size: 13px; color: #4A5650">{{d.detail}}</span>
+</span>
+<span style="display: flex; flex-direction: column; align-items: flex-end">
+<span style="font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 700; line-height: 1.1">{{d.price}}</span>
+<span style="font-size: 12px; font-weight: 600; color: #A33A00">{{d.note}}</span>
+</span>
+</label>
+</sc-for>
+</fieldset>
+
+<div>
+<div style="font-size: 15px; font-weight: 700; margin-bottom: 8px">Taille du t-shirt technique</div>
+<div style="display: flex; gap: 8px">
+<sc-for list="{{sizes}}" as="s" hint-placeholder-count="5">
+<button type="button" onClick="{{s.pick}}" aria-pressed="{{s.pressed}}" style="min-width: 54px; height: 44px; border-radius: 999px; border: 2px solid {{s.border}}; background: {{s.bg}}; color: {{s.fg}}; font-family: 'Barlow', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer">{{s.label}}</button>
+</sc-for>
+</div>
+</div>
+
+<label style="display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.35; cursor: pointer">
+<input type="checkbox" checked="{{waiver}}" onChange="{{toggleWaiver}}" style="width: 20px; height: 20px; margin: 0; flex: none; accent-color: #14201B">
+<span>J’accepte la décharge de responsabilité et le règlement de la course (signature électronique).</span>
+</label>
+
+<label style="display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.35; cursor: pointer">
+<input type="checkbox" checked="{{news}}" onChange="{{toggleNews}}" style="width: 20px; height: 20px; margin: 0; flex: none; accent-color: #14201B">
+<span>Je veux recevoir l’infolettre du Trail des Crêtes. <span style="color: #4A5650">Désabonnement en un clic.</span></span>
+</label>
+
+<section aria-label="Résumé du paiement" style="background: #FFFFFF; border-radius: 16px; padding: 12px 16px; display: flex; flex-direction: column; gap: 5px; font-size: 14px">
+<div style="display: flex; justify-content: space-between"><span>Inscription {{selName}}</span><span>{{subtotal}}</span></div>
+<div style="display: flex; justify-content: space-between"><span>Frais de service</span><span>{{fee}}</span></div>
+<div style="display: flex; justify-content: space-between"><span>TPS et TVQ</span><span>{{taxes}}</span></div>
+<div style="height: 1px; background: #E4E8E0; margin: 3px 0"></div>
+<div style="display: flex; justify-content: space-between; font-size: 17px; font-weight: 700"><span>Total</span><span>{{total}}</span></div>
+<div style="font-size: 12px; color: #4A5650">Transfert de dossard possible jusqu’au 10 octobre.</div>
+</section>
+
+</main>
+
+<div style="flex: none; padding: 12px 16px 24px; background: #FFFFFF; border-top: 1px solid #D9DDD5">
+<sc-if value="{{waiver}}" hint-placeholder-val="{{true}}">
+<a href="accueil.html" style="display: flex; align-items: center; justify-content: center; height: 54px; border-radius: 14px; background: #FF5B1A; color: #14201B; font-size: 17px; font-weight: 700; text-decoration: none">Payer {{total}}</a>
+</sc-if>
+<sc-if value="{{notWaiver}}" hint-placeholder-val="{{false}}">
+<button type="button" disabled="{{true}}" style="width: 100%; height: 54px; border: 0; border-radius: 14px; background: #E4E8E0; color: #4A5650; font-family: 'Barlow', sans-serif; font-size: 16px; font-weight: 700">Accepte la décharge pour continuer</button>
+</sc-if>
+</div>
+
+</div>
+</template>
+<script type="text/x-dc" id="dc-logic">
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const dist = st.dist || '25';
+    const size = st.size || 'M';
+    const waiver = st.waiver !== false;
+    const fmt = (n) => n.toFixed(2).replace('.', ',') + ' $';
+    const list = [
+      { id: '5', name: '5 km', detail: 'Découverte · 120 m D+', price: 35, note: '' },
+      { id: '12', name: '12 km', detail: '380 m D+', price: 55, note: '' },
+      { id: '25', name: '25 km', detail: '1 050 m D+ · barrière 13 h', price: 75, note: 'Plus que 18 places' },
+      { id: '50', name: '50 km', detail: '2 300 m D+ · départ 6 h', price: 110, note: 'Liste d’attente' }
+    ];
+    const sel = list.find((d) => d.id === dist) || list[2];
+    const fee = 2.5;
+    const taxes = Math.round((sel.price + fee) * 0.14975 * 100) / 100;
+    const total = sel.price + fee + taxes;
+    return {
+      distances: list.map((d) => ({
+        id: d.id,
+        name: d.name,
+        detail: d.detail,
+        note: d.note,
+        price: fmt(d.price).replace(',00', ''),
+        selected: d.id === sel.id,
+        border: d.id === sel.id ? '#14201B' : '#FFFFFF',
+        pick: () => this.setState({ dist: d.id })
+      })),
+      sizes: ['XS', 'S', 'M', 'L', 'XL'].map((s) => {
+        const on = s === size;
+        return {
+          label: s,
+          pressed: on ? 'true' : 'false',
+          bg: on ? '#14201B' : '#FFFFFF',
+          fg: on ? '#FFFFFF' : '#14201B',
+          border: on ? '#14201B' : '#D9DDD5',
+          pick: () => this.setState({ size: s })
+        };
+      }),
+      selName: sel.name,
+      subtotal: fmt(sel.price),
+      fee: fmt(fee),
+      taxes: fmt(taxes),
+      total: fmt(total),
+      waiver: waiver,
+      notWaiver: !waiver,
+      toggleWaiver: () => this.setState({ waiver: !waiver }),
+      news: st.news === true,
+      toggleNews: () => this.setState({ news: st.news !== true })
+    };
+  }
+}
+</script>
+</body>
+</html>

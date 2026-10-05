@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Répertoire et contacts des bénévoles · Récréaction</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=Barlow:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#14201B}a:hover{color:#000000}
+</style>
+<link rel="stylesheet" href="prototype.css">
+<script src="runtime.js" defer></script>
+</head>
+<body>
+<a class="proto-home" href="index.html">Tous les écrans</a>
+<div id="dc-root"></div>
+<template id="dc-template">
+<div style="min-height: 100vh; box-sizing: border-box; background: #EEF0EA; color: #14201B; font-family: 'Barlow', sans-serif">
+<div style="max-width: 1440px; margin: 0 auto; box-sizing: border-box; padding: 24px 32px 40px; display: flex; flex-direction: column; gap: 20px">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px">
+<div style="display: flex; align-items: center; gap: 8px">
+<span aria-hidden="true" style="width: 32px; height: 32px; border-radius: 8px; background: #FF5B1A; color: #14201B; display: flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700">R</span>
+<span style="font-family: 'Barlow Condensed', sans-serif; font-size: 28px; font-weight: 700">Récréaction</span>
+<span style="margin-left: 6px; padding-left: 12px; border-left: 1px solid #C5CBC2; font-size: 14px; font-weight: 600; color: #4A5650">Espace organisateur</span>
+</div>
+<div style="flex: 1 1 280px; min-width: 0">
+<h1 style="margin: 0; font-size: 24px; font-weight: 700; line-height: 1.2">Bénévoles</h1>
+<div style="font-size: 14px; color: #4A5650">Trail des Crêtes 2026 · répertoire et contacts</div>
+</div>
+</header>
+
+<nav aria-label="Sections de l’espace organisateur" style="display: flex; flex-wrap: wrap; gap: 8px">
+<a href="organisateur.html" style="height: 44px; box-sizing: border-box; padding: 0 18px; border-radius: 999px; border: 2px solid #D9DDD5; background: #FFFFFF; color: #14201B; display: inline-flex; align-items: center; font-size: 15px; font-weight: 700; text-decoration: none">Poste de commandement</a>
+<a href="benevoles.html" aria-current="page" style="height: 44px; box-sizing: border-box; padding: 0 18px; border-radius: 999px; border: 2px solid #14201B; background: #14201B; color: #FFFFFF; display: inline-flex; align-items: center; font-size: 15px; font-weight: 700; text-decoration: none">Bénévoles</a>
+<a href="infolettres.html" style="height: 44px; box-sizing: border-box; padding: 0 18px; border-radius: 999px; border: 2px solid #D9DDD5; background: #FFFFFF; color: #14201B; display: inline-flex; align-items: center; font-size: 15px; font-weight: 700; text-decoration: none">Infolettres</a>
+</nav>
+
+<nav aria-label="Vues des bénévoles" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: -8px">
+<a href="benevoles.html" style="height: 44px; box-sizing: border-box; padding: 0 14px; border-radius: 10px; border: 2px solid transparent; background: transparent; color: #4A5650; display: inline-flex; align-items: center; font-size: 14px; font-weight: 700; text-decoration: none">Couverture des postes</a>
+<a href="benevoles-repertoire.html" aria-current="page" style="height: 44px; box-sizing: border-box; padding: 0 14px; border-radius: 10px; border: 2px solid #14201B; background: #FFFFFF; color: #14201B; display: inline-flex; align-items: center; font-size: 14px; font-weight: 700; text-decoration: none">Répertoire et contacts</a>
+</nav>
+
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px">
+<div style="flex: 1 1 300px; min-width: 0; position: relative">
+<label for="cherche" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Rechercher un bénévole</label>
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4A5650" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="position: absolute; left: 14px; top: 13px"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-4-4"></path></svg>
+<input id="cherche" type="search" value="{{q}}" onChange="{{setQ}}" placeholder="Rechercher un nom ou un poste" style="width: 100%; height: 44px; box-sizing: border-box; border: 2px solid #D9DDD5; border-radius: 12px; padding: 0 12px 0 40px; background: #FFFFFF; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 15px">
+</div>
+<div role="group" aria-label="Filtres" style="display: flex; flex-wrap: wrap; gap: 6px">
+<sc-for list="{{filters}}" as="f" hint-placeholder-count="6">
+<button type="button" aria-pressed="{{f.pressed}}" onClick="{{f.pick}}" style="height: 44px; padding: 0 14px; border-radius: 999px; border: 2px solid {{f.border}}; background: {{f.bg}}; color: {{f.fg}}; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer">{{f.label}}</button>
+</sc-for>
+</div>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start">
+
+<section aria-label="Liste des bénévoles" style="flex: 999 1 600px; min-width: 0; background: #FFFFFF; border-radius: 20px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; padding: 0 4px 6px">
+<span style="font-size: 14px; font-weight: 700">{{resultText}}</span>
+<button type="button" style="height: 44px; padding: 0 14px; border: 0; border-radius: 10px; background: #14201B; color: #FFFFFF; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; cursor: pointer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"></path></svg>{{groupLabel}}</button>
+</div>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="10">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 6px 8px; border-radius: 12px; border: 2px solid {{r.border}}; background: {{r.bg}}">
+<button type="button" onClick="{{r.select}}" aria-label="{{r.selectLabel}}" style="flex: 1 1 240px; min-width: 0; min-height: 44px; padding: 0; border: 0; background: transparent; color: #14201B; display: flex; align-items: center; gap: 10px; text-align: left; font-family: 'Barlow', sans-serif; cursor: pointer">
+<span aria-hidden="true" style="width: 36px; height: 36px; flex: none; border-radius: 999px; background: {{r.avatarBg}}; color: {{r.avatarFg}}; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700">{{r.initials}}</span>
+<span style="min-width: 0; display: flex; flex-direction: column">
+<span style="font-size: 15px; font-weight: 700">{{r.name}}</span>
+<span style="font-size: 13px; color: #4A5650">{{r.poste}}</span>
+</span>
+</button>
+<span style="flex: 0 0 150px; box-sizing: border-box; text-align: center; border-radius: 6px; padding: 3px 8px; font-size: 12px; font-weight: 700; background: {{r.chipBg}}; color: {{r.chipFg}}">{{r.statusLabel}}</span>
+<span style="flex: 0 0 120px; font-size: 12px; color: #4A5650">{{r.skills}}</span>
+<div style="flex: none; display: flex; gap: 6px">
+<button type="button" aria-label="{{r.callLabel}}" style="width: 44px; height: 44px; border: 2px solid #D9DDD5; border-radius: 10px; background: #FFFFFF; color: #14201B; display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"></path></svg></button>
+<button type="button" aria-label="{{r.textLabel}}" onClick="{{r.select}}" style="width: 44px; height: 44px; border: 2px solid #D9DDD5; border-radius: 10px; background: #FFFFFF; color: #14201B; display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"></path></svg></button>
+</div>
+</div>
+</sc-for>
+<sc-if value="{{empty}}" hint-placeholder-val="{{false}}">
+<div style="padding: 20px 8px; font-size: 14px; color: #4A5650">Aucun bénévole ne correspond à cette recherche.</div>
+</sc-if>
+</section>
+
+<aside aria-label="Fiche du bénévole" style="flex: 1 1 380px; min-width: 0; background: #FFFFFF; border-radius: 20px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: center; gap: 12px">
+<span aria-hidden="true" style="width: 52px; height: 52px; flex: none; border-radius: 999px; background: #14201B; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700">{{sel.initials}}</span>
+<div style="flex-grow: 1; min-width: 0">
+<h2 style="margin: 0; font-size: 20px; font-weight: 700">{{sel.name}}</h2>
+<div style="font-size: 14px; color: #4A5650">{{sel.poste}}</div>
+</div>
+<span style="flex: none; border-radius: 6px; padding: 3px 8px; font-size: 12px; font-weight: 700; background: {{sel.chipBg}}; color: {{sel.chipFg}}">{{sel.statusLabel}}</span>
+</div>
+
+<dl style="margin: 0; display: grid; grid-template-columns: 120px minmax(0, 1fr); row-gap: 6px; column-gap: 12px; font-size: 14px">
+<dt style="color: #4A5650">Téléphone</dt><dd style="margin: 0; font-weight: 600">{{sel.phone}}</dd>
+<dt style="color: #4A5650">Courriel</dt><dd style="margin: 0; font-weight: 600; overflow-wrap: anywhere">{{sel.email}}</dd>
+<dt style="color: #4A5650">Horaire</dt><dd style="margin: 0; font-weight: 600">{{sel.time}}</dd>
+<dt style="color: #4A5650">Compétences</dt><dd style="margin: 0; font-weight: 600">{{sel.skills}}</dd>
+<dt style="color: #4A5650">Bénévole depuis</dt><dd style="margin: 0; font-weight: 600">{{sel.since}}</dd>
+</dl>
+
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<button type="button" style="flex: 1 1 100px; height: 44px; border: 0; border-radius: 10px; background: #14201B; color: #FFFFFF; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"></path></svg>Appeler</button>
+<button type="button" style="flex: 1 1 100px; height: 44px; border: 2px solid #14201B; border-radius: 10px; background: transparent; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer">Courriel</button>
+</div>
+
+<h3 style="margin: 4px 0 0; font-size: 15px; font-weight: 700">Fil de messages</h3>
+<sc-for list="{{thread}}" as="m" hint-placeholder-count="1">
+<div style="background: {{m.bg}}; border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px">
+<div style="font-size: 12px; font-weight: 700; color: #4A5650">{{m.time}} · {{m.who}}</div>
+<div style="font-size: 14px; line-height: 1.4">{{m.text}}</div>
+<div style="font-size: 12px; color: #4A5650">{{m.meta}}</div>
+</div>
+</sc-for>
+
+<label for="ecrire" style="font-size: 14px; font-weight: 700">Écrire à {{sel.first}}</label>
+<textarea id="ecrire" rows="3" value="{{draft}}" onChange="{{setDraft}}" style="box-sizing: border-box; width: 100%; border: 2px solid #D9DDD5; border-radius: 12px; padding: 10px 12px; background: #FFFFFF; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 15px; resize: vertical"></textarea>
+<button type="button" onClick="{{send}}" style="height: 48px; border: 0; border-radius: 12px; background: #FF5B1A; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer">Envoyer par texto et dans l’app</button>
+
+<div style="display: flex; gap: 8px; align-items: flex-start; font-size: 12px; line-height: 1.4; color: #4A5650"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>Coordonnées visibles par l’organisation et les responsables de poste seulement. Les réponses par texto arrivent dans ce fil.</div>
+</aside>
+
+</div>
+
+</div>
+</div>
+</template>
+<script type="text/x-dc" id="dc-logic">
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const filter = st.filter || 'tous';
+    const q = (st.q || '').toLowerCase().trim();
+    const selId = st.sel || 'kim';
+    const sent = st.sent || {};
+    const people = [
+      { id: 'isabelle', name: 'Isabelle M.', initials: 'IM', poste: 'Ravito 2 · responsable', group: 'r2', lead: true, status: 'place', arrived: '6 h 48', time: 'Samedi, 6 h 45 à 11 h 30', phone: '(514) 555-0101', email: 'isabelle.m@example.com', skills: 'Premiers soins', since: '2022' },
+      { id: 'kim', name: 'Kim L.', initials: 'KL', poste: 'Ravito 2', group: 'r2', lead: false, status: 'absent', start: '7 h', time: 'Samedi, 7 h à 11 h', phone: '(514) 555-0142', email: 'kim.l@example.com', skills: 'Anglais', since: '2025' },
+      { id: 'paul', name: 'Paul R.', initials: 'PR', poste: 'Ravito 2', group: 'r2', lead: false, status: 'absent', start: '7 h', time: 'Samedi, 7 h à 11 h', phone: '(514) 555-0157', email: 'paul.r@example.com', skills: '—', since: '2026' },
+      { id: 'sarah', name: 'Sarah D.', initials: 'SD', poste: 'Ravito 2', group: 'r2', lead: false, status: 'absent', start: '7 h', time: 'Samedi, 7 h à 11 h', phone: '(514) 555-0163', email: 'sarah.d@example.com', skills: 'Premiers soins', since: '2024' },
+      { id: 'felix', name: 'Félix N.', initials: 'FN', poste: 'Signaleur · chemin du Lac', group: 'sig', lead: false, status: 'absent', start: '7 h 30', time: 'Samedi, 7 h 30 à 10 h 30', phone: '(514) 555-0171', email: 'felix.n@example.com', skills: 'Permis de conduire', since: '2026' },
+      { id: 'hugo', name: 'Hugo T.', initials: 'HT', poste: 'Signaleur · km 9', group: 'sig', lead: false, status: 'place', arrived: '7 h 05', time: 'Samedi, 7 h 30 à 10 h 30', phone: '(514) 555-0118', email: 'hugo.t@example.com', skills: 'Permis de conduire', since: '2023' },
+      { id: 'marcandre', name: 'Marc-André P.', initials: 'MP', poste: 'Signaleurs · responsable', group: 'sig', lead: true, status: 'place', arrived: '7 h 12', time: 'Samedi, 7 h à 11 h', phone: '(514) 555-0125', email: 'marcandre.p@example.com', skills: 'Radio', since: '2021' },
+      { id: 'nadia', name: 'Nadia B.', initials: 'NB', poste: 'Arrivée et médailles · responsable', group: 'arr', lead: true, status: 'place', arrived: '8 h 40', time: 'Samedi, 8 h 30 à 13 h', phone: '(514) 555-0133', email: 'nadia.b@example.com', skills: 'Anglais', since: '2022' },
+      { id: 'olivier', name: 'Olivier G.', initials: 'OG', poste: 'Navette des abandons', group: 'nav', lead: false, status: 'place', arrived: '7 h 50', time: 'Samedi, 8 h à 14 h', phone: '(514) 555-0146', email: 'olivier.g@example.com', skills: 'Permis de conduire', since: '2024' },
+      { id: 'leo', name: 'Léo F.', initials: 'LF', poste: 'Volant · en réserve au village', group: 'vol', lead: false, status: 'place', arrived: '6 h 58', time: 'Samedi, 7 h à 12 h', phone: '(514) 555-0150', email: 'leo.f@example.com', skills: 'Premiers soins', since: '2025' },
+      { id: 'amelie', name: 'Amélie C.', initials: 'AC', poste: 'Départ et sas', group: 'dep', lead: false, status: 'place', arrived: '6 h 20', time: 'Samedi, 6 h 30 à 9 h', phone: '(514) 555-0168', email: 'amelie.c@example.com', skills: '—', since: '2023' },
+      { id: 'julien', name: 'Julien S.', initials: 'JS', poste: 'Village et kiosques', group: 'vil', lead: false, status: 'place', arrived: '7 h 55', time: 'Samedi, 8 h à 14 h', phone: '(514) 555-0174', email: 'julien.s@example.com', skills: 'Anglais', since: '2026' },
+      { id: 'chloe', name: 'Chloé V.', initials: 'CV', poste: 'Remise des dossards', group: 'dos', lead: false, status: 'fini', time: 'Vendredi, 16 h à 20 h', phone: '(514) 555-0189', email: 'chloe.v@example.com', skills: 'Anglais', since: '2024' }
+    ];
+    const statusOf = (p) => {
+      if (p.status === 'place') return { label: 'Sur place · ' + p.arrived, bg: '#E3F1E8', fg: '#14201B' };
+      if (p.status === 'absent') return { label: 'Pas encore au poste', bg: '#C81E1E', fg: '#FFFFFF' };
+      return { label: 'Quart terminé', bg: '#E4E8E0', fg: '#14201B' };
+    };
+    const filterDefs = [
+      { id: 'tous', label: 'Tous', test: () => true },
+      { id: 'place', label: 'Sur place', test: (p) => p.status === 'place' },
+      { id: 'absent', label: 'Pas encore au poste', test: (p) => p.status === 'absent' },
+      { id: 'r2', label: 'Ravito 2', test: (p) => p.group === 'r2' },
+      { id: 'sig', label: 'Signaleurs', test: (p) => p.group === 'sig' },
+      { id: 'resp', label: 'Responsables', test: (p) => p.lead }
+    ];
+    const fd = filterDefs.find((f) => f.id === filter) || filterDefs[0];
+    const shown = people.filter((p) => fd.test(p) && (!q || p.name.toLowerCase().includes(q) || p.poste.toLowerCase().includes(q)));
+    const sel = people.find((p) => p.id === selId) || people[1];
+    const first = sel.name.split(' ')[0];
+    const selStatus = statusOf(sel);
+    const thread = [];
+    if (sel.status === 'absent') {
+      thread.push({ time: '6 h 55', who: 'Texto automatique', text: 'Bonjour ' + first + ', ton quart (' + sel.poste + ') commence à ' + sel.start + '. Tout va bien? Réponds OUI ou appelle ton responsable.', meta: 'Livré · sans réponse', bg: '#EEF0EA' });
+    } else if (sel.status === 'place') {
+      thread.push({ time: '9 h 40', who: 'Message au groupe', text: 'Les coureurs du 50 km passent entre 9 h 30 et 11 h. Merci d’être là!', meta: 'Lu', bg: '#EEF0EA' });
+    } else {
+      thread.push({ time: 'Vendredi, 20 h 05', who: 'Remerciement automatique', text: 'Merci ' + first + '! Ton attestation d’heures arrive après l’événement.', meta: 'Lu', bg: '#EEF0EA' });
+    }
+    if (sent[sel.id]) {
+      thread.push({ time: '10 h 45', who: 'Toi', text: sent[sel.id], meta: 'Envoyé par texto et dans l’app', bg: '#FFE6D2' });
+    }
+    const defaultDraft = sel.status === 'absent' ? first + ', on te remplace pour aujourd’hui. Dis-nous si tout va bien!' : '';
+    const draft = st.draft === undefined ? defaultDraft : st.draft;
+    const allView = filter === 'tous' && !q;
+    return {
+      q: st.q || '',
+      setQ: (e) => this.setState({ q: e.target.value }),
+      filters: filterDefs.map((f) => {
+        const on = f.id === fd.id;
+        return {
+          label: f.label,
+          pressed: on ? 'true' : 'false',
+          bg: on ? '#14201B' : '#FFFFFF',
+          fg: on ? '#FFFFFF' : '#14201B',
+          border: on ? '#14201B' : '#D9DDD5',
+          pick: () => this.setState({ filter: f.id })
+        };
+      }),
+      resultText: allView ? '86 bénévoles · aperçu de 13' : shown.length + (shown.length > 1 ? ' bénévoles' : ' bénévole'),
+      groupLabel: allView ? 'Écrire à tous' : 'Écrire à ces ' + shown.length,
+      empty: shown.length === 0,
+      rows: shown.map((p) => {
+        const s = statusOf(p);
+        const on = p.id === sel.id;
+        return {
+          name: p.name,
+          initials: p.initials,
+          poste: p.poste,
+          skills: p.skills,
+          statusLabel: s.label,
+          chipBg: s.bg,
+          chipFg: s.fg,
+          bg: on ? '#EEF0EA' : '#FFFFFF',
+          border: on ? '#14201B' : '#FFFFFF',
+          avatarBg: p.lead ? '#FF5B1A' : '#E4E8E0',
+          avatarFg: '#14201B',
+          selectLabel: 'Voir la fiche de ' + p.name,
+          callLabel: 'Appeler ' + p.name,
+          textLabel: 'Écrire à ' + p.name,
+          select: () => this.setState({ sel: p.id, draft: undefined })
+        };
+      }),
+      sel: {
+        name: sel.name,
+        first: first,
+        initials: sel.initials,
+        poste: sel.poste,
+        time: sel.time,
+        phone: sel.phone,
+        email: sel.email,
+        skills: sel.skills,
+        since: sel.since,
+        statusLabel: selStatus.label,
+        chipBg: selStatus.bg,
+        chipFg: selStatus.fg
+      },
+      thread: thread,
+      draft: draft,
+      setDraft: (e) => this.setState({ draft: e.target.value }),
+      send: () => {
+        if (!draft.trim()) return;
+        const next = Object.assign({}, sent);
+        next[sel.id] = draft.trim();
+        this.setState({ sent: next, draft: '' });
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

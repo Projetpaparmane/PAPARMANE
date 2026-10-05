@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Récréaction · prototype</title>
+<meta name="description" content="Prototype cliquable de Récréaction : inscription, sécurité, photos, encouragements, infolettre et bénévoles pour les événements sportifs.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=Barlow:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #14201B;
+  --ink-2: #4A5650;
+  --ground: #EEF0EA;
+  --surface: #FFFFFF;
+  --line: #D9DDD5;
+  --accent: #FF5B1A;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: 'Barlow', sans-serif;
+}
+.wrap {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 16px 64px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.brand-mark {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 26px;
+  font-weight: 700;
+}
+.brand-name {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 32px;
+  font-weight: 700;
+}
+.hero {
+  margin: 40px 0 8px;
+  max-width: 760px;
+}
+.hero h1 {
+  margin: 0;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: clamp(40px, 7vw, 72px);
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+}
+.hero p {
+  margin: 16px 0 0;
+  font-size: 18px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+.notice {
+  display: inline-flex;
+  margin-top: 20px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 700;
+}
+section {
+  margin-top: 48px;
+}
+section h2 {
+  margin: 0 0 4px;
+  font-size: 24px;
+  font-weight: 700;
+}
+section > p {
+  margin: 0 0 16px;
+  color: var(--ink-2);
+  font-size: 15px;
+}
+.grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+.card {
+  height: 100%;
+  min-height: 132px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 2px solid var(--surface);
+  background: var(--surface);
+  color: var(--ink);
+  text-decoration: none;
+}
+.card:hover {
+  border-color: var(--ink);
+}
+.card:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+.card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.num {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: #A33A00;
+}
+.tag {
+  border-radius: 999px;
+  padding: 3px 10px;
+  background: var(--ground);
+  font-size: 12px;
+  font-weight: 700;
+}
+.card strong {
+  font-size: 18px;
+}
+.card span.desc {
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--ink-2);
+}
+footer {
+  margin-top: 56px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+  color: var(--ink-2);
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="brand">
+<span class="brand-mark" aria-hidden="true">R</span>
+<span class="brand-name">Récréaction</span>
+</div>
+
+<div class="hero">
+<h1>Le prototype</h1>
+<p>Une seule app pour vivre l’événement : inscription, sécurité en course, photos par dossard, encouragements de la famille, infolettre et bénévoles. Cliquez sur un écran pour l’essayer.</p>
+<span class="notice">Démo : toutes les données sont fictives</span>
+</div>
+
+<section aria-labelledby="t-participant">
+<h2 id="t-participant">Le participant</h2>
+<p>Dans l’app, de l’inscription jusqu’au sac du coureur.</p>
+<ul class="grid">
+<li><a class="card" href="inscription.html"><span class="card-top"><span class="num">1</span><span class="tag">Téléphone</span></span><strong>Inscription</strong><span class="desc">Distance, t-shirt, décharge, infolettre et paiement.</span></a></li>
+<li><a class="card" href="accueil.html"><span class="card-top"><span class="num">2</span><span class="tag">Téléphone</span></span><strong>Accueil</strong><span class="desc">Dossard, préparation et plan de course.</span></a></li>
+<li><a class="card" href="dossard.html"><span class="card-top"><span class="num">3</span><span class="tag">Téléphone</span></span><strong>Dossard et fiche médicale</strong><span class="desc">Code QR pour les secouristes et carte-rabais en ville.</span></a></li>
+<li><a class="card" href="jour-j.html"><span class="card-top"><span class="num">4</span><span class="tag">Téléphone</span></span><strong>Jour J, en course</strong><span class="desc">Carte, alerte chaleur, SOS et abandon.</span></a></li>
+<li><a class="card" href="photos.html"><span class="card-top"><span class="num">5</span><span class="tag">Téléphone</span></span><strong>Photos par dossard</strong><span class="desc">Les photos arrivent seules dans le compte.</span></a></li>
+<li><a class="card" href="avantages.html"><span class="card-top"><span class="num">6</span><span class="tag">Téléphone</span></span><strong>Sac du coureur numérique</strong><span class="desc">Offres des commanditaires, personnalisées avec consentement.</span></a></li>
+</ul>
+</section>
+
+<section aria-labelledby="t-famille">
+<h2 id="t-famille">La famille et l’écran géant</h2>
+<p>Les messages vocaux restent privés : seul le coureur les entend.</p>
+<ul class="grid">
+<li><a class="card" href="encourager.html"><span class="card-top"><span class="num">7</span><span class="tag">Téléphone</span></span><strong>Encourager un coureur</strong><span class="desc">La famille enregistre un message vocal et choisit le moment.</span></a></li>
+<li><a class="card" href="message-recu.html"><span class="card-top"><span class="num">8</span><span class="tag">Téléphone</span></span><strong>Message vocal reçu</strong><span class="desc">« Continue papa! Tu es capable! » au km 20.</span></a></li>
+<li><a class="card" href="selfie.html"><span class="card-top"><span class="num">9</span><span class="tag">Téléphone</span></span><strong>Selfie pour l’écran géant</strong><span class="desc">Envoyé en course, vérifié, puis affiché à l’arrivée.</span></a></li>
+<li><a class="card" href="ecran-geant.html"><span class="card-top"><span class="num">10</span><span class="tag">Télé</span></span><strong>Écran géant à l’arrivée</strong><span class="desc">Selfies en direct, arrivées et coureurs qui approchent.</span></a></li>
+</ul>
+</section>
+
+<section aria-labelledby="t-orga">
+<h2 id="t-orga">L’organisateur</h2>
+<p>Le poste de commandement et la communication.</p>
+<ul class="grid">
+<li><a class="card" href="organisateur.html"><span class="card-top"><span class="num">11</span><span class="tag">Ordinateur</span></span><strong>Poste de commandement</strong><span class="desc">Carte en direct, incidents, fiche médicale et commandites.</span></a></li>
+<li><a class="card" href="infolettres.html"><span class="card-top"><span class="num">12</span><span class="tag">Ordinateur</span></span><strong>Infolettres</strong><span class="desc">Envois automatiques et nouvelle campagne.</span></a></li>
+<li><a class="card" href="courriel-j1.html"><span class="card-top"><span class="num">13</span><span class="tag">Courriel</span></span><strong>Courriel J+1</strong><span class="desc">Résultat, photos et récupération, pour chaque coureur.</span></a></li>
+</ul>
+</section>
+
+<section aria-labelledby="t-benevoles">
+<h2 id="t-benevoles">Les bénévoles</h2>
+<p>Du recrutement jusqu’aux contacts le jour J.</p>
+<ul class="grid">
+<li><a class="card" href="benevole-inscription.html"><span class="card-top"><span class="num">14</span><span class="tag">Téléphone</span></span><strong>Devenir bénévole</strong><span class="desc">Choix du poste, compétences et entente signée.</span></a></li>
+<li><a class="card" href="benevole-jour-j.html"><span class="card-top"><span class="num">15</span><span class="tag">Téléphone</span></span><strong>App bénévole, jour J</strong><span class="desc">Coureur en difficulté, abandon et niveau des stocks.</span></a></li>
+<li><a class="card" href="benevoles.html"><span class="card-top"><span class="num">16</span><span class="tag">Ordinateur</span></span><strong>Couverture des postes</strong><span class="desc">Postes incomplets, volants et message aux bénévoles.</span></a></li>
+<li><a class="card" href="benevoles-repertoire.html"><span class="card-top"><span class="num">17</span><span class="tag">Ordinateur</span></span><strong>Répertoire et contacts</strong><span class="desc">Recherche, fiche, appel et fil de messages.</span></a></li>
+</ul>
+</section>
+
+<footer>
+Récréaction · prototype de démonstration. L’événement, les personnes, les commerces et les prix sont fictifs.
+</footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,9 @@
+# Utilisé seulement si ce dossier devient son propre site Netlify.
+# Dans le site PAPARMANE, c'est le netlify.toml à la racine du dépôt qui s'applique.
+[build]
+  publish = "."
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Robots-Tag = "noindex"

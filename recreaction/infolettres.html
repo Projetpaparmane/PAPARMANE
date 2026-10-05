@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Infolettres de l’organisateur · Récréaction</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=Barlow:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#14201B}a:hover{color:#000000}
+</style>
+<link rel="stylesheet" href="prototype.css">
+<script src="runtime.js" defer></script>
+</head>
+<body>
+<a class="proto-home" href="index.html">Tous les écrans</a>
+<div id="dc-root"></div>
+<template id="dc-template">
+<div style="min-height: 100vh; box-sizing: border-box; background: #EEF0EA; color: #14201B; font-family: 'Barlow', sans-serif">
+<div style="max-width: 1440px; margin: 0 auto; box-sizing: border-box; padding: 24px 32px 40px; display: flex; flex-direction: column; gap: 20px">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px">
+<div style="display: flex; align-items: center; gap: 8px">
+<span aria-hidden="true" style="width: 32px; height: 32px; border-radius: 8px; background: #FF5B1A; color: #14201B; display: flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700">R</span>
+<span style="font-family: 'Barlow Condensed', sans-serif; font-size: 28px; font-weight: 700">Récréaction</span>
+<span style="margin-left: 6px; padding-left: 12px; border-left: 1px solid #C5CBC2; font-size: 14px; font-weight: 600; color: #4A5650">Espace organisateur</span>
+</div>
+<div style="flex: 1 1 280px; min-width: 0">
+<h1 style="margin: 0; font-size: 24px; font-weight: 700; line-height: 1.2">Infolettres</h1>
+<div style="font-size: 14px; color: #4A5650">Trail des Crêtes · 2 431 abonnés qui ont donné leur consentement</div>
+</div>
+</header>
+
+<nav aria-label="Sections de l’espace organisateur" style="display: flex; flex-wrap: wrap; gap: 8px">
+<a href="organisateur.html" style="height: 44px; box-sizing: border-box; padding: 0 18px; border-radius: 999px; border: 2px solid #D9DDD5; background: #FFFFFF; color: #14201B; display: inline-flex; align-items: center; font-size: 15px; font-weight: 700; text-decoration: none">Poste de commandement</a>
+<a href="benevoles.html" style="height: 44px; box-sizing: border-box; padding: 0 18px; border-radius: 999px; border: 2px solid #D9DDD5; background: #FFFFFF; color: #14201B; display: inline-flex; align-items: center; font-size: 15px; font-weight: 700; text-decoration: none">Bénévoles</a>
+<a href="infolettres.html" aria-current="page" style="height: 44px; box-sizing: border-box; padding: 0 18px; border-radius: 999px; border: 2px solid #14201B; background: #14201B; color: #FFFFFF; display: inline-flex; align-items: center; font-size: 15px; font-weight: 700; text-decoration: none">Infolettres</a>
+</nav>
+
+<section aria-label="Indicateurs de l’infolettre" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px">
+<div style="background: #FFFFFF; border-radius: 16px; padding: 14px 16px">
+<div style="font-size: 13px; font-weight: 600; color: #4A5650">Abonnés</div>
+<div style="font-family: 'Barlow Condensed', sans-serif; font-size: 40px; font-weight: 700; line-height: 1.05">2 431</div>
+<div style="font-size: 12px; color: #4A5650">+184 ce mois-ci</div>
+</div>
+<div style="background: #FFFFFF; border-radius: 16px; padding: 14px 16px">
+<div style="font-size: 13px; font-weight: 600; color: #4A5650">Taux d’ouverture</div>
+<div style="font-family: 'Barlow Condensed', sans-serif; font-size: 40px; font-weight: 700; line-height: 1.05">58 %</div>
+<div style="font-size: 12px; color: #4A5650">moyenne des 6 derniers envois</div>
+</div>
+<div style="background: #FFFFFF; border-radius: 16px; padding: 14px 16px">
+<div style="font-size: 13px; font-weight: 600; color: #4A5650">Taux de clics</div>
+<div style="font-family: 'Barlow Condensed', sans-serif; font-size: 40px; font-weight: 700; line-height: 1.05">14 %</div>
+<div style="font-size: 12px; color: #4A5650">moyenne des 6 derniers envois</div>
+</div>
+<div style="background: #FFFFFF; border: 2px solid #FF5B1A; border-radius: 16px; padding: 12px 14px">
+<div style="font-size: 13px; font-weight: 700; color: #A33A00">Inscriptions générées</div>
+<div style="font-family: 'Barlow Condensed', sans-serif; font-size: 40px; font-weight: 700; line-height: 1.05">312</div>
+<div style="font-size: 12px; color: #4A5650">après un clic dans l’infolettre</div>
+</div>
+<div style="background: #FFFFFF; border-radius: 16px; padding: 14px 16px">
+<div style="font-size: 13px; font-weight: 600; color: #4A5650">Désabonnements</div>
+<div style="font-family: 'Barlow Condensed', sans-serif; font-size: 40px; font-weight: 700; line-height: 1.05">0,4 %</div>
+<div style="font-size: 12px; color: #4A5650">par envoi</div>
+</div>
+</section>
+
+<div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start">
+
+<div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+
+<section aria-label="Envois automatiques" style="background: #FFFFFF; border-radius: 20px; padding: 16px 18px; display: flex; flex-direction: column">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 12px; margin-bottom: 8px">
+<h2 style="margin: 0; font-size: 18px; font-weight: 700">Envois automatiques</h2>
+<span style="font-size: 13px; color: #4A5650">Ils partent seuls, au bon moment, pour chaque coureur</span>
+</div>
+<sc-for list="{{autos}}" as="a" hint-placeholder-count="6">
+<div style="display: flex; align-items: center; gap: 14px; padding: 8px 0; border-top: 1px solid #E4E8E0">
+<span style="flex: none; width: 66px; box-sizing: border-box; padding: 6px 0; border-radius: 10px; background: {{a.badgeBg}}; color: {{a.badgeFg}}; text-align: center; font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700">{{a.when}}</span>
+<div style="flex-grow: 1; min-width: 0">
+<div style="font-size: 15px; font-weight: 700">{{a.title}}</div>
+<div style="font-size: 13px; color: #4A5650">{{a.desc}}</div>
+</div>
+<span style="flex: none; width: 112px; text-align: right; font-size: 13px; color: #4A5650">{{a.stat}}</span>
+<button type="button" role="switch" aria-checked="{{a.onStr}}" aria-label="{{a.label}}" onClick="{{a.toggle}}" style="width: 60px; height: 44px; flex: none; padding: 0; border: 0; background: transparent; display: flex; align-items: center; justify-content: center; cursor: pointer">
+<span style="width: 50px; height: 30px; box-sizing: border-box; padding: 3px; border-radius: 999px; background: {{a.trackBg}}; display: flex; justify-content: {{a.knob}}"><span style="display: block; width: 24px; height: 24px; border-radius: 999px; background: #FFFFFF"></span></span>
+</button>
+</div>
+</sc-for>
+<a href="courriel-j1.html" style="margin-top: 6px; align-self: flex-start; min-height: 44px; display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 700">Voir l’aperçu du courriel J+1, « Tes photos et ton résultat »<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"></path></svg></a>
+</section>
+
+<section aria-label="Campagnes" style="background: #FFFFFF; border-radius: 20px; padding: 16px 18px; display: flex; flex-direction: column">
+<h2 style="margin: 0 0 8px; font-size: 18px; font-weight: 700">Campagnes</h2>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; padding: 10px 0; border-top: 1px solid #E4E8E0">
+<span style="flex: 1 1 260px; min-width: 0; font-size: 15px; font-weight: 700">Plus que 18 places au 25 km</span>
+<span style="flex: none; background: #FFE6D2; color: #14201B; font-size: 12px; font-weight: 700; border-radius: 6px; padding: 2px 8px">Brouillon</span>
+<span style="flex: 0 0 200px; font-size: 13px; color: #4A5650">En cours de rédaction</span>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; padding: 10px 0; border-top: 1px solid #E4E8E0">
+<span style="flex: 1 1 260px; min-width: 0; font-size: 15px; font-weight: 700">Le nouveau parcours du 50 km est dévoilé</span>
+<span style="flex: none; background: #E4E8E0; color: #14201B; font-size: 12px; font-weight: 700; border-radius: 6px; padding: 2px 8px">Envoyée le 12 sept.</span>
+<span style="flex: 0 0 200px; font-size: 13px; color: #4A5650">2 104 destinataires · 61 % ouverts</span>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; padding: 10px 0; border-top: 1px solid #E4E8E0">
+<span style="flex: 1 1 260px; min-width: 0; font-size: 15px; font-weight: 700">Les inscriptions 2026 sont ouvertes</span>
+<span style="flex: none; background: #E4E8E0; color: #14201B; font-size: 12px; font-weight: 700; border-radius: 6px; padding: 2px 8px">Envoyée le 3 févr.</span>
+<span style="flex: 0 0 200px; font-size: 13px; color: #4A5650">1 870 destinataires · 66 % ouverts</span>
+</div>
+</section>
+
+</div>
+
+<section aria-label="Nouvelle campagne" style="flex: 1 1 380px; min-width: 0; background: #FFFFFF; border-radius: 20px; padding: 16px 18px; display: flex; flex-direction: column; gap: 16px">
+<h2 style="margin: 0; font-size: 18px; font-weight: 700">Nouvelle campagne</h2>
+
+<div style="display: flex; flex-direction: column; gap: 4px">
+<label for="objet" style="font-size: 14px; font-weight: 700">Objet</label>
+<input id="objet" type="text" value="{{subject}}" onChange="{{setSubject}}" style="height: 46px; box-sizing: border-box; border: 2px solid #D9DDD5; border-radius: 12px; padding: 0 12px; background: #FFFFFF; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 16px">
+</div>
+
+<fieldset style="border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; min-width: 0">
+<legend style="padding: 0; margin-bottom: 6px; font-size: 14px; font-weight: 700">Destinataires</legend>
+<sc-for list="{{segs}}" as="s" hint-placeholder-count="3">
+<label style="display: flex; align-items: center; gap: 10px; min-height: 44px; box-sizing: border-box; padding: 6px 12px; border: 2px solid {{s.border}}; border-radius: 12px; cursor: pointer">
+<input type="checkbox" checked="{{s.checked}}" onChange="{{s.toggle}}" style="width: 18px; height: 18px; margin: 0; flex: none; accent-color: #14201B">
+<span style="flex-grow: 1; font-size: 14px; font-weight: 600">{{s.name}}</span>
+<span style="font-size: 13px; color: #4A5650">{{s.count}}</span>
+</label>
+</sc-for>
+<div style="font-size: 14px"><strong>{{total}} destinataires</strong> <span style="color: #4A5650">· seulement les personnes qui ont accepté de recevoir l’infolettre</span></div>
+</fieldset>
+
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="font-size: 14px; font-weight: 700">Contenu</div>
+<div style="display: flex; align-items: center; gap: 10px; min-height: 40px; box-sizing: border-box; padding: 6px 12px; background: #EEF0EA; border-radius: 10px; font-size: 14px"><svg width="16" height="16" viewBox="0 0 24 24" fill="#7D8781" aria-hidden="true"><circle cx="9" cy="6" r="1.6"></circle><circle cx="15" cy="6" r="1.6"></circle><circle cx="9" cy="12" r="1.6"></circle><circle cx="15" cy="12" r="1.6"></circle><circle cx="9" cy="18" r="1.6"></circle><circle cx="15" cy="18" r="1.6"></circle></svg><span style="flex-grow: 1">En-tête de l’événement</span><span style="font-size: 12px; color: #4A5650">Image et date</span></div>
+<div style="display: flex; align-items: center; gap: 10px; min-height: 40px; box-sizing: border-box; padding: 6px 12px; background: #EEF0EA; border-radius: 10px; font-size: 14px"><svg width="16" height="16" viewBox="0 0 24 24" fill="#7D8781" aria-hidden="true"><circle cx="9" cy="6" r="1.6"></circle><circle cx="15" cy="6" r="1.6"></circle><circle cx="9" cy="12" r="1.6"></circle><circle cx="15" cy="12" r="1.6"></circle><circle cx="9" cy="18" r="1.6"></circle><circle cx="15" cy="18" r="1.6"></circle></svg><span style="flex-grow: 1">Texte</span><span style="font-size: 12px; color: #4A5650">« Il reste 18 places… »</span></div>
+<div style="display: flex; align-items: center; gap: 10px; min-height: 40px; box-sizing: border-box; padding: 6px 12px; background: #EEF0EA; border-radius: 10px; font-size: 14px"><svg width="16" height="16" viewBox="0 0 24 24" fill="#7D8781" aria-hidden="true"><circle cx="9" cy="6" r="1.6"></circle><circle cx="15" cy="6" r="1.6"></circle><circle cx="9" cy="12" r="1.6"></circle><circle cx="15" cy="12" r="1.6"></circle><circle cx="9" cy="18" r="1.6"></circle><circle cx="15" cy="18" r="1.6"></circle></svg><span style="flex-grow: 1">Bouton</span><span style="font-size: 12px; color: #4A5650">« Je m’inscris »</span></div>
+<div style="display: flex; align-items: center; gap: 10px; min-height: 40px; box-sizing: border-box; padding: 6px 12px; background: #EEF0EA; border-radius: 10px; font-size: 14px"><svg width="16" height="16" viewBox="0 0 24 24" fill="#7D8781" aria-hidden="true"><circle cx="9" cy="6" r="1.6"></circle><circle cx="15" cy="6" r="1.6"></circle><circle cx="9" cy="12" r="1.6"></circle><circle cx="15" cy="12" r="1.6"></circle><circle cx="9" cy="18" r="1.6"></circle><circle cx="15" cy="18" r="1.6"></circle></svg><span style="flex-grow: 1">Commanditaire</span><span style="font-size: 12px; color: #4A5650">Boutique Foulée</span></div>
+<button type="button" style="height: 44px; border: 2px dashed #9AA39D; border-radius: 10px; background: transparent; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer">+ Ajouter un bloc</button>
+</div>
+
+<fieldset style="border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; min-width: 0">
+<legend style="padding: 0; margin-bottom: 6px; font-size: 14px; font-weight: 700">Envoi</legend>
+<sc-for list="{{whens}}" as="w" hint-placeholder-count="2">
+<label style="display: flex; align-items: center; gap: 10px; min-height: 44px; box-sizing: border-box; padding: 6px 12px; border: 2px solid {{w.border}}; border-radius: 12px; cursor: pointer">
+<input type="radio" name="envoi" value="{{w.id}}" checked="{{w.selected}}" onChange="{{w.pick}}" style="width: 18px; height: 18px; margin: 0; flex: none; accent-color: #14201B">
+<span style="flex-grow: 1; font-size: 14px; font-weight: 600">{{w.label}}</span>
+<span style="font-size: 12px; font-weight: 700; color: #A33A00">{{w.tag}}</span>
+</label>
+</sc-for>
+</fieldset>
+
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<button type="button" style="flex: 1 1 140px; height: 48px; border: 2px solid #14201B; border-radius: 12px; background: transparent; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer">Envoyer un test</button>
+<sc-if value="{{canSchedule}}" hint-placeholder-val="{{true}}">
+<button type="button" onClick="{{schedule}}" style="flex: 1 1 180px; height: 48px; border: 0; border-radius: 12px; background: #FF5B1A; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer">{{cta}}</button>
+</sc-if>
+<sc-if value="{{noRecipients}}" hint-placeholder-val="{{false}}">
+<button type="button" disabled="{{true}}" style="flex: 1 1 180px; height: 48px; border: 0; border-radius: 12px; background: #E4E8E0; color: #4A5650; font-family: 'Barlow', sans-serif; font-size: 15px; font-weight: 700">Choisis des destinataires</button>
+</sc-if>
+</div>
+<sc-if value="{{scheduled}}" hint-placeholder-val="{{false}}">
+<div role="status" style="display: flex; align-items: center; gap: 10px; background: #E3F1E8; border-radius: 12px; padding: 10px 12px; font-size: 14px"><span aria-hidden="true" style="width: 26px; height: 26px; flex: none; border-radius: 999px; background: #2E7D4F; display: flex; align-items: center; justify-content: center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"></path></svg></span><span>{{doneText}}</span></div>
+</sc-if>
+
+<div style="display: flex; gap: 8px; align-items: flex-start; font-size: 12px; line-height: 1.4; color: #4A5650"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>Le lien de désabonnement et l’adresse postale de l’organisateur sont ajoutés automatiquement, comme l’exige la loi canadienne anti-pourriel.</div>
+</section>
+
+</div>
+
+</div>
+</div>
+</template>
+<script type="text/x-dc" id="dc-logic">
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const off = st.off || {};
+    const segSel = st.segs || { jamais: true, finissants: true, attente: false };
+    const when = st.when || 'jeudi';
+    const scheduled = st.scheduled === true;
+    const subject = st.subject === undefined ? 'Plus que 18 places au 25 km' : st.subject;
+    const fmtN = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    const ink = { bg: '#14201B', fg: '#FFFFFF' };
+    const autoData = [
+      { id: 'confirm', when: 'Inscr.', title: 'Confirmation d’inscription', desc: 'Reçu, dossard numérique et lien vers la fiche médicale', stat: 'Ouvert à 91 %', badge: ink },
+      { id: 'j30', when: 'J-30', title: 'Ton plan d’entraînement', desc: 'Selon la distance choisie · présenté par Boutique Foulée', stat: 'Ouvert à 64 %', badge: ink },
+      { id: 'j7', when: 'J-7', title: 'Infos pratiques', desc: 'Remise des dossards, stationnement, navettes, météo', stat: 'Ouvert à 78 %', badge: ink },
+      { id: 'j1', when: 'J-1', title: 'Ton plan de course', desc: 'Vague, heure de départ, hydratation selon la météo', stat: 'Ouvert à 82 %', badge: ink },
+      { id: 'jp1', when: 'J+1', title: 'Tes photos et ton résultat', desc: 'Personnalisé pour chaque coureur grâce à son dossard', stat: 'Part le 18 oct.', badge: { bg: '#FF5B1A', fg: '#14201B' } },
+      { id: 'jp45', when: 'J+45', title: 'Inscription hâtive 2027', desc: 'Réservée aux finissants, 48 h avant tout le monde', stat: 'Part le 1er déc.', badge: { bg: '#E4E8E0', fg: '#14201B' } }
+    ];
+    const autos = autoData.map((a) => {
+      const on = off[a.id] !== true;
+      return {
+        when: a.when,
+        title: a.title,
+        desc: a.desc,
+        stat: on ? a.stat : 'En pause',
+        onStr: on ? 'true' : 'false',
+        label: 'Envoi automatique : ' + a.title,
+        trackBg: on ? '#14201B' : '#7D8781',
+        knob: on ? 'flex-end' : 'flex-start',
+        badgeBg: a.badge.bg,
+        badgeFg: a.badge.fg,
+        toggle: () => {
+          const next = Object.assign({}, off);
+          next[a.id] = on;
+          this.setState({ off: next });
+        }
+      };
+    });
+    const segData = [
+      { id: 'jamais', name: 'Abonnés jamais inscrits', count: 1204 },
+      { id: 'finissants', name: 'Finissants 2025 pas encore inscrits', count: 689 },
+      { id: 'attente', name: 'Liste d’attente du 50 km', count: 37 }
+    ];
+    let total = 0;
+    const segs = segData.map((s) => {
+      const on = segSel[s.id] === true;
+      if (on) total += s.count;
+      return {
+        name: s.name,
+        count: fmtN(s.count),
+        checked: on,
+        border: on ? '#14201B' : '#E4E8E0',
+        toggle: () => {
+          const next = Object.assign({}, segSel);
+          next[s.id] = !on;
+          this.setState({ segs: next, scheduled: false });
+        }
+      };
+    });
+    const whenData = [
+      { id: 'now', label: 'Maintenant', tag: '' },
+      { id: 'jeudi', label: 'Jeudi, 8 h 00', tag: 'Meilleur moment pour ta liste' }
+    ];
+    return {
+      autos: autos,
+      subject: subject,
+      setSubject: (e) => this.setState({ subject: e.target.value, scheduled: false }),
+      segs: segs,
+      total: fmtN(total),
+      whens: whenData.map((w) => ({
+        id: w.id,
+        label: w.label,
+        tag: w.tag,
+        selected: w.id === when,
+        border: w.id === when ? '#14201B' : '#E4E8E0',
+        pick: () => this.setState({ when: w.id, scheduled: false })
+      })),
+      cta: when === 'now' ? 'Envoyer maintenant' : 'Programmer l’envoi',
+      canSchedule: total > 0 && !scheduled,
+      noRecipients: total === 0,
+      scheduled: scheduled,
+      schedule: () => this.setState({ scheduled: true }),
+      doneText: when === 'now'
+        ? 'Envoyée à ' + fmtN(total) + ' destinataires.'
+        : 'Programmée pour jeudi, 8 h 00 · ' + fmtN(total) + ' destinataires.'
+    };
+  }
+}
+</script>
+</body>
+</html>
