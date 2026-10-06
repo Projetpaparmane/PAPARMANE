@@ -20,12 +20,15 @@ a{color:#14201B}a:hover{color:#000000}
 <template id="dc-template">
 <div style="width: 390px; height: 844px; box-sizing: border-box; background: #EEF0EA; color: #14201B; font-family: 'Barlow', sans-serif; display: flex; flex-direction: column; overflow: hidden">
 
-<header style="flex: none; padding: 20px 16px 6px">
+<header style="flex: none; padding: 20px 16px 6px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px">
+<div>
 <h1 style="margin: 0; font-size: 24px; font-weight: 700">Ton sac du coureur</h1>
-<p style="margin: 2px 0 0; font-size: 14px; color: #4A5650">6 offres choisies pour toi · Trail des Crêtes</p>
+<p style="margin: 2px 0 0; font-size: 14px; color: #4A5650">6 offres choisies pour toi · Des-Chênes-Toi!</p>
+</div>
+<a href="partenaires.html" style="flex: none; height: 44px; box-sizing: border-box; padding: 0 14px; border-radius: 999px; background: #14201B; color: #FFFFFF; display: flex; align-items: center; font-size: 14px; font-weight: 700; text-decoration: none">Partenaires</a>
 </header>
 
-<main style="flex: 1; min-height: 0; overflow: hidden; padding: 6px 16px 12px; display: flex; flex-direction: column; gap: 10px">
+<main style="flex: 1; min-height: 0; overflow-y: auto; padding: 6px 16px 12px; display: flex; flex-direction: column; gap: 10px">
 
 <div style="display: flex; align-items: center; gap: 12px; background: #FFFFFF; border-radius: 16px; padding: 10px 10px 10px 14px">
 <div style="flex-grow: 1">
@@ -80,11 +83,12 @@ class Component extends DCLogic {
     const st = this.state || {};
     const on = st.perso !== false;
     const list = [
-      { initials: 'PS', brand: 'Physio Sommet', discount: '-20 %', title: 'Massage de récupération sur le site', reason: 'Après ta course · tente B, près de l’arrivée', meta: 'Samedi, 11 h à 16 h', cta: 'Réserver', logoBg: '#2E5E8C', logoFg: '#FFFFFF' },
-      { initials: 'BF', brand: 'Boutique Foulée', discount: '-25 %', title: 'Chaussures de trail', reason: 'Parce que tu prépares ton premier 25 km', meta: 'Jusqu’au 30 novembre', cta: 'Voir le code', logoBg: '#14201B', logoFg: '#FF5B1A' },
-      { initials: 'CV', brand: 'Café du Village', discount: '-20 %', title: 'Brunch sur présentation de ton dossard numérique', reason: 'Tu viens de l’extérieur de la région', meta: 'Samedi et dimanche', cta: 'Utiliser', logoBg: '#7A4A2A', logoFg: '#FFFFFF' },
-      { initials: 'E+', brand: 'Électro+', discount: '-30 %', title: 'Boissons d’effort', reason: 'Selon ton plan de course : 500 ml par heure', meta: 'Commande en ligne', cta: 'Voir le code', logoBg: '#E4E8E0', logoFg: '#14201B' },
-      { initials: 'TC', brand: 'Trail des Crêtes 2027', discount: '-15 %', title: 'Inscription hâtive', reason: 'Réservée aux finissants de 2026', meta: 'Dès le 1er décembre', cta: 'M’avertir', logoBg: '#FF5B1A', logoFg: '#14201B' }
+      { initials: 'SE', brand: 'Sports Experts', discount: '-20 %', title: 'Chaussures de course', reason: 'Parce que tu prépares ton premier demi-marathon', meta: 'Offre à confirmer', cta: 'Voir le code', logoBg: '#2E5E8C', logoFg: '#FFFFFF' },
+      { initials: 'TH', brand: 'Tim Hortons', discount: '-20 %', title: 'Déjeuner sur présentation de ton dossard numérique', reason: 'Tu viens de l’extérieur de la région', meta: 'Offre à confirmer', cta: 'Utiliser', logoBg: '#7A4A2A', logoFg: '#FFFFFF' },
+      { initials: 'RY', brand: 'Rydrate', discount: '-30 %', title: 'Boissons d’hydratation', reason: 'Selon ton plan de course : 500 ml par heure', meta: 'Offre à confirmer', cta: 'Voir le code', logoBg: '#E4E8E0', logoFg: '#14201B' },
+      { initials: 'MX', brand: 'Maxi', discount: 'Offert', title: 'Collation d’après-course', reason: 'Après ta course · zone d’alimentation Maxi', meta: 'Offre à confirmer', cta: 'Voir l’offre', logoBg: '#F2B53A', logoFg: '#14201B' },
+      { initials: 'TY', brand: 'Toyota Drummondville', discount: '-15 %', title: 'Entretien de ton véhicule', reason: 'Tu habites la région de Drummondville', meta: 'Offre à confirmer', cta: 'Réserver', logoBg: '#14201B', logoFg: '#FFFFFF' },
+      { initials: 'DT', brand: 'Des-Chênes-Toi! 2028', discount: '-20 %', title: 'Ta place pour l’an prochain', reason: 'Prix finissant, le jour de la course', meta: 'Aujourd’hui seulement, jusqu’à minuit', cta: 'Réserver', logoBg: '#D7191F', logoFg: '#FFFFFF' }
     ];
     return {
       offers: list.map((o) => ({

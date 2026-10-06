@@ -1,0 +1,1036 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Plan du site · Course Des-Chênes-Toi! Bourret</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #16191C;
+  --ink-2: #4E575F;
+  --ground: #F2F2F0;
+  --surface: #FFFFFF;
+  --line: #DCDDD9;
+  --red: #D7191F;
+  --map-bg: #2B302C;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: 'Montserrat', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.4;
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
+
+.app {
+  height: 100%;
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  grid-template-rows: 100%;
+}
+
+/* Panneau latéral */
+.side {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+}
+.side-head {
+  padding: 20px 20px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.kicker {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 4px;
+  background: var(--red);
+  color: #FFFFFF;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+h1 {
+  margin: 10px 0 2px;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+.addr {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 14px;
+}
+.head-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 2px solid var(--ink);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.btn:hover { background: var(--ground); }
+.btn-dark { background: var(--ink); color: #FFFFFF; }
+.btn-dark:hover { background: #000000; }
+.btn svg { width: 18px; height: 18px; flex: none; }
+
+.search {
+  position: relative;
+  margin: 14px 20px 0;
+}
+.search svg {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  transform: translateY(-50%);
+  color: var(--ink-2);
+  pointer-events: none;
+}
+.search input {
+  width: 100%;
+  height: 46px;
+  padding: 0 12px 0 40px;
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  font-size: 15px;
+}
+.search input:focus { border-color: var(--ink); outline: none; }
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--line);
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px 0 8px;
+  border-radius: 999px;
+  border: 2px solid var(--line);
+  background: var(--surface);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.chip[aria-pressed="true"] { border-color: var(--ink); background: var(--ink); color: #FFFFFF; }
+.chip .dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.chip .dot svg { width: 13px; height: 13px; }
+.chip .count { font-weight: 600; opacity: 0.75; }
+
+.list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px 12px 20px;
+}
+.group-title {
+  margin: 14px 8px 6px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  text-align: left;
+}
+.item:hover { background: var(--ground); }
+.item[aria-current="true"] { background: var(--ground); box-shadow: inset 3px 0 0 var(--ink); }
+.item .dot {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.item .dot svg { width: 18px; height: 18px; }
+.item strong { display: block; font-size: 15px; font-weight: 700; }
+.item span.sub { display: block; font-size: 13px; color: var(--ink-2); }
+.empty {
+  margin: 24px 8px;
+  color: var(--ink-2);
+}
+.side-foot {
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+/* Carte */
+.map {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--map-bg);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+}
+.map.dragging { cursor: grabbing; }
+.stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+.stage img {
+  display: block;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+.pins {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.pin {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 44px;
+  height: 52px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  pointer-events: auto;
+  transform-origin: 50% 100%;
+}
+.pin-head {
+  position: absolute;
+  left: 6px;
+  top: 4px;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 2px solid #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+  transition: transform 0.15s ease;
+}
+.pin-head svg { width: 17px; height: 17px; }
+.pin-tip {
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  width: 4px;
+  height: 14px;
+  margin-left: -2px;
+  border-radius: 2px;
+  background: #FFFFFF;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+.pin-label {
+  position: absolute;
+  left: 50%;
+  bottom: 54px;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #FFFFFF;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  display: none;
+}
+.pin:hover .pin-label,
+.pin:focus-visible .pin-label,
+.pin.is-selected .pin-label,
+.show-names .pin .pin-label { display: block; }
+.pin:hover .pin-head,
+.pin.is-selected .pin-head { transform: scale(1.18); }
+.pin.is-selected { z-index: 5; }
+.pin.is-selected .pin-head { box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.55), 0 2px 8px rgba(0, 0, 0, 0.5); }
+.pin[hidden] { display: none; }
+
+.tools {
+  position: absolute;
+  right: 16px;
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 10;
+}
+.tool {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 10px;
+  background: #FFFFFF;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+.tool:hover { background: var(--ground); }
+.tool[aria-pressed="true"] { background: var(--ink); color: #FFFFFF; }
+.tool svg { width: 20px; height: 20px; }
+.hint {
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  z-index: 10;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(22, 25, 28, 0.85);
+  color: #FFFFFF;
+  font-size: 13px;
+  font-weight: 600;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+.hint.gone { opacity: 0; }
+
+/* Fiche du lieu */
+.card {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  z-index: 20;
+  width: min(400px, calc(100% - 32px));
+  max-height: calc(100% - 32px);
+  overflow: auto;
+  padding: 16px 16px 14px;
+  border-radius: 16px;
+  background: #FFFFFF;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+}
+.card[hidden] { display: none; }
+.card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.card-top .dot {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.card-top .dot svg { width: 22px; height: 22px; }
+.card-cat {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.card h2 {
+  margin: 2px 0 0;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+.card-close {
+  margin-left: auto;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ground);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.card-close svg { width: 18px; height: 18px; }
+.card p { margin: 10px 0 0; font-size: 15px; }
+.near {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.near-title {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.near-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.near-list button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 10px 0 6px;
+  border: 2px solid var(--line);
+  border-radius: 999px;
+  background: #FFFFFF;
+  font-size: 13px;
+  font-weight: 700;
+}
+.near-list button:hover { border-color: var(--ink); }
+.near-list .dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.near-list .dot svg { width: 13px; height: 13px; }
+.card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+.toast {
+  position: absolute;
+  left: 50%;
+  top: 16px;
+  z-index: 30;
+  transform: translateX(-50%);
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--ink);
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 700;
+}
+.toast[hidden] { display: none; }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Téléphone et tablette étroite */
+@media (max-width: 820px) {
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: 100%;
+  }
+  .side { display: contents; }
+  .side-head { order: 1; background: var(--surface); padding: 14px 16px 12px; }
+  h1 { font-size: 20px; }
+  .search { order: 2; margin: 0; padding: 10px 16px 0; background: var(--surface); }
+  .search svg { left: 28px; margin-top: 5px; }
+  .chips {
+    order: 3;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 10px 16px;
+    background: var(--surface);
+    scrollbar-width: none;
+  }
+  .chips::-webkit-scrollbar { display: none; }
+  .map { order: 4; height: 62vh; min-height: 340px; flex: none; }
+  .list { order: 5; overflow: visible; background: var(--surface); padding: 8px 8px 20px; }
+  .side-foot { order: 6; background: var(--surface); }
+  .card {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    max-height: 70vh;
+    border-radius: 18px 18px 0 0;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+  }
+  .tools { right: 12px; top: 12px; }
+  .hint { left: 12px; top: 12px; right: 68px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pin-head, .hint { transition: none; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<aside class="side" aria-label="Lieux du site">
+<div class="side-head">
+<span class="kicker">Plan du site</span>
+<h1>Course Des-Chênes-Toi! Bourret</h1>
+<p class="addr">École Marie-Rivier · 265, rue St-Félix, Drummondville</p>
+<div class="head-actions">
+<a class="btn btn-dark" id="directions" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&amp;destination=265+rue+Saint-F%C3%A9lix+Drummondville+QC+J2C+5M1">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l18-8-8 18-2-8z"></path></svg>
+S’y rendre
+</a>
+<button type="button" class="btn" id="share-plan">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"></path><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path></svg>
+Partager le plan
+</button>
+</div>
+</div>
+
+<div class="search">
+<label class="sr-only" for="q">Chercher un lieu</label>
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-4-4"></path></svg>
+<input id="q" type="search" placeholder="Toilettes, eau, dossards…" autocomplete="off">
+</div>
+
+<div class="chips" id="chips" role="group" aria-label="Filtrer par catégorie"></div>
+
+<div class="list" id="list" aria-live="polite"></div>
+
+<div class="side-foot">Version interactive du plan imprimé 4 × 8 pi. Démo préparée avec Récréaction · <a href="index.html" style="color: inherit; font-weight: 700">tous les écrans</a></div>
+</aside>
+
+<main class="map" id="map" tabindex="0" aria-label="Plan du site. Glisser pour se déplacer, molette ou pincement pour zoomer. Au clavier : flèches et touches plus et moins.">
+<div class="stage" id="stage">
+<img id="plan" src="plan-des-chenes-toi.jpg" width="3600" height="1800" alt="Plan illustré du site de l’École Marie-Rivier : zone entreprises, animation familiale, scène, départ et arrivée.">
+</div>
+<div class="pins" id="pins"></div>
+
+<div class="hint" id="hint">Touche un repère pour voir le lieu</div>
+
+<div class="tools">
+<button type="button" class="tool" id="zoom-in" aria-label="Zoomer">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+</button>
+<button type="button" class="tool" id="zoom-out" aria-label="Dézoomer">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"></path></svg>
+</button>
+<button type="button" class="tool" id="zoom-reset" aria-label="Voir tout le plan">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path></svg>
+</button>
+<button type="button" class="tool" id="names" aria-pressed="false" aria-label="Afficher le nom de tous les lieux">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7V5h16v2M12 5v14M9 19h6"></path></svg>
+</button>
+</div>
+
+<section class="card" id="card" hidden aria-labelledby="card-title">
+<div class="card-top">
+<span class="dot" id="card-dot"></span>
+<div>
+<div class="card-cat" id="card-cat"></div>
+<h2 id="card-title"></h2>
+</div>
+<button type="button" class="card-close" id="card-close" aria-label="Fermer la fiche">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+</button>
+</div>
+<p id="card-desc"></p>
+<div class="near">
+<div class="near-title">Tout près</div>
+<div class="near-list" id="near"></div>
+</div>
+<div class="card-actions">
+<button type="button" class="btn" id="share-place">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"></path><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path></svg>
+Lien vers ce lieu
+</button>
+</div>
+</section>
+
+<div class="toast" id="toast" role="status" hidden></div>
+</main>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // Coordonnées en pixels sur le plan affiché à 2000 × 1000 (proportions du panneau 4 × 8).
+  var REF_W = 2000;
+  var REF_H = 1000;
+
+  var ICONS = {
+    flag: '<path d="M5 21V4"></path><path d="M5 4h12l-2.5 4L17 12H5"></path>',
+    bib: '<rect x="4" y="5" width="16" height="14" rx="2"></rect><path d="M8 10h8M8 14h5"></path>',
+    cross: '<path d="M12 5v14M5 12h14"></path>',
+    drop: '<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"></path>',
+    cup: '<path d="M5 9h11v4a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5z"></path><path d="M16 10h1.5a2.5 2.5 0 0 1 0 5H16"></path><path d="M9 3v3M12 3v3"></path>',
+    star: '<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"></path>',
+    tag: '<path d="M3 12V4h8l10 10-8 8z"></path><circle cx="7.5" cy="8" r="1.4"></circle>',
+    wc: '<circle cx="8" cy="5" r="1.8"></circle><path d="M6 9h4l1 6H9l-.5 6h-1L7 15H5z"></path><path d="M14 3v18M17 9h3l-1.5 5"></path>'
+  };
+
+  var CATS = [
+    { id: 'course', label: 'Départ et arrivée', color: '#D7191F', fg: '#FFFFFF', icon: 'flag' },
+    { id: 'services', label: 'Services aux coureurs', color: '#16191C', fg: '#FFFFFF', icon: 'bib' },
+    { id: 'sante', label: 'Santé et eau', color: '#1C62C9', fg: '#FFFFFF', icon: 'cross' },
+    { id: 'manger', label: 'Manger et boire', color: '#F5B400', fg: '#16191C', icon: 'cup' },
+    { id: 'famille', label: 'Famille et animation', color: '#7A35C9', fg: '#FFFFFF', icon: 'star' },
+    { id: 'partenaires', label: 'Partenaires', color: '#0B7A45', fg: '#FFFFFF', icon: 'tag' },
+    { id: 'pratique', label: 'Toilettes et vélos', color: '#4E575F', fg: '#FFFFFF', icon: 'wc' }
+  ];
+
+  var PLACES = [
+    { id: 'depart', cat: 'course', name: 'Départ', x: 1668, y: 428, desc: 'Ligne de départ. Présente-toi quelques minutes avant l’heure de ta vague.', kw: 'start ligne vague' },
+    { id: 'arrivee', cat: 'course', name: 'Arrivée', x: 1620, y: 240, desc: 'Ligne d’arrivée. Garde ton dossard bien visible pour le chronométrage.', kw: 'fin finish chrono' },
+    { id: 'zone-marathon', cat: 'course', name: 'Zone marathon', x: 1085, y: 410, desc: 'Espace réservé aux coureurs du marathon.', kw: '42 km' },
+    { id: 'remise-dossards', cat: 'services', name: 'Remise des dossards', x: 590, y: 244, desc: 'Récupère ton dossard avant ta course.', kw: 'dossard puce bib' },
+    { id: 'inscriptions', cat: 'services', name: 'Inscriptions', x: 628, y: 255, desc: 'Inscription sur place et questions sur ton inscription.', kw: 'inscrire' },
+    { id: 'medailles-gagnants', cat: 'services', name: 'Médailles des gagnants', x: 665, y: 270, desc: 'Remise des médailles aux gagnants.', kw: 'podium prix' },
+    { id: 'depot-sacs', cat: 'services', name: 'Dépôt de sacs', x: 643, y: 383, desc: 'Laisse ton sac avant le départ et récupère-le après ta course.', kw: 'consigne vestiaire sac' },
+    { id: 'medailles-participation', cat: 'services', name: 'Médailles de participation', x: 1400, y: 372, desc: 'Ta médaille t’attend juste après l’arrivée.', kw: 'medaille finisher' },
+    { id: 'information', cat: 'services', name: 'Information', x: 45, y: 330, desc: 'Une question, un objet perdu? On t’aide ici.', kw: 'aide perdu question info' },
+    { id: 'premiers-soins', cat: 'sante', name: 'Premiers soins', x: 1447, y: 280, desc: 'Équipe de premiers soins, tout près de l’arrivée.', kw: 'medical blessure secours soins' },
+    { id: 'point-eau', cat: 'sante', name: 'Point d’eau', x: 770, y: 288, desc: 'Hydrate-toi avant et après ta course.', kw: 'eau boire hydratation', icon: 'drop' },
+    { id: 'robinets', cat: 'sante', name: 'Robinets communautaires', x: 720, y: 330, desc: 'Remplis ta gourde ou ta bouteille réutilisable.', kw: 'eau gourde bouteille boire', icon: 'drop' },
+    { id: 'alimentation', cat: 'manger', name: 'Alimentation Maxi', x: 880, y: 398, desc: 'Zone d’alimentation présentée par Maxi.', kw: 'manger bouffe nourriture collation' },
+    { id: 'tim-hortons', cat: 'manger', name: 'Tim Hortons', x: 700, y: 298, desc: 'Café et collations.', kw: 'cafe' },
+    { id: 'animation-familiale', cat: 'famille', name: 'Animation familiale', x: 870, y: 638, desc: 'Activités pour toute la famille, sur le terrain gazonné.', kw: 'enfants jeux' },
+    { id: 'scene', cat: 'famille', name: 'Scène', x: 1110, y: 718, desc: 'Animation et annonces tout au long de l’événement.', kw: 'spectacle musique annonces' },
+    { id: 'ecran', cat: 'famille', name: 'Écran géant', x: 985, y: 785, desc: 'Suivez l’événement sur grand écran.', kw: 'tele ecran' },
+    { id: 'zone-retrouvailles', cat: 'famille', name: 'Zone retrouvailles', x: 1337, y: 548, desc: 'Point de rencontre après la course : donnez-vous rendez-vous ici.', kw: 'rencontre rendez-vous famille' },
+    { id: 'zone-toyota', cat: 'partenaires', name: 'Zone Toyota Drummondville', x: 105, y: 300, desc: 'Espace du partenaire Toyota Drummondville.', kw: 'auto' },
+    { id: 'zone-entreprises', cat: 'partenaires', name: 'Zone entreprises Desjardins', x: 420, y: 400, desc: 'Espace des équipes d’entreprises.', kw: 'equipe entreprise' },
+    { id: 'exposants', cat: 'partenaires', name: 'Kiosques des exposants', x: 440, y: 300, desc: 'Sports Experts, Rydrate, Zio et les autres exposants.', kw: 'kiosque boutique' },
+    { id: 'espace-bourret', cat: 'partenaires', name: 'Espace Bourret', x: 717, y: 500, desc: 'Espace du présentateur de l’événement.', kw: '' },
+    { id: 'espace-maxi', cat: 'partenaires', name: 'Espace Maxi', x: 625, y: 552, desc: 'Espace du partenaire Maxi.', kw: '' },
+    { id: 'espace-canimex', cat: 'partenaires', name: 'Espace Canimex', x: 1078, y: 548, desc: 'Espace du partenaire Canimex.', kw: '' },
+    { id: 'kartus', cat: 'partenaires', name: 'Kartus', x: 1150, y: 574, desc: 'Kiosque du partenaire Kartus.', kw: '' },
+    { id: 'chanv', cat: 'partenaires', name: 'Chanv', x: 1240, y: 503, desc: 'Kiosque du partenaire Chanv.', kw: '' },
+    { id: 'toilettes-marguerites', cat: 'pratique', name: 'Toilettes, rue des Marguerites', x: 760, y: 880, desc: 'Rangée de toilettes le long de la rue des Marguerites.', kw: 'toilette wc salle de bain' },
+    { id: 'toilette-accessible-kartus', cat: 'pratique', name: 'Toilette accessible', x: 1198, y: 612, desc: 'Toilette accessible en fauteuil roulant, près du kiosque Kartus.', kw: 'toilette wc fauteuil roulant' },
+    { id: 'toilette-accessible-retrouvailles', cat: 'pratique', name: 'Toilette accessible', x: 1296, y: 662, desc: 'Toilette accessible en fauteuil roulant, près de la zone retrouvailles.', kw: 'toilette wc fauteuil roulant' },
+    { id: 'velo-parc', cat: 'pratique', name: 'Vélo parc', x: 140, y: 418, desc: 'Stationnement pour les vélos.', kw: 'velo bicyclette stationnement' }
+  ];
+
+  var catById = {};
+  CATS.forEach(function (c) { catById[c.id] = c; });
+
+  function svg(name) {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONS[name] + '</svg>';
+  }
+  function dot(p, cls) {
+    var c = catById[p.cat];
+    return '<span class="dot ' + (cls || '') + '" style="background:' + c.color + ';color:' + c.fg + '">' + svg(p.icon || c.icon) + '</span>';
+  }
+  function norm(s) {
+    return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  }
+  function esc(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  var mapEl = document.getElementById('map');
+  var stage = document.getElementById('stage');
+  var img = document.getElementById('plan');
+  var pinsEl = document.getElementById('pins');
+  var listEl = document.getElementById('list');
+  var chipsEl = document.getElementById('chips');
+  var qEl = document.getElementById('q');
+  var card = document.getElementById('card');
+  var hint = document.getElementById('hint');
+  var toast = document.getElementById('toast');
+
+  var IMG_W = 3600;
+  var IMG_H = 1800;
+  var K = IMG_W / REF_W;
+
+  var state = { cat: 'all', q: '', selected: null, names: false };
+  var view = { s: 1, x: 0, y: 0, min: 0.1, max: 1.4 };
+
+  // ---------- Filtres et liste ----------
+  function matches(p) {
+    if (state.cat !== 'all' && p.cat !== state.cat) return false;
+    if (!state.q) return true;
+    var hay = norm(p.name + ' ' + p.desc + ' ' + (p.kw || '') + ' ' + catById[p.cat].label);
+    return norm(state.q).split(/\s+/).every(function (w) { return hay.indexOf(w) !== -1; });
+  }
+
+  function renderChips() {
+    var html = '<button type="button" class="chip" data-cat="all" aria-pressed="' + (state.cat === 'all') + '">Tout <span class="count">' + PLACES.length + '</span></button>';
+    CATS.forEach(function (c) {
+      var n = PLACES.filter(function (p) { return p.cat === c.id; }).length;
+      html += '<button type="button" class="chip" data-cat="' + c.id + '" aria-pressed="' + (state.cat === c.id) + '">' +
+        '<span class="dot" style="background:' + c.color + ';color:' + c.fg + '">' + svg(c.icon) + '</span>' +
+        esc(c.label) + ' <span class="count">' + n + '</span></button>';
+    });
+    chipsEl.innerHTML = html;
+  }
+
+  function renderList() {
+    var html = '';
+    var shown = 0;
+    CATS.forEach(function (c) {
+      var items = PLACES.filter(function (p) { return p.cat === c.id && matches(p); });
+      if (!items.length) return;
+      shown += items.length;
+      html += '<div class="group-title">' + esc(c.label) + '</div>';
+      items.forEach(function (p) {
+        html += '<button type="button" class="item" data-id="' + p.id + '" aria-current="' + (state.selected === p.id) + '">' +
+          dot(p) + '<span><strong>' + esc(p.name) + '</strong><span class="sub">' + esc(p.desc) + '</span></span></button>';
+      });
+    });
+    if (!shown) html = '<p class="empty">Aucun lieu ne correspond à « ' + esc(state.q) + ' ».</p>';
+    listEl.innerHTML = html;
+  }
+
+  function renderPins() {
+    var html = '';
+    PLACES.forEach(function (p) {
+      html += '<button type="button" class="pin" data-id="' + p.id + '" aria-label="' + esc(p.name) + '">' +
+        '<span class="pin-label">' + esc(p.name) + '</span>' +
+        dot(p, 'pin-head') + '<span class="pin-tip"></span></button>';
+    });
+    pinsEl.innerHTML = html;
+  }
+
+  function applyFilter() {
+    pinsEl.querySelectorAll('.pin').forEach(function (el) {
+      var p = PLACES.find(function (q) { return q.id === el.dataset.id; });
+      el.hidden = !matches(p);
+    });
+    if (state.selected) {
+      var sel = PLACES.find(function (q) { return q.id === state.selected; });
+      if (!matches(sel)) closeCard();
+    }
+    renderList();
+  }
+
+  // ---------- Vue : zoom et déplacement ----------
+  function clamp() {
+    var vw = mapEl.clientWidth;
+    var vh = mapEl.clientHeight;
+    var w = IMG_W * view.s;
+    var h = IMG_H * view.s;
+    view.x = w <= vw ? (vw - w) / 2 : Math.min(0, Math.max(vw - w, view.x));
+    view.y = h <= vh ? (vh - h) / 2 : Math.min(0, Math.max(vh - h, view.y));
+  }
+
+  function draw() {
+    clamp();
+    stage.style.transform = 'translate(' + view.x + 'px,' + view.y + 'px) scale(' + view.s + ')';
+    var nodes = pinsEl.children;
+    for (var i = 0; i < nodes.length; i++) {
+      var p = PLACES[i];
+      var px = view.x + p.x * K * view.s;
+      var py = view.y + p.y * K * view.s;
+      nodes[i].style.transform = 'translate(' + (px - 22) + 'px,' + (py - 52) + 'px)';
+    }
+  }
+
+  function fitScales() {
+    var vw = mapEl.clientWidth;
+    var vh = mapEl.clientHeight;
+    return { contain: Math.min(vw / IMG_W, vh / IMG_H), cover: Math.max(vw / IMG_W, vh / IMG_H) };
+  }
+
+  function resetView() {
+    var f = fitScales();
+    view.min = f.contain;
+    view.s = mapEl.clientWidth >= 700 ? f.contain : f.cover;
+    // Centrer sur le cœur du site (entre la zone familiale et l'arrivée)
+    var cx = 1000 * K;
+    var cy = 500 * K;
+    view.x = mapEl.clientWidth / 2 - cx * view.s;
+    view.y = mapEl.clientHeight / 2 - cy * view.s;
+    draw();
+  }
+
+  function zoomAt(factor, sx, sy) {
+    var ns = Math.max(view.min, Math.min(view.max, view.s * factor));
+    var k = ns / view.s;
+    view.x = sx - (sx - view.x) * k;
+    view.y = sy - (sy - view.y) * k;
+    view.s = ns;
+    draw();
+  }
+
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var anim = null;
+  function animateTo(ts, tx, ty) {
+    if (anim) cancelAnimationFrame(anim);
+    if (reduceMotion) { view.s = ts; view.x = tx; view.y = ty; draw(); return; }
+    var s0 = view.s, x0 = view.x, y0 = view.y, t0 = performance.now(), dur = 380;
+    function step(t) {
+      var u = Math.min(1, (t - t0) / dur);
+      var e = 1 - Math.pow(1 - u, 3);
+      view.s = s0 + (ts - s0) * e;
+      view.x = x0 + (tx - x0) * e;
+      view.y = y0 + (ty - y0) * e;
+      draw();
+      anim = u < 1 ? requestAnimationFrame(step) : null;
+    }
+    anim = requestAnimationFrame(step);
+  }
+
+  function focusPlace(p) {
+    var f = fitScales();
+    var ts = Math.min(view.max, Math.max(view.s, f.cover * 1.6, 0.45));
+    var vw = mapEl.clientWidth;
+    var vh = mapEl.clientHeight;
+    // Garder le repère visible au-dessus de la fiche
+    var narrow = vw < 821;
+    var targetY = narrow ? vh * 0.45 : vh * 0.42;
+    var targetX = narrow ? vw / 2 : vw * 0.6;
+    var tx = targetX - p.x * K * ts;
+    var ty = targetY - p.y * K * ts;
+    // Appliquer les limites sur la cible
+    var w = IMG_W * ts, h = IMG_H * ts;
+    tx = w <= vw ? (vw - w) / 2 : Math.min(0, Math.max(vw - w, tx));
+    ty = h <= vh ? (vh - h) / 2 : Math.min(0, Math.max(vh - h, ty));
+    animateTo(ts, tx, ty);
+  }
+
+  // ---------- Fiche ----------
+  function nearby(p) {
+    return PLACES
+      .filter(function (q) { return q.id !== p.id; })
+      .map(function (q) { return { q: q, d: Math.hypot(q.x - p.x, q.y - p.y) }; })
+      .sort(function (a, b) { return a.d - b.d; })
+      .slice(0, 3)
+      .map(function (o) { return o.q; });
+  }
+
+  function select(id, opts) {
+    var p = PLACES.find(function (q) { return q.id === id; });
+    if (!p) return;
+    state.selected = id;
+    var c = catById[p.cat];
+    document.getElementById('card-dot').outerHTML = dot(p).replace('class="dot ', 'id="card-dot" class="dot ');
+    document.getElementById('card-cat').textContent = c.label;
+    document.getElementById('card-title').textContent = p.name;
+    document.getElementById('card-desc').textContent = p.desc;
+    document.getElementById('near').innerHTML = nearby(p).map(function (q) {
+      return '<button type="button" data-id="' + q.id + '">' + dot(q) + esc(q.name) + '</button>';
+    }).join('');
+    card.hidden = false;
+    pinsEl.querySelectorAll('.pin').forEach(function (el) {
+      el.classList.toggle('is-selected', el.dataset.id === id);
+    });
+    renderList();
+    hideHint();
+    if (!opts || opts.move !== false) focusPlace(p);
+    try { history.replaceState(null, '', '#' + id); } catch (e) { /* fichier local */ }
+  }
+
+  function closeCard() {
+    state.selected = null;
+    card.hidden = true;
+    pinsEl.querySelectorAll('.pin.is-selected').forEach(function (el) { el.classList.remove('is-selected'); });
+    renderList();
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* fichier local */ }
+  }
+
+  var toastTimer = null;
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toast.hidden = true; }, 2200);
+  }
+  function copyLink(hash) {
+    var url = location.href.split('#')[0] + (hash ? '#' + hash : '');
+    var done = function () { showToast('Lien copié'); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(done, function () { showToast(url); });
+    } else {
+      showToast(url);
+    }
+  }
+
+  function hideHint() { hint.classList.add('gone'); }
+
+  // ---------- Événements ----------
+  chipsEl.addEventListener('click', function (e) {
+    var b = e.target.closest('.chip');
+    if (!b) return;
+    state.cat = b.dataset.cat;
+    renderChips();
+    applyFilter();
+  });
+  qEl.addEventListener('input', function () {
+    state.q = qEl.value.trim();
+    applyFilter();
+  });
+  listEl.addEventListener('click', function (e) {
+    var b = e.target.closest('.item');
+    if (!b) return;
+    select(b.dataset.id);
+    if (window.innerWidth < 821) mapEl.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+  });
+  pinsEl.addEventListener('click', function (e) {
+    var b = e.target.closest('.pin');
+    if (b) select(b.dataset.id);
+  });
+  document.getElementById('near').addEventListener('click', function (e) {
+    var b = e.target.closest('button');
+    if (b) select(b.dataset.id);
+  });
+  document.getElementById('card-close').addEventListener('click', closeCard);
+  document.getElementById('share-place').addEventListener('click', function () { copyLink(state.selected); });
+  document.getElementById('share-plan').addEventListener('click', function () { copyLink(''); });
+  document.getElementById('zoom-in').addEventListener('click', function () { hideHint(); zoomAt(1.4, mapEl.clientWidth / 2, mapEl.clientHeight / 2); });
+  document.getElementById('zoom-out').addEventListener('click', function () { zoomAt(1 / 1.4, mapEl.clientWidth / 2, mapEl.clientHeight / 2); });
+  document.getElementById('zoom-reset').addEventListener('click', function () {
+    var f = fitScales();
+    view.min = f.contain;
+    animateTo(f.contain, (mapEl.clientWidth - IMG_W * f.contain) / 2, (mapEl.clientHeight - IMG_H * f.contain) / 2);
+  });
+  var namesBtn = document.getElementById('names');
+  namesBtn.addEventListener('click', function () {
+    state.names = !state.names;
+    namesBtn.setAttribute('aria-pressed', String(state.names));
+    pinsEl.classList.toggle('show-names', state.names);
+  });
+
+  // Glisser, pincer, molette
+  var pointers = new Map();
+  var last = null;
+  var moved = 0;
+  mapEl.addEventListener('pointerdown', function (e) {
+    if (e.target.closest('.pin, .tools, .card, .toast')) return;
+    if (anim) { cancelAnimationFrame(anim); anim = null; }
+    mapEl.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    moved = 0;
+    last = null;
+    mapEl.classList.add('dragging');
+  });
+  mapEl.addEventListener('pointermove', function (e) {
+    if (!pointers.has(e.pointerId)) return;
+    var prev = pointers.get(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    var rect = mapEl.getBoundingClientRect();
+    if (pointers.size === 1) {
+      view.x += e.clientX - prev.x;
+      view.y += e.clientY - prev.y;
+      moved += Math.abs(e.clientX - prev.x) + Math.abs(e.clientY - prev.y);
+      if (moved > 6) hideHint();
+      draw();
+    } else if (pointers.size === 2) {
+      var pts = Array.from(pointers.values());
+      var d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      var mx = (pts[0].x + pts[1].x) / 2 - rect.left;
+      var my = (pts[0].y + pts[1].y) / 2 - rect.top;
+      if (last) {
+        view.x += mx - last.mx;
+        view.y += my - last.my;
+        zoomAt(d / last.d, mx, my);
+      }
+      last = { d: d, mx: mx, my: my };
+      hideHint();
+    }
+  });
+  function endPointer(e) {
+    pointers.delete(e.pointerId);
+    last = null;
+    if (!pointers.size) mapEl.classList.remove('dragging');
+  }
+  mapEl.addEventListener('pointerup', endPointer);
+  mapEl.addEventListener('pointercancel', endPointer);
+  mapEl.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    if (anim) { cancelAnimationFrame(anim); anim = null; }
+    var rect = mapEl.getBoundingClientRect();
+    zoomAt(Math.exp(-e.deltaY * 0.0015), e.clientX - rect.left, e.clientY - rect.top);
+    hideHint();
+  }, { passive: false });
+  mapEl.addEventListener('dblclick', function (e) {
+    if (e.target.closest('.pin, .tools, .card')) return;
+    var rect = mapEl.getBoundingClientRect();
+    zoomAt(1.8, e.clientX - rect.left, e.clientY - rect.top);
+  });
+  mapEl.addEventListener('keydown', function (e) {
+    if (e.target !== mapEl) return;
+    var step = 60;
+    var handled = true;
+    if (e.key === 'ArrowLeft') view.x += step;
+    else if (e.key === 'ArrowRight') view.x -= step;
+    else if (e.key === 'ArrowUp') view.y += step;
+    else if (e.key === 'ArrowDown') view.y -= step;
+    else if (e.key === '+' || e.key === '=') zoomAt(1.25, mapEl.clientWidth / 2, mapEl.clientHeight / 2);
+    else if (e.key === '-') zoomAt(0.8, mapEl.clientWidth / 2, mapEl.clientHeight / 2);
+    else handled = false;
+    if (handled) { e.preventDefault(); draw(); }
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !card.hidden) closeCard();
+  });
+
+  var lastW = 0;
+  window.addEventListener('resize', function () {
+    var f = fitScales();
+    view.min = f.contain;
+    if (Math.abs(mapEl.clientWidth - lastW) > 120) { lastW = mapEl.clientWidth; resetView(); } else draw();
+  });
+
+  // ---------- Démarrage ----------
+  renderChips();
+  renderPins();
+  renderList();
+  function start() {
+    lastW = mapEl.clientWidth;
+    resetView();
+    var id = decodeURIComponent((location.hash || '').slice(1));
+    if (id && PLACES.some(function (p) { return p.id === id; })) select(id);
+  }
+  if (img.complete) start(); else img.addEventListener('load', start);
+})();
+</script>
+</body>
+</html>

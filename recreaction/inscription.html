@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Inscription au Trail des Crêtes · Récréaction</title>
+<title>Inscription à la Course Des-Chênes-Toi! · Récréaction</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=Barlow:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
 <style>
@@ -32,30 +32,29 @@ a{color:#14201B}a:hover{color:#000000}
 
 <section style="background: #14201B; color: #FFFFFF; border-radius: 16px; padding: 10px 14px; display: flex; align-items: center; gap: 12px">
 <div style="width: 44px; height: 44px; flex: none; border-radius: 10px; background: #FF5B1A; color: #14201B; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1">
-<span style="font-family: 'Barlow Condensed', sans-serif; font-size: 21px; font-weight: 700">17</span>
-<span style="font-size: 10px; font-weight: 700; letter-spacing: 0.08em">OCT</span>
+<span style="font-family: 'Barlow Condensed', sans-serif; font-size: 21px; font-weight: 700">23</span>
+<span style="font-size: 10px; font-weight: 700; letter-spacing: 0.08em">MAI</span>
 </div>
 <div>
-<div style="font-family: 'Barlow Condensed', sans-serif; font-size: 21px; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; line-height: 1.1">Trail des Crêtes 2026</div>
-<div style="font-size: 13px; color: #C9D2CC">Val-des-Crêtes, QC · 4 distances</div>
+<div style="font-family: 'Barlow Condensed', sans-serif; font-size: 21px; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; line-height: 1.1">Des-Chênes-Toi! 2027</div>
+<div style="font-size: 13px; color: #C9D2CC">Présentée par <strong style="color: #FFFFFF">Bourret</strong> · Drummondville</div>
 </div>
 </section>
 
-<fieldset style="border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0">
-<legend style="padding: 0; margin-bottom: 8px; font-size: 15px; font-weight: 700">Choisis ta distance</legend>
-<sc-for list="{{distances}}" as="d" hint-placeholder-count="4">
-<label style="display: flex; align-items: center; gap: 12px; background: #FFFFFF; border: 2px solid {{d.border}}; border-radius: 14px; padding: 6px 14px; cursor: pointer">
-<input type="radio" name="distance" value="{{d.id}}" checked="{{d.selected}}" onChange="{{d.pick}}" style="width: 20px; height: 20px; margin: 0; flex: none; accent-color: #14201B">
-<span style="flex-grow: 1; display: flex; flex-direction: column">
-<span style="font-size: 16px; font-weight: 700">{{d.name}}</span>
-<span style="font-size: 13px; color: #4A5650">{{d.detail}}</span>
+<fieldset style="border: 0; margin: 0; padding: 0; min-width: 0">
+<legend style="padding: 0; margin-bottom: 6px; font-size: 15px; font-weight: 700">Choisis ta distance</legend>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px">
+<sc-for list="{{distances}}" as="d" hint-placeholder-count="6">
+<label style="display: flex; flex-direction: column; gap: 1px; min-width: 0; background: #FFFFFF; border: 2px solid {{d.border}}; border-radius: 14px; padding: 6px 10px; cursor: pointer">
+<span style="display: flex; align-items: center; gap: 8px">
+<input type="radio" name="distance" value="{{d.id}}" checked="{{d.selected}}" onChange="{{d.pick}}" style="width: 18px; height: 18px; margin: 0; flex: none; accent-color: #14201B">
+<span style="font-size: 16px; font-weight: 700; line-height: 1.2">{{d.name}}</span>
 </span>
-<span style="display: flex; flex-direction: column; align-items: flex-end">
-<span style="font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 700; line-height: 1.1">{{d.price}}</span>
-<span style="font-size: 12px; font-weight: 600; color: #A33A00">{{d.note}}</span>
-</span>
+<span style="font-size: 12px; color: #4A5650">{{d.detail}}</span>
+<span style="display: flex; align-items: baseline; gap: 6px"><span style="font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700; line-height: 1.1">{{d.price}}</span><span style="font-size: 12px; font-weight: 600; color: #A33A00">{{d.note}}</span></span>
 </label>
 </sc-for>
+</div>
 </fieldset>
 
 <div>
@@ -69,12 +68,12 @@ a{color:#14201B}a:hover{color:#000000}
 
 <label style="display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.35; cursor: pointer">
 <input type="checkbox" checked="{{waiver}}" onChange="{{toggleWaiver}}" style="width: 20px; height: 20px; margin: 0; flex: none; accent-color: #14201B">
-<span>J’accepte la décharge de responsabilité et le règlement de la course (signature électronique).</span>
+<span>J’accepte la décharge et le règlement.</span>
 </label>
 
 <label style="display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.35; cursor: pointer">
 <input type="checkbox" checked="{{news}}" onChange="{{toggleNews}}" style="width: 20px; height: 20px; margin: 0; flex: none; accent-color: #14201B">
-<span>Je veux recevoir l’infolettre du Trail des Crêtes. <span style="color: #4A5650">Désabonnement en un clic.</span></span>
+<span>Je veux l’infolettre <span style="color: #4A5650">(désabonnement en un clic)</span></span>
 </label>
 
 <section aria-label="Résumé du paiement" style="background: #FFFFFF; border-radius: 16px; padding: 12px 16px; display: flex; flex-direction: column; gap: 5px; font-size: 14px">
@@ -83,7 +82,7 @@ a{color:#14201B}a:hover{color:#000000}
 <div style="display: flex; justify-content: space-between"><span>TPS et TVQ</span><span>{{taxes}}</span></div>
 <div style="height: 1px; background: #E4E8E0; margin: 3px 0"></div>
 <div style="display: flex; justify-content: space-between; font-size: 17px; font-weight: 700"><span>Total</span><span>{{total}}</span></div>
-<div style="font-size: 12px; color: #4A5650">Transfert de dossard possible jusqu’au 10 octobre.</div>
+<div style="font-size: 12px; color: #4A5650">Transfert de dossard possible jusqu’au 16 mai.</div>
 </section>
 
 </main>
@@ -103,17 +102,19 @@ a{color:#14201B}a:hover{color:#000000}
 class Component extends DCLogic {
   renderVals() {
     const st = this.state || {};
-    const dist = st.dist || '25';
+    const dist = st.dist || '21';
     const size = st.size || 'M';
     const waiver = st.waiver !== false;
     const fmt = (n) => n.toFixed(2).replace('.', ',') + ' $';
     const list = [
-      { id: '5', name: '5 km', detail: 'Découverte · 120 m D+', price: 35, note: '' },
-      { id: '12', name: '12 km', detail: '380 m D+', price: 55, note: '' },
-      { id: '25', name: '25 km', detail: '1 050 m D+ · barrière 13 h', price: 75, note: 'Plus que 18 places' },
-      { id: '50', name: '50 km', detail: '2 300 m D+ · départ 6 h', price: 110, note: 'Liste d’attente' }
+      { id: '1', name: '1 km', detail: 'Course de M. Renald', price: 15, note: '' },
+      { id: '2', name: '2 km', detail: 'Course de M. Renald', price: 15, note: '' },
+      { id: '5', name: '5 km', detail: 'Départ 10 h 15', price: 35, note: '' },
+      { id: '10', name: '10 km', detail: 'Départ 9 h 45', price: 55, note: '' },
+      { id: '21', name: 'Demi-marathon', detail: '21,1 km · départ 8 h 30', price: 75, note: 'Plus que 18 places' },
+      { id: '42', name: 'Marathon', detail: '42,2 km · départ 7 h 30', price: 110, note: 'Liste d’attente' }
     ];
-    const sel = list.find((d) => d.id === dist) || list[2];
+    const sel = list.find((d) => d.id === dist) || list[4];
     const fee = 2.5;
     const taxes = Math.round((sel.price + fee) * 0.14975 * 100) / 100;
     const total = sel.price + fee + taxes;

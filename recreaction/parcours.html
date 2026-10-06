@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Parcours interactif · Récréaction</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=Barlow:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#14201B}a:hover{color:#000000}
+</style>
+<link rel="stylesheet" href="prototype.css">
+<script src="runtime.js" defer></script>
+</head>
+<body>
+<a class="proto-home" href="index.html">Tous les écrans</a>
+<div id="dc-root"></div>
+<template id="dc-template">
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #EEF0EA; color: #14201B; font-family: 'Barlow', sans-serif; display: flex; flex-direction: column; overflow: hidden">
+
+<header style="flex: none; padding: 20px 16px 6px">
+<h1 style="margin: 0; font-size: 22px; font-weight: 700; line-height: 1.15">Parcours</h1>
+<div style="font-size: 14px; color: #4A5650">Des-Chênes-Toi! · ta course : demi-marathon</div>
+</header>
+
+<main style="flex: 1; min-height: 0; overflow: hidden; padding: 4px 16px 10px; display: flex; flex-direction: column; gap: 8px">
+
+<div role="group" aria-label="Affichage de la carte" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; background: #DDE1D8; border-radius: 14px">
+<span aria-current="page" style="height: 38px; border-radius: 10px; background: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; box-shadow: 0 1px 2px rgba(20, 32, 27, 0.15)">Parcours</span>
+<a href="plan-du-site.html" style="height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 600; color: #3F4A44; text-decoration: none">Plan du site</a>
+</div>
+
+<div role="group" aria-label="Distance" style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px">
+<sc-for list="{{races}}" as="r" hint-placeholder-count="4">
+<button type="button" onClick="{{r.pick}}" aria-pressed="{{r.pressed}}" style="height: 48px; border-radius: 12px; border: 2px solid {{r.border}}; background: {{r.bg}}; color: {{r.fg}}; font-family: 'Barlow', sans-serif; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; padding: 0">
+<span style="font-family: 'Barlow Condensed', sans-serif; font-size: 16px; white-space: nowrap; font-weight: 700">{{r.label}}</span>
+<span style="font-size: 12px; font-weight: 600">{{r.dplus}}</span>
+</button>
+</sc-for>
+</div>
+
+<section aria-label="Carte du parcours" style="background: #FFFFFF; border-radius: 18px; padding: 10px; display: flex; flex-direction: column; gap: 6px">
+<div style="position: relative; width: 338px; height: 196px; border-radius: 12px; overflow: hidden">
+<svg viewBox="0 0 338 196" width="338" height="196" role="img" aria-label="{{mapLabel}}" style="display: block; background: #E3E9DF">
+<rect x="150" y="118" width="70" height="26" rx="6" fill="#CFE0C3"></rect>
+<path d="M0 46 C 70 30, 130 78, 200 64 S 300 40, 338 52" fill="none" stroke="#BFD3DE" stroke-width="16"></path>
+<path d="M0 104H338M0 140H338M0 176H338M40 0V196M100 0V196M160 0V196M220 0V196M280 0V196" stroke="#D3DACD" stroke-width="2"></path>
+<path d="M0 124H338M128 0V196M246 0V196" stroke="#F5F6F2" stroke-width="5"></path>
+<text x="330" y="38" text-anchor="end" font-family="Barlow, sans-serif" font-size="10" font-weight="600" fill="#3F6273">Rivière</text>
+<path d="{{routeD}}" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="{{routeD}}" fill="none" stroke="#14201B" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"></path>
+<circle cx="60" cy="150" r="10" fill="#14201B"></circle>
+<path d="M57 144v12M57 144h8l-2 3 2 3h-8" fill="none" stroke="#FFFFFF" stroke-width="1.6" stroke-linejoin="round"></path>
+<text x="20" y="184" font-family="Barlow, sans-serif" font-size="11" font-weight="700" fill="#14201B">Départ · Arrivée · École Marie-Rivier</text>
+</svg>
+<span style="position: absolute; left: 8px; top: 8px; height: 22px; padding: 0 8px; border-radius: 6px; background: rgba(20, 32, 27, 0.8); color: #FFFFFF; font-size: 11px; font-weight: 700; display: flex; align-items: center">Tracé de démonstration</span>
+<sc-for list="{{kms}}" as="k" hint-placeholder-count="4">
+<span style="position: absolute; left: {{k.left}}px; top: {{k.top}}px; min-width: 22px; height: 18px; box-sizing: border-box; padding: 0 4px; border-radius: 999px; background: #FFFFFF; border: 1.5px solid #8A958F; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #3F4A44">{{k.label}}</span>
+</sc-for>
+<sc-for list="{{marks}}" as="m" hint-placeholder-count="5">
+<span style="position: absolute; left: {{m.left}}px; top: {{m.top}}px; width: 20px; height: 20px">
+<sc-if value="{{m.isRavito}}" hint-placeholder-val="{{true}}">
+<span style="width: 20px; height: 20px; box-sizing: border-box; border-radius: 999px; background: #FFFFFF; border: 2.5px solid #14201B; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700">R</span>
+</sc-if>
+<sc-if value="{{m.isSecours}}" hint-placeholder-val="{{false}}">
+<span style="width: 20px; height: 20px; border-radius: 5px; background: #C81E1E; display: flex; align-items: center; justify-content: center"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1v10M1 6h10" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round"></path></svg></span>
+</sc-if>
+<sc-if value="{{m.isBarriere}}" hint-placeholder-val="{{false}}">
+<span style="width: 20px; height: 20px; border-radius: 5px; background: #14201B; display: flex; align-items: center; justify-content: center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v4l3 2"></path></svg></span>
+</sc-if>
+<sc-if value="{{m.isFans}}" hint-placeholder-val="{{false}}">
+<span style="width: 20px; height: 20px; border-radius: 999px; background: #5B3BB5; display: flex; align-items: center; justify-content: center"><svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-8-5.2-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.8-8 11-8 11z" fill="#FFFFFF"></path></svg></span>
+</sc-if>
+</span>
+</sc-for>
+<span aria-hidden="true" style="position: absolute; left: {{cur.left}}px; top: {{cur.top}}px; width: 18px; height: 18px; box-sizing: border-box; border-radius: 999px; background: #FF5B1A; border: 3px solid #FFFFFF; box-shadow: 0 0 0 6px rgba(255, 91, 26, 0.3)"></span>
+</div>
+<ul style="list-style: none; margin: 0; padding: 0 2px; display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; font-weight: 600; color: #4A5650">
+<li style="display: flex; align-items: center; gap: 5px"><span style="width: 12px; height: 12px; box-sizing: border-box; border-radius: 999px; border: 2px solid #14201B; background: #FFFFFF"></span>Ravito</li>
+<li style="display: flex; align-items: center; gap: 5px"><span style="width: 12px; height: 12px; border-radius: 3px; background: #C81E1E"></span>Secours</li>
+<li style="display: flex; align-items: center; gap: 5px"><span style="width: 12px; height: 12px; border-radius: 999px; background: #5B3BB5"></span>Encouragements</li>
+<li style="display: flex; align-items: center; gap: 5px"><span style="width: 12px; height: 12px; border-radius: 999px; background: #FF5B1A"></span>Repère</li>
+</ul>
+</section>
+
+<section aria-label="Profil du parcours" style="background: #FFFFFF; border-radius: 18px; padding: 10px 10px 10px; display: flex; flex-direction: column; gap: 6px">
+<div style="display: flex; align-items: center; gap: 8px">
+<div style="flex-grow: 1; min-width: 0">
+<div style="display: flex; align-items: baseline; gap: 8px">
+<span style="font-family: 'Barlow Condensed', sans-serif; font-size: 30px; font-weight: 700; line-height: 1">Km {{kmLabel}}</span>
+<span style="font-size: 14px; font-weight: 700; color: #A33A00">{{hereName}}</span>
+</div>
+<div style="font-size: 13px; color: #4A5650">{{altLabel}}</div>
+</div>
+<button type="button" onClick="{{prev}}" aria-label="Reculer sur le parcours" style="width: 44px; height: 44px; flex: none; border: 2px solid #D9DDD5; border-radius: 12px; background: #FFFFFF; color: #14201B; display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg></button>
+<button type="button" onClick="{{next}}" aria-label="Avancer sur le parcours" style="width: 44px; height: 44px; flex: none; border: 2px solid #D9DDD5; border-radius: 12px; background: #FFFFFF; color: #14201B; display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"></path></svg></button>
+</div>
+<div style="position: relative; width: 338px; height: 72px">
+<svg viewBox="0 0 338 72" width="338" height="72" aria-hidden="true" style="display: block">
+<path d="{{profArea}}" fill="#FFE6D2"></path>
+<path d="{{profLine}}" fill="none" stroke="#A33A00" stroke-width="2" stroke-linejoin="round"></path>
+</svg>
+<sc-for list="{{profMarks}}" as="p" hint-placeholder-count="4">
+<span style="position: absolute; left: {{p.left}}px; top: 0; width: 2px; height: 72px; background: {{p.color}}; opacity: 0.55"></span>
+</sc-for>
+<span style="position: absolute; left: {{cursorX}}px; top: 0; width: 2px; height: 72px; background: #FF5B1A"></span>
+<span style="position: absolute; left: {{cursorDotX}}px; top: {{cursorDotY}}px; width: 12px; height: 12px; box-sizing: border-box; border-radius: 999px; background: #FF5B1A; border: 2px solid #FFFFFF"></span>
+<div style="position: absolute; inset: 0; display: flex">
+<sc-for list="{{zones}}" as="z" hint-placeholder-count="12">
+<button type="button" onClick="{{z.go}}" aria-label="{{z.label}}" style="flex: 1; min-width: 0; height: 72px; border: 0; padding: 0; background: transparent; cursor: pointer"></button>
+</sc-for>
+</div>
+</div>
+<div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; color: #4A5650"><span>0 km</span><span>Touche le profil pour t’y rendre</span><span>{{distLabel}}</span></div>
+<div style="display: flex; align-items: center; gap: 10px; padding-top: 6px; border-top: 1px solid #E4E8E0">
+<div style="flex-grow: 1; min-width: 0">
+<div style="font-size: 12px; font-weight: 700; letter-spacing: 0.06em; color: #4A5650">PROCHAIN · DANS {{toNext}}</div>
+<div style="font-size: 15px; font-weight: 700">{{nextName}} · km {{nextKm}}</div>
+<div style="font-size: 13px; color: #4A5650">{{nextDetail}}</div>
+</div>
+<button type="button" onClick="{{goNext}}" style="height: 44px; flex: none; padding: 0 14px; border: 0; border-radius: 12px; background: #14201B; color: #FFFFFF; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer">{{goNextLabel}}</button>
+</div>
+</section>
+
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+<button type="button" style="height: 48px; border: 2px solid #14201B; border-radius: 14px; background: transparent; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="3"></rect><path d="M9 6l1-3h4l1 3M9 18l1 3h4l1-3M12 9v3l2 1"></path></svg>Vers ma montre</button>
+<a href="jour-j.html" style="height: 48px; border-radius: 14px; background: #FF5B1A; color: #14201B; font-size: 15px; font-weight: 700; text-decoration: none; display: flex; align-items: center; justify-content: center">Mode course</a>
+</div>
+
+</main>
+
+<nav aria-label="Navigation principale" style="flex: none; height: 80px; box-sizing: border-box; padding: 6px 6px 20px; background: #FFFFFF; border-top: 1px solid #D9DDD5; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr))">
+<a href="accueil.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-decoration: none; color: #5C6862; font-size: 11px; font-weight: 600"><span style="display: flex; align-items: center; justify-content: center; width: 52px; height: 28px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"></path><path d="M5 10v10h14V10"></path></svg></span><span>Accueil</span></a>
+<a href="parcours.html" aria-current="page" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-decoration: none; color: #14201B; font-size: 11px; font-weight: 700"><span style="display: flex; align-items: center; justify-content: center; width: 52px; height: 28px; border-radius: 999px; background: #FF5B1A"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="18" r="2"></circle><circle cx="18" cy="6" r="2"></circle><path d="M8 18h6a3 3 0 0 0 0-6h-4a3 3 0 0 1 0-6h6"></path></svg></span><span>Parcours</span></a>
+<a href="dossard.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-decoration: none; color: #5C6862; font-size: 11px; font-weight: 600"><span style="display: flex; align-items: center; justify-content: center; width: 52px; height: 28px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"></rect><path d="M8 10h8"></path><path d="M8 14h5"></path></svg></span><span>Dossard</span></a>
+<a href="photos.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-decoration: none; color: #5C6862; font-size: 11px; font-weight: 600"><span style="display: flex; align-items: center; justify-content: center; width: 52px; height: 28px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg></span><span>Photos</span></a>
+<a href="avantages.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-decoration: none; color: #5C6862; font-size: 11px; font-weight: 600"><span style="display: flex; align-items: center; justify-content: center; width: 52px; height: 28px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12V4h8l10 10-8 8z"></path><circle cx="7.5" cy="8.5" r="1.5"></circle></svg></span><span>Avantages</span></a>
+</nav>
+
+</div>
+</template>
+<script type="text/x-dc" id="dc-logic">
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const RACES = [
+      {
+        id: 'renald', dist: 2, label: 'M. Renald', sub: '1 et 2 km', step: 0.5, start: 0.5,
+        route: [[60,150],[84,152],[98,138],[90,122],[68,122],[54,134]],
+        alt: [[0,92],[0.5,94],[1,95],[1.5,93],[2,92]],
+        pts: [
+          { km: 0.5, kind: 'fans', name: 'Demi-tour du 1 km', detail: 'Les jeunes du 1 km reviennent vers l’arrivée' },
+          { km: 1.5, kind: 'fans', name: 'Zone des parents', detail: 'Encouragez-les tout près de l’arrivée' }
+        ]
+      },
+      {
+        id: '5', dist: 5, label: '5 km', sub: '10 h 15', step: 0.5, start: 2.5,
+        route: [[60,150],[100,150],[120,128],[110,104],[78,104],[56,124]],
+        alt: [[0,92],[1,95],[2,99],[2.5,97],[3.5,93],[4.2,90],[5,92]],
+        pts: [
+          { km: 1.5, kind: 'fans', name: 'Zone d’encouragement', detail: 'Musique et spectateurs · 5 min à pied du départ' },
+          { km: 2.5, kind: 'ravito', name: 'Point d’eau', detail: 'Eau' }
+        ]
+      },
+      {
+        id: '10', dist: 10, label: '10 km', sub: '9 h 45', step: 1, start: 5,
+        route: [[60,150],[110,152],[150,140],[176,112],[160,86],[120,84],[86,96],[62,118]],
+        alt: [[0,92],[2,96],[3,101],[4.5,94],[6,88],[7.5,96],[9,99],[10,92]],
+        pts: [
+          { km: 3, kind: 'ravito', name: 'Ravito 1', detail: 'Eau et électrolytes' },
+          { km: 5, kind: 'fans', name: 'Zone d’encouragement', detail: 'Musique et spectateurs' },
+          { km: 6.5, kind: 'ravito', name: 'Ravito 2', detail: 'Eau, électrolytes et fruits' },
+          { km: 8, kind: 'secours', name: 'Poste de secours', detail: 'Secouristes et défibrillateur' }
+        ]
+      },
+      {
+        id: '21', dist: 21.1, label: 'Demi', sub: '21,1 km', step: 1, start: 10.5,
+        route: [[60,150],[110,154],[160,150],[206,138],[246,118],[268,96],[250,78],[214,86],[178,100],[140,96],[104,92],[74,108],[58,128]],
+        alt: [[0,92],[3,98],[5,104],[7,95],[9,86],[10.5,84],[12,90],[14,101],[16,107],[18,98],[20,93],[21.1,92]],
+        pts: [
+          { km: 5, kind: 'ravito', name: 'Ravito 1', detail: 'Eau et électrolytes' },
+          { km: 8, kind: 'secours', name: 'Poste de secours', detail: 'Secouristes et défibrillateur' },
+          { km: 10.5, kind: 'ravito', name: 'Ravito 2', detail: 'Eau, électrolytes et fruits · mi-parcours' },
+          { km: 13, kind: 'fans', name: 'Zone d’encouragement', detail: 'Musique et spectateurs · facile d’accès en voiture' },
+          { km: 16, kind: 'ravito', name: 'Ravito 3', detail: 'Eau et fruits' },
+          { km: 18, kind: 'secours', name: 'Poste de secours', detail: 'Secouristes et défibrillateur' }
+        ]
+      },
+      {
+        id: '42', dist: 42.2, label: 'Marathon', sub: '42,2 km', step: 2, start: 21,
+        route: [[60,150],[110,160],[170,166],[232,160],[286,146],[318,120],[322,92],[300,74],[262,40],[220,30],[176,40],[150,62],[120,96],[90,110],[66,128]],
+        alt: [[0,92],[5,104],[9,88],[12,84],[16,99],[20,110],[24,96],[28,86],[32,94],[36,108],[39,99],[42.2,92]],
+        pts: [
+          { km: 5, kind: 'ravito', name: 'Ravito 1', detail: 'Eau et électrolytes' },
+          { km: 10, kind: 'ravito', name: 'Ravito 2', detail: 'Eau et électrolytes' },
+          { km: 12, kind: 'secours', name: 'Poste de secours', detail: 'Secouristes et défibrillateur' },
+          { km: 15, kind: 'ravito', name: 'Ravito 3', detail: 'Eau, électrolytes et fruits' },
+          { km: 21, kind: 'fans', name: 'Mi-parcours', detail: 'Zone d’encouragement · musique et spectateurs' },
+          { km: 25, kind: 'ravito', name: 'Ravito 4', detail: 'Eau, électrolytes et fruits' },
+          { km: 30, kind: 'ravito', name: 'Ravito 5', detail: 'Eau, gels et fruits' },
+          { km: 32, kind: 'secours', name: 'Poste de secours', detail: 'Secouristes et défibrillateur' },
+          { km: 35, kind: 'ravito', name: 'Ravito 6', detail: 'Eau et fruits' },
+          { km: 40, kind: 'ravito', name: 'Ravito 7', detail: 'Eau · dernier ravito' }
+        ]
+      }
+    ];
+    const race = RACES.find((r) => r.id === (st.race || '21')) || RACES[3];
+    const D = race.dist;
+    const km = st.km == null ? race.start : Math.max(0, Math.min(D, st.km));
+    const fmt = (n) => String(Math.round(n * 10) / 10).replace('.', ',');
+
+    // Tracé lissé (Catmull-Rom) puis ré-échantillonné : la position suit exactement la ligne.
+    const P = race.route;
+    const n = P.length;
+    const dense = [];
+    for (let i = 0; i < n; i++) {
+      const p0 = P[(i - 1 + n) % n], p1 = P[i], p2 = P[(i + 1) % n], p3 = P[(i + 2) % n];
+      for (let s = 0; s < 8; s++) {
+        const t = s / 8, t2 = t * t, t3 = t2 * t;
+        const f = (a, b, c, d) => 0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3);
+        dense.push([f(p0[0], p1[0], p2[0], p3[0]), f(p0[1], p1[1], p2[1], p3[1])]);
+      }
+    }
+    dense.push(P[0]);
+    const seg = [];
+    let L = 0;
+    for (let i = 1; i < dense.length; i++) {
+      const d = Math.hypot(dense[i][0] - dense[i - 1][0], dense[i][1] - dense[i - 1][1]);
+      seg.push(d);
+      L += d;
+    }
+    const at = (k) => {
+      let t = Math.max(0, Math.min(1, k / D)) * L;
+      for (let i = 0; i < seg.length; i++) {
+        if (t <= seg[i] || i === seg.length - 1) {
+          const f = seg[i] ? Math.min(1, t / seg[i]) : 0;
+          return { x: dense[i][0] + (dense[i + 1][0] - dense[i][0]) * f, y: dense[i][1] + (dense[i + 1][1] - dense[i][1]) * f };
+        }
+        t -= seg[i];
+      }
+      return { x: P[0][0], y: P[0][1] };
+    };
+    const routeD = 'M' + dense.map((p) => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' L');
+
+    const A = race.alt;
+    const altAt = (k) => {
+      if (k <= A[0][0]) return A[0][1];
+      for (let i = 1; i < A.length; i++) {
+        if (k <= A[i][0]) return A[i - 1][1] + (A[i][1] - A[i - 1][1]) * (k - A[i - 1][0]) / (A[i][0] - A[i - 1][0]);
+      }
+      return A[A.length - 1][1];
+    };
+    const alts = A.map((a) => a[1]);
+    const lo = Math.min.apply(null, alts) - 12;
+    const hi = Math.max.apply(null, alts) + 12;
+    const PW = 338, PH = 72;
+    const py = (a) => PH - 4 - (a - lo) / (hi - lo) * (PH - 14);
+    const samples = [];
+    for (let i = 0; i <= 84; i++) {
+      const k = D * i / 84;
+      samples.push((PW * i / 84).toFixed(1) + ' ' + py(altAt(k)).toFixed(1));
+    }
+    const profLine = 'M' + samples.join(' L');
+    const profArea = profLine + ' L' + PW + ' ' + PH + ' L0 ' + PH + ' Z';
+
+    const slope = Math.round((altAt(Math.min(D, km + 0.25)) - altAt(Math.max(0, km - 0.25))) / 5);
+    const slopeLabel = slope === 0 ? 'plat' : 'pente ' + (slope > 0 ? '+' : '−') + Math.abs(slope) + ' %';
+    const here = race.pts.find((p) => Math.abs(p.km - km) < 0.05);
+    const nextPt = race.pts.filter((p) => p.km > km + 0.05).sort((a, b) => a.km - b.km)[0] ||
+      (km < D - 0.05 ? { km: D, name: 'Arrivée', detail: 'Fin du parcours · ta médaille t’attend' } : null);
+    const cur = at(km);
+    const set = (k) => this.setState({ race: race.id, km: Math.round(Math.max(0, Math.min(D, k)) * 10) / 10 });
+
+    const kmEvery = D <= 5 ? 1 : (D <= 10 ? 2 : (D <= 25 ? 5 : 10));
+    const kms = [];
+    for (let k = kmEvery; k < D - 0.5; k += kmEvery) {
+      const p = at(k);
+      kms.push({ label: String(k), left: (p.x - 11).toFixed(1), top: (p.y - 9).toFixed(1) });
+    }
+    const zoneCount = D <= 10 ? 10 : 21;
+    const zones = [];
+    for (let i = 0; i < zoneCount; i++) {
+      const k = Math.round((D * (i + 0.5) / zoneCount) * 10) / 10;
+      zones.push({ label: 'Aller au km ' + fmt(k), go: () => set(k) });
+    }
+
+    return {
+      races: RACES.map((r) => {
+        const on = r.id === race.id;
+        return {
+          label: r.label,
+          dplus: r.sub,
+          pressed: on ? 'true' : 'false',
+          bg: on ? '#14201B' : '#FFFFFF',
+          fg: on ? '#FFFFFF' : '#14201B',
+          border: on ? '#14201B' : '#FFFFFF',
+          pick: () => this.setState({ race: r.id, km: r.start })
+        };
+      }),
+      mapLabel: 'Parcours de ' + fmt(D) + ' km, ' + race.pts.filter((p) => p.name.indexOf('Ravito') === 0).length + ' ravitos. Repère au km ' + fmt(km) + '.',
+      routeD: routeD,
+      kms: kms,
+      marks: race.pts.map((p) => {
+        const q = at(p.km);
+        return {
+          left: (q.x - 10).toFixed(1),
+          top: (q.y - 10).toFixed(1),
+          isRavito: p.kind === 'ravito',
+          isSecours: p.kind === 'secours',
+          isBarriere: p.kind === 'barriere',
+          isFans: p.kind === 'fans'
+        };
+      }),
+      cur: { left: (cur.x - 9).toFixed(1), top: (cur.y - 9).toFixed(1) },
+      kmLabel: fmt(km),
+      hereName: here ? here.name : (km === 0 ? 'Départ' : (km >= D ? 'Arrivée' : '')),
+      altLabel: Math.round(altAt(km)) + ' m d’altitude · ' + slopeLabel,
+      profLine: profLine,
+      profArea: profArea,
+      profMarks: race.pts.filter((p) => p.kind !== 'fans').map((p) => ({
+        left: (p.km / D * PW - 1).toFixed(1),
+        color: p.kind === 'ravito' ? '#14201B' : (p.kind === 'secours' ? '#C81E1E' : '#14201B')
+      })),
+      cursorX: (km / D * PW - 1).toFixed(1),
+      cursorDotX: (km / D * PW - 6).toFixed(1),
+      cursorDotY: (py(altAt(km)) - 6).toFixed(1),
+      zones: zones,
+      distLabel: fmt(D) + ' km',
+      toNext: nextPt ? fmt(nextPt.km - km) + ' KM' : '—',
+      nextName: nextPt ? nextPt.name : 'Tu es à l’arrivée',
+      nextKm: nextPt ? fmt(nextPt.km) : fmt(D),
+      nextDetail: nextPt ? nextPt.detail : 'Bravo! Reviens au départ pour explorer encore.',
+      goNextLabel: nextPt ? 'Y aller' : 'Au départ',
+      goNext: () => set(nextPt ? nextPt.km : 0),
+      prev: () => set(km - race.step),
+      next: () => set(km + race.step)
+    };
+  }
+}
+</script>
+</body>
+</html>

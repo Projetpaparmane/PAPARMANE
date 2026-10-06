@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Partager ma photo avec le logo · Récréaction</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=Barlow:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#14201B}a:hover{color:#000000}
+</style>
+<link rel="stylesheet" href="prototype.css">
+<script src="runtime.js" defer></script>
+</head>
+<body>
+<a class="proto-home" href="index.html">Tous les écrans</a>
+<div id="dc-root"></div>
+<template id="dc-template">
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #EEF0EA; color: #14201B; font-family: 'Barlow', sans-serif; display: flex; flex-direction: column; overflow: hidden">
+
+<header style="flex: none; display: flex; align-items: center; gap: 6px; padding: 20px 12px 6px">
+<a href="photos.html" aria-label="Retour à mes photos" style="width: 44px; height: 44px; flex: none; border-radius: 999px; color: #14201B; display: flex; align-items: center; justify-content: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg></a>
+<div style="flex-grow: 1">
+<h1 style="margin: 0; font-size: 22px; font-weight: 700; line-height: 1.15">Partager ma photo</h1>
+<div style="font-size: 14px; color: #4A5650">Avec le logo officiel de la course</div>
+</div>
+</header>
+
+<main style="flex: 1; min-height: 0; overflow-y: auto; padding: 4px 16px 12px; display: flex; flex-direction: column; gap: 10px">
+
+<div role="group" aria-label="Format" style="flex: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; background: #DDE1D8; border-radius: 14px">
+<button type="button" onClick="{{setPub}}" aria-pressed="{{pubPressed}}" style="height: 38px; border: 0; border-radius: 10px; background: {{pubBg}}; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer">Publication</button>
+<button type="button" onClick="{{setStory}}" aria-pressed="{{storyPressed}}" style="height: 38px; border: 0; border-radius: 10px; background: {{storyBg}}; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer">Story</button>
+</div>
+
+<div style="flex: none; height: 300px; border-radius: 16px; background: #DDE1D8; display: flex; align-items: center; justify-content: center">
+<figure aria-label="Aperçu de l’image partagée" style="position: relative; margin: 0; width: {{pw}}px; height: {{ph}}px; border-radius: 10px; overflow: hidden; background: #BFD7E6; box-shadow: 0 4px 14px rgba(20, 32, 27, 0.3)">
+<svg viewBox="0 0 358 216" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Julie, dossard 1247, en course dans une rue de Drummondville" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%">
+<rect x="0" y="0" width="358" height="350" fill="#BFD7E6"></rect>
+<rect x="0" y="0" width="60" height="150" fill="#AEB8B1"></rect>
+<rect x="60" y="32" width="52" height="118" fill="#C9CFC8"></rect>
+<rect x="112" y="54" width="74" height="96" fill="#9AA79F"></rect>
+<rect x="186" y="0" width="58" height="150" fill="#C2C9C1"></rect>
+<rect x="244" y="32" width="66" height="118" fill="#B4BDB6"></rect>
+<rect x="310" y="54" width="48" height="96" fill="#AEB8B1"></rect>
+<path d="M10 14h11v14h-11zM32 14h11v14h-11zM10 42h11v14h-11zM32 42h11v14h-11zM10 70h11v14h-11zM32 70h11v14h-11zM10 98h11v14h-11zM32 98h11v14h-11zM10 126h11v14h-11zM32 126h11v14h-11zM70 46h11v14h-11zM92 46h11v14h-11zM70 74h11v14h-11zM92 74h11v14h-11zM70 102h11v14h-11zM92 102h11v14h-11zM122 68h11v14h-11zM144 68h11v14h-11zM166 68h11v14h-11zM122 96h11v14h-11zM144 96h11v14h-11zM166 96h11v14h-11zM122 124h11v14h-11zM144 124h11v14h-11zM166 124h11v14h-11zM196 14h11v14h-11zM218 14h11v14h-11zM196 42h11v14h-11zM218 42h11v14h-11zM196 70h11v14h-11zM218 70h11v14h-11zM196 98h11v14h-11zM218 98h11v14h-11zM196 126h11v14h-11zM218 126h11v14h-11zM254 46h11v14h-11zM276 46h11v14h-11zM254 74h11v14h-11zM276 74h11v14h-11zM254 102h11v14h-11zM276 102h11v14h-11zM320 68h11v14h-11zM320 96h11v14h-11zM320 124h11v14h-11z" fill="#EEF3F5"></path>
+<circle cx="60" cy="134" r="18" fill="#7FA37A"></circle>
+<circle cx="210" cy="134" r="18" fill="#7FA37A"></circle>
+<rect x="0" y="150" width="358" height="10" fill="#C9CCC6"></rect>
+<rect x="0" y="160" width="358" height="200" fill="#9AA09B"></rect>
+<path d="M0 156H358" stroke="#D7191F" stroke-width="4"></path>
+<rect x="20" y="142" width="3" height="14" fill="#5C6862"></rect>
+<rect x="90" y="142" width="3" height="14" fill="#5C6862"></rect>
+<rect x="160" y="142" width="3" height="14" fill="#5C6862"></rect>
+<rect x="230" y="142" width="3" height="14" fill="#5C6862"></rect>
+<rect x="300" y="142" width="3" height="14" fill="#5C6862"></rect>
+<g transform="translate(112 104) scale(0.62)"><path d="M0 12 L-3 44" stroke="#2E5E8C" stroke-width="16" stroke-linecap="round"></path><path d="M-6 18 L-17 30 L-9 40" fill="none" stroke="#8D5B3E" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"></path><path d="M5 18 L16 28 L12 40" fill="none" stroke="#8D5B3E" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"></path><path d="M-3 46 L-14 64 L-26 70" fill="none" stroke="#14201B" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></path><path d="M-3 46 L9 62 L14 80" fill="none" stroke="#14201B" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></path><rect x="-8" y="20" width="16" height="11" rx="2" fill="#FFFFFF"></rect><circle cx="0" cy="0" r="9" fill="#8D5B3E"></circle><path d="M-9 -1 C -9 -12, 9 -12, 9 -1 Z" fill="#1E140E"></path></g>
+<g transform="translate(262 100) scale(0.66)"><path d="M0 12 L-3 44" stroke="#5B3BB5" stroke-width="16" stroke-linecap="round"></path><path d="M-6 18 L-17 30 L-9 40" fill="none" stroke="#E3B999" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"></path><path d="M5 18 L16 28 L12 40" fill="none" stroke="#E3B999" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"></path><path d="M-3 46 L-14 64 L-26 70" fill="none" stroke="#14201B" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></path><path d="M-3 46 L9 62 L14 80" fill="none" stroke="#14201B" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></path><rect x="-8" y="20" width="16" height="11" rx="2" fill="#FFFFFF"></rect><circle cx="0" cy="0" r="9" fill="#E3B999"></circle><path d="M-9 -1 C -9 -12, 9 -12, 9 -1 Z" fill="#C9A15B"></path></g>
+<circle cx="182" cy="96" r="9" fill="#14201B"></circle>
+<path d="M182 106 L178 142" stroke="#14201B" stroke-width="14" stroke-linecap="round"></path>
+<path d="M174 112 L164 126 L172 136" fill="none" stroke="#14201B" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="M188 112 L200 122 L196 134" fill="none" stroke="#14201B" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="M178 142 L166 162 L152 168" fill="none" stroke="#14201B" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="M178 142 L192 160 L198 180" fill="none" stroke="#14201B" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></path>
+<rect x="171" y="114" width="18" height="13" rx="2" fill="#FFFFFF"></rect>
+<text x="180" y="123.5" text-anchor="middle" font-family="Barlow Condensed, sans-serif" font-size="8" font-weight="700" fill="#14201B">1247</text>
+</svg>
+<img src="logo-des-chenes-toi.png" alt="Logo de la Course Des-Chênes-Toi! Bourret" style="position: absolute; top: 8px; right: 8px; width: {{lw}}px; height: auto; display: block">
+<sc-if value="{{withTime}}" hint-placeholder-val="{{true}}">
+<div style="position: absolute; left: 0; right: 0; bottom: 0; box-sizing: border-box; padding: 8px 10px; background: rgba(20, 32, 27, 0.9); color: #FFFFFF; display: flex; align-items: flex-end; justify-content: space-between; gap: 8px">
+<div style="min-width: 0">
+<div style="font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: #FF5B1A">J’AI COURU LE DEMI-MARATHON</div>
+<div style="font-family: 'Barlow Condensed', sans-serif; font-size: {{timeSize}}px; font-weight: 700; line-height: 1">2:04:31</div>
+</div>
+<div style="font-size: 10px; line-height: 1.3; text-align: right; color: #C9D2CC">23 mai 2027<br>Présenté par Bourret</div>
+</div>
+</sc-if>
+</figure>
+</div>
+
+<div role="group" aria-label="Cadre" style="flex: none; display: flex; gap: 6px">
+<sc-for list="{{styles}}" as="c" hint-placeholder-count="2">
+<button type="button" onClick="{{c.pick}}" aria-pressed="{{c.pressed}}" style="flex: 1; height: 40px; border-radius: 999px; border: 2px solid {{c.border}}; background: {{c.bg}}; color: {{c.fg}}; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer">{{c.label}}</button>
+</sc-for>
+</div>
+
+<section aria-label="Texte suggéré" style="flex: none; background: #FFFFFF; border-radius: 14px; padding: 10px 12px; display: flex; align-items: center; gap: 10px">
+<div style="flex-grow: 1; min-width: 0">
+<div style="font-size: 12px; font-weight: 700; letter-spacing: 0.06em; color: #4A5650">TEXTE SUGGÉRÉ</div>
+<div style="font-size: 14px; line-height: 1.35">{{caption}}</div>
+</div>
+<button type="button" onClick="{{copy}}" style="height: 40px; flex: none; padding: 0 12px; border: 2px solid #14201B; border-radius: 10px; background: #FFFFFF; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer">{{copyLabel}}</button>
+</section>
+
+<div role="group" aria-label="Partager sur" style="flex: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px">
+<sc-for list="{{networks}}" as="n" hint-placeholder-count="4">
+<button type="button" onClick="{{n.pick}}" style="height: 44px; border: 0; border-radius: 12px; background: {{n.bg}}; color: {{n.fg}}; font-family: 'Barlow', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer">{{n.label}}</button>
+</sc-for>
+</div>
+<sc-if value="{{hasShared}}" hint-placeholder-val="{{false}}">
+<div role="status" style="flex: none; font-size: 14px; font-weight: 600; color: #1F5E3A">{{sharedText}}</div>
+</sc-if>
+
+</main>
+
+<nav aria-label="Navigation principale" style="flex: none; height: 80px; box-sizing: border-box; padding: 6px 6px 20px; background: #FFFFFF; border-top: 1px solid #D9DDD5; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr))">
+<a href="accueil.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-decoration: none; color: #5C6862; font-size: 11px; font-weight: 600"><span style="display: flex; align-items: center; justify-content: center; width: 52px; height: 28px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"></path><path d="M5 10v10h14V10"></path></svg></span><span>Accueil</span></a>
+<a href="jour-j.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-decoration: none; color: #5C6862; font-size: 11px; font-weight: 600"><span style="display: flex; align-items: center; justify-content: center; width: 52px; height: 28px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="18" r="2"></circle><circle cx="18" cy="6" r="2"></circle><path d="M8 18h6a3 3 0 0 0 0-6h-4a3 3 0 0 1 0-6h6"></path></svg></span><span>Parcours</span></a>
+<a href="dossard.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-decoration: none; color: #5C6862; font-size: 11px; font-weight: 600"><span style="display: flex; align-items: center; justify-content: center; width: 52px; height: 28px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"></rect><path d="M8 10h8"></path><path d="M8 14h5"></path></svg></span><span>Dossard</span></a>
+<a href="photos.html" aria-current="page" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-decoration: none; color: #14201B; font-size: 11px; font-weight: 700"><span style="display: flex; align-items: center; justify-content: center; width: 52px; height: 28px; border-radius: 999px; background: #FF5B1A"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg></span><span>Photos</span></a>
+<a href="avantages.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-decoration: none; color: #5C6862; font-size: 11px; font-weight: 600"><span style="display: flex; align-items: center; justify-content: center; width: 52px; height: 28px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12V4h8l10 10-8 8z"></path><circle cx="7.5" cy="8.5" r="1.5"></circle></svg></span><span>Avantages</span></a>
+</nav>
+
+</div>
+</template>
+<script type="text/x-dc" id="dc-logic">
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const story = st.format === 'story';
+    const withTime = st.withTime !== false;
+    const shared = st.shared || '';
+    const NETWORKS = [
+      { label: 'Instagram', bg: '#14201B', fg: '#FFFFFF' },
+      { label: 'Facebook', bg: '#14201B', fg: '#FFFFFF' },
+      { label: 'TikTok', bg: '#14201B', fg: '#FFFFFF' },
+      { label: 'Enregistrer', bg: '#FF5B1A', fg: '#14201B' }
+    ];
+    const STYLES = [
+      { label: 'Logo seulement', time: false },
+      { label: 'Logo et mon temps', time: true }
+    ];
+    return {
+      pubPressed: story ? 'false' : 'true',
+      storyPressed: story ? 'true' : 'false',
+      pubBg: story ? 'transparent' : '#FFFFFF',
+      storyBg: story ? '#FFFFFF' : 'transparent',
+      setPub: () => this.setState({ format: 'pub', shared: '' }),
+      setStory: () => this.setState({ format: 'story', shared: '' }),
+      pw: story ? 168 : 280,
+      ph: story ? 298 : 280,
+      lw: story ? 62 : 72,
+      timeSize: story ? 24 : 28,
+      withTime: withTime,
+      styles: STYLES.map((c) => {
+        const on = c.time === withTime;
+        return {
+          label: c.label,
+          pressed: on ? 'true' : 'false',
+          bg: on ? '#14201B' : '#FFFFFF',
+          fg: on ? '#FFFFFF' : '#14201B',
+          border: on ? '#14201B' : '#D9DDD5',
+          pick: () => this.setState({ withTime: c.time, shared: '' })
+        };
+      }),
+      caption: 'J’ai couru le demi-marathon de la Course Des-Chênes-Toi! Bourret en 2:04:31.',
+      copyLabel: st.copied ? 'Copié!' : 'Copier',
+      copy: () => this.setState({ copied: true }),
+      networks: NETWORKS.map((n) => ({ label: n.label, bg: n.bg, fg: n.fg, pick: () => this.setState({ shared: n.label }) })),
+      hasShared: !!shared,
+      sharedText: shared === 'Enregistrer'
+        ? 'Image enregistrée dans ta galerie, avec le logo de la course.'
+        : 'Image prête avec le logo. ' + shared + ' s’ouvre pour la publier' + (story ? ' en story.' : '.')
+    };
+  }
+}
+</script>
+</body>
+</html>

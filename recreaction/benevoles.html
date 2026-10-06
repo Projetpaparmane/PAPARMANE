@@ -29,7 +29,7 @@ a{color:#14201B}a:hover{color:#000000}
 </div>
 <div style="flex: 1 1 280px; min-width: 0">
 <h1 style="margin: 0; font-size: 24px; font-weight: 700; line-height: 1.2">Bénévoles</h1>
-<div style="font-size: 14px; color: #4A5650">Trail des Crêtes 2026 · samedi 17 octobre</div>
+<div style="font-size: 14px; color: #4A5650">Course Des-Chênes-Toi! Bourret 2027 · dimanche 23 mai</div>
 </div>
 <span style="display: inline-flex; align-items: center; gap: 8px; background: #14201B; color: #FFFFFF; border-radius: 999px; padding: 8px 14px; font-size: 14px; font-weight: 700"><span style="width: 8px; height: 8px; border-radius: 999px; background: #FF5B1A"></span>En direct · 10 h 44</span>
 </header>
@@ -37,7 +37,9 @@ a{color:#14201B}a:hover{color:#000000}
 <nav aria-label="Sections de l’espace organisateur" style="display: flex; flex-wrap: wrap; gap: 8px">
 <a href="organisateur.html" style="height: 44px; box-sizing: border-box; padding: 0 18px; border-radius: 999px; border: 2px solid #D9DDD5; background: #FFFFFF; color: #14201B; display: inline-flex; align-items: center; font-size: 15px; font-weight: 700; text-decoration: none">Poste de commandement</a>
 <a href="benevoles.html" aria-current="page" style="height: 44px; box-sizing: border-box; padding: 0 18px; border-radius: 999px; border: 2px solid #14201B; background: #14201B; color: #FFFFFF; display: inline-flex; align-items: center; font-size: 15px; font-weight: 700; text-decoration: none">Bénévoles</a>
+<a href="partenaires-organisateur.html" style="height: 44px; box-sizing: border-box; padding: 0 18px; border-radius: 999px; border: 2px solid #D9DDD5; background: #FFFFFF; color: #14201B; display: inline-flex; align-items: center; font-size: 15px; font-weight: 700; text-decoration: none">Partenaires</a>
 <a href="infolettres.html" style="height: 44px; box-sizing: border-box; padding: 0 18px; border-radius: 999px; border: 2px solid #D9DDD5; background: #FFFFFF; color: #14201B; display: inline-flex; align-items: center; font-size: 15px; font-weight: 700; text-decoration: none">Infolettres</a>
+<a href="plan-et-parcours-organisateur.html" style="height: 44px; box-sizing: border-box; padding: 0 18px; border-radius: 999px; border: 2px solid #D9DDD5; background: #FFFFFF; color: #14201B; display: inline-flex; align-items: center; font-size: 15px; font-weight: 700; text-decoration: none">Plan et parcours</a>
 </nav>
 
 <nav aria-label="Vues des bénévoles" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: -8px">
@@ -163,10 +165,10 @@ class Component extends DCLogic {
     const data = [
       { id: 'depart', name: 'Départ et sas', time: '6 h 30 à 9 h', req: 8, present: 8 },
       { id: 'stat', name: 'Stationnement', time: '6 h à 9 h', req: 6, present: 6 },
-      { id: 'r1', name: 'Ravito 1 · km 5,5', time: '7 h à 11 h', req: 6, present: 6 },
-      { id: 'r2', name: 'Ravito 2 · km 12,5', time: '7 h à 11 h', req: 8, present: 5 },
-      { id: 'r3', name: 'Ravito 3 · km 19', time: '8 h à 13 h', req: 6, present: 6 },
-      { id: 'sig', name: 'Signaleurs · chemin du Lac', time: '7 h 30 à 10 h 30', req: 12, present: 11 },
+      { id: 'r1', name: 'Ravito 1 · km 5', time: '7 h à 11 h', req: 6, present: 6 },
+      { id: 'r2', name: 'Ravito 2 · km 10,5', time: '7 h à 11 h', req: 8, present: 5 },
+      { id: 'r3', name: 'Ravito 3 · km 16', time: '8 h à 13 h', req: 6, present: 6 },
+      { id: 'sig', name: 'Signaleurs · intersections', time: '7 h 30 à 10 h 30', req: 12, present: 11 },
       { id: 'arr', name: 'Arrivée et médailles', time: '9 h à 13 h', req: 10, present: 10 },
       { id: 'nav', name: 'Navette des abandons', time: '8 h à 14 h', req: 2, present: 2 },
       { id: 'vil', name: 'Village et kiosques', time: '8 h à 14 h', req: 8, present: 8 }

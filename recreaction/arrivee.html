@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Arrivée et inscription 2028 · Récréaction</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=Barlow:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#14201B}a:hover{color:#000000}
+</style>
+<link rel="stylesheet" href="prototype.css">
+<script src="runtime.js" defer></script>
+</head>
+<body>
+<a class="proto-home" href="index.html">Tous les écrans</a>
+<div id="dc-root"></div>
+<template id="dc-template">
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #EEF0EA; color: #14201B; font-family: 'Barlow', sans-serif; display: flex; flex-direction: column; overflow: hidden">
+
+<header style="flex: none; padding: 20px 16px 6px">
+<div style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; color: #A33A00"><span style="width: 8px; height: 8px; border-radius: 999px; background: #FF5B1A"></span>TU L’AS FAIT</div>
+<h1 style="margin: 2px 0 0; font-size: 26px; font-weight: 700; line-height: 1.15">Bravo Julie!</h1>
+<div style="font-size: 14px; color: #4A5650">Demi-marathon · Course Des-Chênes-Toi! Bourret 2027</div>
+</header>
+
+<main style="flex: 1; min-height: 0; overflow-y: auto; padding: 6px 16px 12px; display: flex; flex-direction: column; gap: 10px">
+
+<section aria-label="Ton résultat" style="background: #14201B; color: #FFFFFF; border-radius: 18px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 12px">
+<div>
+<div style="font-family: 'Barlow Condensed', sans-serif; font-size: 42px; font-weight: 700; line-height: 1">2:04:31</div>
+<div style="font-size: 13px; color: #C9D2CC">temps officiel</div>
+</div>
+<div style="text-align: right">
+<div style="font-size: 17px; font-weight: 700">38e sur 214</div>
+<div style="font-size: 13px; color: #C9D2CC">9e chez les 35 à 39 ans</div>
+</div>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; padding-top: 10px; border-top: 1px solid #33443C">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FF5B1A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M8 3l4 6 4-6"></path><circle cx="12" cy="15" r="6"></circle></svg>
+<span style="flex-grow: 1; font-size: 14px; font-weight: 600">Premier demi-marathon complété</span>
+<a href="photos.html" style="color: #FFFFFF; font-size: 14px; font-weight: 700">Mes photos</a>
+</div>
+</section>
+
+<section aria-labelledby="t-2028" style="background: #FF5B1A; color: #14201B; border-radius: 18px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px">
+<div>
+<div style="font-size: 12px; font-weight: 700; letter-spacing: 0.1em">ÉDITION 2028 · AUJOURD’HUI SEULEMENT</div>
+<h2 id="t-2028" style="margin: 2px 0 0; font-size: 21px; font-weight: 700; line-height: 1.2">Réserve ta place pour l’an prochain</h2>
+</div>
+<sc-if value="{{notReserved}}" hint-placeholder-val="{{true}}">
+<div role="group" aria-label="Distance en 2028" style="display: flex; flex-wrap: wrap; gap: 6px">
+<sc-for list="{{options}}" as="o" hint-placeholder-count="5">
+<button type="button" onClick="{{o.pick}}" aria-pressed="{{o.pressed}}" style="height: 40px; padding: 0 12px; border-radius: 999px; border: 2px solid #14201B; background: {{o.bg}}; color: {{o.fg}}; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer">{{o.label}}</button>
+</sc-for>
+</div>
+<div style="display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap">
+<span style="font-family: 'Barlow Condensed', sans-serif; font-size: 36px; font-weight: 700; line-height: 1">{{price}}</span>
+<span style="font-size: 15px; font-weight: 600">au lieu de <span style="text-decoration: line-through">{{full}}</span></span>
+<span style="margin-left: auto; font-size: 13px; font-weight: 700">Prix finissant jusqu’à minuit</span>
+</div>
+<button type="button" onClick="{{reserve}}" style="height: 50px; border: 0; border-radius: 14px; background: #14201B; color: #FFFFFF; font-family: 'Barlow', sans-serif; font-size: 16px; font-weight: 700; cursor: pointer">Je réserve ma place 2028</button>
+</sc-if>
+<sc-if value="{{reserved}}" hint-placeholder-val="{{false}}">
+<div role="status" style="background: #FFFFFF; border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; align-items: center; gap: 10px">
+<span aria-hidden="true" style="width: 32px; height: 32px; flex: none; border-radius: 999px; background: #2E7D4F; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"></path></svg></span>
+<strong style="font-size: 17px">C’est réservé!</strong>
+</div>
+<div style="font-size: 14px; line-height: 1.4">{{resText}}</div>
+<button type="button" style="height: 44px; border: 2px solid #14201B; border-radius: 12px; background: transparent; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer">Inviter un ami · -20 % pour lui aussi</button>
+</div>
+</sc-if>
+</section>
+
+<a href="suggestions.html" style="background: #FFFFFF; border-radius: 18px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; text-decoration: none; color: #14201B">
+<span aria-hidden="true" style="width: 44px; height: 44px; flex: none; border-radius: 12px; background: #FFE6D2; color: #A33A00; display: flex; align-items: center; justify-content: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3z"></path></svg></span>
+<span style="flex-grow: 1; min-width: 0">
+<span style="display: block; font-size: 16px; font-weight: 700">Une idée pour 2028?</span>
+<span style="display: block; font-size: 13px; color: #4A5650">86 idées proposées · la plus appuyée : plus de toilettes près du départ</span>
+</span>
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M9 5l7 7-7 7"></path></svg>
+</a>
+
+</main>
+
+<nav aria-label="Navigation principale" style="flex: none; height: 80px; box-sizing: border-box; padding: 6px 6px 20px; background: #FFFFFF; border-top: 1px solid #D9DDD5; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr))">
+<a href="accueil.html" aria-current="page" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-decoration: none; color: #14201B; font-size: 11px; font-weight: 700"><span style="display: flex; align-items: center; justify-content: center; width: 52px; height: 28px; border-radius: 999px; background: #FF5B1A"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"></path><path d="M5 10v10h14V10"></path></svg></span><span>Accueil</span></a>
+<a href="parcours.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-decoration: none; color: #5C6862; font-size: 11px; font-weight: 600"><span style="display: flex; align-items: center; justify-content: center; width: 52px; height: 28px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="18" r="2"></circle><circle cx="18" cy="6" r="2"></circle><path d="M8 18h6a3 3 0 0 0 0-6h-4a3 3 0 0 1 0-6h6"></path></svg></span><span>Parcours</span></a>
+<a href="dossard.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-decoration: none; color: #5C6862; font-size: 11px; font-weight: 600"><span style="display: flex; align-items: center; justify-content: center; width: 52px; height: 28px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"></rect><path d="M8 10h8"></path><path d="M8 14h5"></path></svg></span><span>Dossard</span></a>
+<a href="photos.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-decoration: none; color: #5C6862; font-size: 11px; font-weight: 600"><span style="display: flex; align-items: center; justify-content: center; width: 52px; height: 28px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg></span><span>Photos</span></a>
+<a href="avantages.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-decoration: none; color: #5C6862; font-size: 11px; font-weight: 600"><span style="display: flex; align-items: center; justify-content: center; width: 52px; height: 28px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12V4h8l10 10-8 8z"></path><circle cx="7.5" cy="8.5" r="1.5"></circle></svg></span><span>Avantages</span></a>
+</nav>
+
+</div>
+</template>
+<script type="text/x-dc" id="dc-logic">
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const pick = st.dist || 'demi';
+    const reserved = st.reserved === true;
+    const OPTIONS = [
+      { id: 'renald', label: 'M. Renald', name: 'Course de M. Renald', price: 15 },
+      { id: '5', label: '5 km', name: '5 km', price: 35 },
+      { id: '10', label: '10 km', name: '10 km', price: 55 },
+      { id: 'demi', label: 'Demi', name: 'Demi-marathon', price: 75 },
+      { id: '42', label: 'Marathon', name: 'Marathon', price: 110 }
+    ];
+    const sel = OPTIONS.find((o) => o.id === pick) || OPTIONS[3];
+    const finisher = Math.round(sel.price * 0.8);
+    return {
+      options: OPTIONS.map((o) => {
+        const on = o.id === sel.id;
+        return {
+          label: o.label,
+          pressed: on ? 'true' : 'false',
+          bg: on ? '#14201B' : '#FFFFFF',
+          fg: on ? '#FFFFFF' : '#14201B',
+          pick: () => this.setState({ dist: o.id })
+        };
+      }),
+      price: finisher + ' $',
+      full: sel.price + ' $',
+      notReserved: !reserved,
+      reserved: reserved,
+      reserve: () => this.setState({ reserved: true }),
+      resText: 'Ta place ' + (sel.id === 'renald' ? 'à la Course de M. Renald' : 'au ' + sel.name.toLowerCase()) + ' 2028 est réservée à ' + finisher + ' $. On te confirme la date dès qu’elle est annoncée.'
+    };
+  }
+}
+</script>
+</body>
+</html>
