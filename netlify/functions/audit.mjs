@@ -1379,6 +1379,31 @@ async function externalIntelligence(site, location = "Canada", language = "fr") 
     }), authorization, mergePages),
   ]);
 
+  // Listes détaillées : les 100 domaines référents et les 100 backlinks les plus
+  // forts (un lien par domaine, sinon un seul annuaire remplit tout le tableau).
+  const [refDomainsRequest, backlinkListRequest] = await Promise.allSettled([
+    dataForSeoPost("/v3/backlinks/referring_domains/live", {
+      target,
+      include_subdomains: true,
+      include_indirect_links: true,
+      exclude_internal_backlinks: true,
+      backlinks_status_type: "live",
+      rank_scale: "one_hundred",
+      order_by: ["rank,desc"],
+      limit: 100,
+    }, authorization),
+    dataForSeoPost("/v3/backlinks/backlinks/live", {
+      target,
+      mode: "one_per_domain",
+      include_subdomains: true,
+      include_indirect_links: true,
+      exclude_internal_backlinks: true,
+      backlinks_status_type: "live",
+      rank_scale: "one_hundred",
+      order_by: ["domain_from_rank,desc"],
+      limit: 100,
+    }, authorization),
+  ]);
   const [trafficRequest, keywordRequest, backlinkRequest, aiRequest, competitorRequest, topPagesRequest] = requests;
   let traffic = trafficRequest.status === "fulfilled" ? trafficRequest.value : unavailableProviderResult(trafficRequest.reason);
   let strategicKeywords = keywordRequest.status === "fulfilled" ? keywordRequest.value : unavailableProviderResult(keywordRequest.reason);
@@ -1432,9 +1457,39 @@ async function externalIntelligence(site, location = "Canada", language = "fr") 
     strategicKeywords = { available: true, totalCount: 0, items: [], providerCostUsd: strategicKeywords.providerCostUsd };
   }
 
+  // Domaines référents et backlinks détaillés. Une liste en erreur n'empêche
+  // pas le résumé ; elle est simplement absente du rapport.
+  const listCost = [refDomainsRequest, backlinkListRequest].reduce((sum, r) => sum + Number((r.status === "fulfilled" ? r.value.providerCostUsd : r.reason?.providerCostUsd) || 0), 0);
+  const cleanUrl = value => { try { const u = new URL(value); return /^https?:$/.test(u.protocol) ? u.href : ""; } catch { return ""; } };
+  const referringDomainList = refDomainsRequest.status === "fulfilled" && Array.isArray(refDomainsRequest.value.result?.items)
+    ? refDomainsRequest.value.result.items.map(d => ({
+      domain: String(d.domain || ""),
+      rank: d.rank ?? null,
+      backlinks: Number(d.backlinks || 0),
+      // Champ absent selon la version de l'API : on n'invente pas de chiffre.
+      nofollow: d.backlinks_nofollow ?? d.referring_links_attributes?.nofollow ?? null,
+      spamScore: d.backlinks_spam_score ?? null,
+      firstSeen: String(d.first_seen || "").slice(0, 10),
+    })).filter(d => d.domain)
+    : null;
+  const backlinkList = backlinkListRequest.status === "fulfilled" && Array.isArray(backlinkListRequest.value.result?.items)
+    ? backlinkListRequest.value.result.items.map(b => ({
+      from: cleanUrl(b.url_from),
+      domainFrom: String(b.domain_from || ""),
+      to: cleanUrl(b.url_to),
+      anchor: String(b.anchor || "").slice(0, 160),
+      dofollow: b.dofollow !== false,
+      domainRank: b.domain_from_rank ?? null,
+      type: String(b.item_type || ""),
+      firstSeen: String(b.first_seen || "").slice(0, 10),
+    })).filter(b => b.from)
+    : null;
   if (backlinks.result) {
     const item = backlinks.result.items?.[0] || backlinks.result;
     backlinks = {
+      referringDomainList,
+      backlinkList,
+      listsCostUsd: listCost,
       available: true,
       rank: item.rank ?? null,
       backlinks: item.backlinks ?? 0,
@@ -1555,7 +1610,7 @@ async function externalIntelligence(site, location = "Canada", language = "fr") 
   }
 
   const sections = [traffic, strategicKeywords, backlinks, aiMentions, competitors, topPages];
-  const providerCostUsd = sections.reduce((sum, section) => sum + Number(section.providerCostUsd || 0), 0);
+  const providerCostUsd = sections.reduce((sum, section) => sum + Number(section.providerCostUsd || 0), 0) + listCost;
   return {
     configured: true,
     available: traffic.available,
@@ -1580,7 +1635,7 @@ async function externalIntelligence(site, location = "Canada", language = "fr") 
     providerCosts: {
       traffic: traffic.providerCostUsd || 0,
       strategicKeywords: strategicKeywords.providerCostUsd || 0,
-      backlinks: backlinks.providerCostUsd || 0,
+      backlinks: (backlinks.providerCostUsd || 0) + listCost,
       aiMentions: aiMentions.providerCostUsd || 0,
       competitors: competitors.providerCostUsd || 0,
       topPages: topPages.providerCostUsd || 0,

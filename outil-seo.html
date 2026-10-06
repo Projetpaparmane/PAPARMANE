@@ -614,7 +614,7 @@ async function runAudit(){
     log("Découverte du site (robots.txt, sitemap, llms.txt)…");
     const disc = await api({mode:"discover", site:raw});
     const origin = disc.origin;
-    const trafficCacheKey="pap_intelligence_v4_"+new URL(origin).hostname+"_canada_fr-en";
+    const trafficCacheKey="pap_intelligence_v5_"+new URL(origin).hostname+"_canada_fr-en";
     let cachedTraffic=null;
     try{const saved=JSON.parse(localStorage.getItem(trafficCacheKey)||"null");if(saved&&Date.now()-saved.cachedAt<604800000)cachedTraffic=saved.data;}catch{}
     const trafficPromise=cachedTraffic?Promise.resolve({...cachedTraffic,cached:true}):api({mode:"traffic",site:origin,location:"Canada",language:"fr,en"}).then(data=>{if(data.available||data.strategicKeywords?.available||data.competitors?.available||data.topPages?.available||data.backlinks?.available||data.aiMentions?.available)localStorage.setItem(trafficCacheKey,JSON.stringify({cachedAt:Date.now(),data}));return data;}).catch(e=>({configured:false,available:false,reason:e.code||"request_error",error:e.message}));
@@ -1790,6 +1790,40 @@ function marketPhraseFor(m){
   return l.includes("fr")&&l.includes("en")?"pour le Canada, français et anglais réunis":"pour le Canada en "+(l[0]==="en"?"anglais":"français")+" seulement";
 }
 
+// Listes détaillées des domaines référents et des backlinks (DataForSEO).
+// Chaque adresse vient du site d'un tiers : tout passe par esc(), et seuls les
+// liens http(s) deviennent cliquables.
+function backlinkTablesHtml(b,m){
+  if(!b) return "";
+  const fmtN=v=>Number(v||0).toLocaleString("fr-CA");
+  const safeHref=u=>/^https?:\/\//i.test(String(u||""))?esc(u):"";
+  const link=(u,label)=>safeHref(u)?`<a href="${safeHref(u)}" target="_blank" rel="noopener nofollow">${esc(label)}</a>`:esc(label);
+  const shortUrl=u=>{try{const x=new URL(u);return (x.hostname.replace(/^www\./,"")+x.pathname+x.search).replace(/\/$/,"");}catch{return String(u||"");}};
+  const target=u=>{try{return short(u,m.origin);}catch{return String(u||"");}};
+  const date=d=>d?esc(d):"—";
+  // Le PDF garde les 25 plus forts ; la liste complète reste à l'écran.
+  const PRINT_ROWS=25;
+  const printMore=n=>n>PRINT_ROWS?`<p class="sec-intro print-only">Les ${PRINT_ROWS} plus forts sont imprimés; ${fmtN(n-PRINT_ROWS)} autres sont disponibles sur demande.</p>`:"";
+  let out="";
+  if(Array.isArray(b.referringDomainList)){
+    const list=b.referringDomainList;
+    out+=`<div class="sec-h"><h3>Domaines référents</h3><span class="cnt">${fmtN(list.length)}${b.referringDomains>list.length?" / "+fmtN(b.referringDomains):""}</span><div class="rule"></div></div>
+    <p class="sec-intro">Sites qui font au moins un lien vers le domaine, classés du plus fort au plus faible selon le rang DataForSEO (sur 100).${b.referringDomains>list.length?" Les "+fmtN(list.length)+" premiers sont listés.":""} Un score de spam élevé signale un site de piètre qualité à surveiller.</p>
+    ${list.length?`<div class="tbl-wrap"><table><thead><tr><th>Domaine</th><th class="c">Rang</th><th class="c">Backlinks</th><th class="c">Spam</th><th class="c">Vu depuis</th></tr></thead><tbody>
+      ${list.map((d,i)=>`<tr${i>=PRINT_ROWS?' class="screen-only"':""}><td class="pg">${link("https://"+d.domain,d.domain)}</td><td class="c tnum">${d.rank==null?"—":esc(d.rank)}</td><td class="c tnum">${fmtN(d.backlinks)}</td><td class="c tnum">${typeof d.spamScore==="number"?`<span class="tag ${d.spamScore>=60?"no":d.spamScore>=30?"mid":"ok"}">${esc(d.spamScore)}</span>`:"—"}</td><td class="c tnum">${date(d.firstSeen)}</td></tr>`).join("")}
+    </tbody></table></div>${printMore(list.length)}`:`<p class="sec-intro">Aucun domaine référent vivant détecté.</p>`}`;
+  }
+  if(Array.isArray(b.backlinkList)){
+    const list=b.backlinkList;
+    out+=`<div class="sec-h"><h3>Backlinks</h3><span class="cnt">${fmtN(list.length)}${b.backlinks>list.length?" / "+fmtN(b.backlinks):""}</span><div class="rule"></div></div>
+    <p class="sec-intro">Le lien le plus fort de chaque domaine référent : page qui fait le lien, texte cliquable (ancre) et page du site visée. « Suivi » transmet de l'autorité à Google ; « nofollow » non.</p>
+    ${list.length?`<div class="tbl-wrap"><table><thead><tr><th>Page qui fait le lien</th><th>Ancre</th><th>Page visée</th><th class="c">Type</th><th class="c">Rang</th><th class="c">Vu depuis</th></tr></thead><tbody>
+      ${list.map((l,i)=>`<tr${i>=PRINT_ROWS?' class="screen-only"':""}><td class="pg">${link(l.from,shortUrl(l.from))}</td><td>${l.anchor?esc(l.anchor):`<span class="tag">image ou sans texte</span>`}</td><td class="pg">${esc(target(l.to))}</td><td class="c"><span class="tag ${l.dofollow?"ok":"mid"}">${l.dofollow?"Suivi":"nofollow"}</span></td><td class="c tnum">${l.domainRank==null?"—":esc(l.domainRank)}</td><td class="c tnum">${date(l.firstSeen)}</td></tr>`).join("")}
+    </tbody></table></div>${printMore(list.length)}`:`<p class="sec-intro">Aucun backlink vivant détecté.</p>`}`;
+  }
+  return out;
+}
+
 function renderReport(m){
   // L'en-tête imprimé porte le nom du client, pas la mention « usage interne ».
   // Mis à jour avant tout rendu : sinon un audit non concluant garde le nom du
@@ -2220,7 +2254,8 @@ function renderReport(m){
       <div class="ai-card"><div class="ai-card-head"><span>Domaines référents</span><span class="ai-card-score">${fmt(backlinkData.referringDomains)}</span></div><p>${fmt(backlinkData.referringMainDomains)} domaines principaux · ${fmt(backlinkData.referringPages)} pages référentes.</p></div>
       <div class="ai-card"><div class="ai-card-head"><span>Rang du domaine</span><span class="ai-card-score">${Number.isFinite(Number(backlinkData.rank))?Number(backlinkData.rank):"—"}/100</span></div><p>Indice DataForSEO sur une échelle de 100, distinct du score d'audit Paparmane.</p></div>
       <div class="ai-card"><div class="ai-card-head"><span>Liens à surveiller</span><span class="ai-card-score">${fmt(backlinkData.brokenBacklinks)}</span></div><p>${fmt(backlinkData.nofollow)} liens nofollow${typeof backlinkData.spamScore==="number"?" · score de spam moyen "+backlinkData.spamScore:""}.</p></div>
-    </div>`:""}
+    </div>
+    ${backlinkTablesHtml(backlinkData,m)}`:""}
 
     ${aiMentionData.available?`<div class="sec-h"><h3>Mentions IA mesurées</h3><div class="rule"></div></div>
     <p class="sec-intro"><b>Mesure réelle de la base DataForSEO, distincte de la préparation technique IA.</b> Elle comptabilise les mentions observées sur les plateformes couvertes pour ${esc(aiMentionData.scope||"la portée disponible")}. Il ne s'agit pas d'un test personnalisé de chaque question qu'un client pourrait poser.</p>
