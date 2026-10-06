@@ -570,11 +570,11 @@ async function loadKeywordGap(button){
   button.textContent="Analyse en cours…";
   out.innerHTML='<p class="sec-intro">Recherche des mots-clés manquants dans la base Google DataForSEO…</p>';
   try{
-    const cacheKey="pap_gap_v1_"+new URL(site).hostname+"_"+competitor+"_canada_fr";
+    const cacheKey="pap_gap_v2_"+new URL(site).hostname+"_"+competitor+"_canada_fr-en";
     let data=null;
     try{const saved=JSON.parse(localStorage.getItem(cacheKey)||"null");if(saved&&Date.now()-saved.cachedAt<604800000)data={...saved.data,cached:true};}catch{}
     if(!data){
-      data=await api({mode:"gap",site,competitor,location:"Canada",language:"fr"});
+      data=await api({mode:"gap",site,competitor,location:"Canada",language:"fr,en"});
       if(data.available) localStorage.setItem(cacheKey,JSON.stringify({cachedAt:Date.now(),data}));
     }
     if(!data.available){
@@ -614,10 +614,10 @@ async function runAudit(){
     log("Découverte du site (robots.txt, sitemap, llms.txt)…");
     const disc = await api({mode:"discover", site:raw});
     const origin = disc.origin;
-    const trafficCacheKey="pap_intelligence_v3_"+new URL(origin).hostname+"_canada_fr";
+    const trafficCacheKey="pap_intelligence_v4_"+new URL(origin).hostname+"_canada_fr-en";
     let cachedTraffic=null;
     try{const saved=JSON.parse(localStorage.getItem(trafficCacheKey)||"null");if(saved&&Date.now()-saved.cachedAt<604800000)cachedTraffic=saved.data;}catch{}
-    const trafficPromise=cachedTraffic?Promise.resolve({...cachedTraffic,cached:true}):api({mode:"traffic",site:origin,location:"Canada",language:"fr"}).then(data=>{if(data.available||data.strategicKeywords?.available||data.competitors?.available||data.topPages?.available||data.backlinks?.available||data.aiMentions?.available)localStorage.setItem(trafficCacheKey,JSON.stringify({cachedAt:Date.now(),data}));return data;}).catch(e=>({configured:false,available:false,reason:e.code||"request_error",error:e.message}));
+    const trafficPromise=cachedTraffic?Promise.resolve({...cachedTraffic,cached:true}):api({mode:"traffic",site:origin,location:"Canada",language:"fr,en"}).then(data=>{if(data.available||data.strategicKeywords?.available||data.competitors?.available||data.topPages?.available||data.backlinks?.available||data.aiMentions?.available)localStorage.setItem(trafficCacheKey,JSON.stringify({cachedAt:Date.now(),data}));return data;}).catch(e=>({configured:false,available:false,reason:e.code||"request_error",error:e.message}));
     // Le sitemap n'a pas été lu dans le budget de la découverte (serveur lent,
     // pare-feu, erreur). Chaque adresse candidate est réessayée par un appel
     // dédié, donc avec un budget neuf : « absent » ne se conclut jamais d'un délai.
@@ -1775,6 +1775,21 @@ function buildReportNav(){
   });
 }
 
+// Marché et langues réellement mesurés par DataForSEO. Un ancien résultat en
+// cache sans ce champ correspond au français seul.
+function measuredLanguages(m){
+  const t=m.disc?.traffic||{};
+  return Array.isArray(t.languages)&&t.languages.length?t.languages:(t.language?String(t.language).split(","):["fr"]);
+}
+function marketLabelFor(m){
+  const l=measuredLanguages(m);
+  return "Canada"+(l.includes("fr")&&l.includes("en")?" (fr + en)":l.length===1?" ("+({fr:"français seul",en:"anglais seul"}[l[0]]||l[0])+")":"");
+}
+function marketPhraseFor(m){
+  const l=measuredLanguages(m);
+  return l.includes("fr")&&l.includes("en")?"pour le Canada, français et anglais réunis":"pour le Canada en "+(l[0]==="en"?"anglais":"français")+" seulement";
+}
+
 function renderReport(m){
   // L'en-tête imprimé porte le nom du client, pas la mention « usage interne ».
   // Mis à jour avant tout rendu : sinon un audit non concluant garde le nom du
@@ -1922,11 +1937,14 @@ function renderReport(m){
     ${proof.formula?`<code>Calcul : ${esc(proof.formula)}</code>`:""}
     ${proof.locations?.length?`<div class="ov-where">Où : ${proof.locations.map(url=>`<code>${esc(sh(url))}</code>`).join(" · ")}</div>`:""}
   </details>`:"";
+  // Langues réellement mesurées par DataForSEO (Canada : français + anglais,
+  // comme Semrush). Un ancien résultat en cache sans ce champ = français seul.
+  const marketLabel=marketLabelFor(m);
   const overviewCards=[
     ["Santé SEO",m.global+"/100","Score global Paparmane v"+m.auditMeta.scoreVersion,"mesuré",scoreClass(m.global),globalProof],
     ["Pages analysées",m.pages.length,m.auditMeta.successful+" réussies · "+m.auditMeta.transient+" provisoires"+(m.deadPages.length-m.auditMeta.transient>0?" · "+(m.deadPages.length-m.auditMeta.transient)+" en erreur":""),m.disc.truncated?"plafonné à "+MAX_AUDIT_PAGES+" pages":"crawl complet",m.auditMeta.transient?"warn":"good"],
     ["Problèmes prioritaires",m.counts.crit,m.counts.warn+" importants · "+m.counts.info+" opportunités","audit interne",m.counts.crit?"bad":m.counts.warn?"warn":"good"],
-    [m.disc.traffic?.available&&m.disc.traffic.organicKeywords!=null?"Mots-clés organiques":"Sujets observés",m.disc.traffic?.available&&m.disc.traffic.organicKeywords!=null?m.disc.traffic.organicKeywords.toLocaleString("fr-CA"):observedKeywordCount,m.disc.traffic?.available?"classements Google estimés · Canada":m.cannibalization.length+" chevauchement(s) potentiel(s)",m.disc.traffic?.available?"estimation DataForSEO":"contenu observé",scoreClass(m.scores.keywords)],
+    [m.disc.traffic?.available&&m.disc.traffic.organicKeywords!=null?"Mots-clés organiques":"Sujets observés",m.disc.traffic?.available&&m.disc.traffic.organicKeywords!=null?m.disc.traffic.organicKeywords.toLocaleString("fr-CA"):observedKeywordCount,m.disc.traffic?.available?"classements Google estimés · "+marketLabel:m.cannibalization.length+" chevauchement(s) potentiel(s)",m.disc.traffic?.available?"estimation DataForSEO":"contenu observé",scoreClass(m.scores.keywords)],
     ["Mots-clés stratégiques",m.targetMap.length?targetCovered+"/"+m.targetMap.length:externalKeywords.available?fmt(externalKeywords.totalCount):"—",m.targetMap.length?(m.targetMap.length-targetCovered)+" sans cible claire":externalKeywords.available?rankedKeywords.length+" meilleures positions et occasions chargées":providerFailure(externalKeywords),m.targetMap.length?"fourni par le client":externalKeywords.available?"DataForSEO · Canada":"non mesuré",m.targetMap.length&&targetCovered===m.targetMap.length?"good":m.targetMap.length?"warn":externalKeywords.available?(rankedKeywords.length?"good":"warn"):""],
     ["Concurrents organiques",competitorData.available?realCompetitors.length:"—",competitorData.available?(realCompetitors.length?(realCompetitors[0].domain+" · "+fmt(realCompetitors[0].intersections)+" mots-clés communs"):"aucun concurrent significatif — chevauchements accidentels seulement"):providerFailure(competitorData),competitorData.available?"DataForSEO · Canada":"non mesuré",competitorData.available?(marketCompetitors.length?"good":"warn"):""],
     ["Pages qui attirent",topPagesData.available?marketTopPages.length:"—",topPagesData.available?(marketTopPages.length?(sh(marketTopPages[0].url)+" · "+fmt(marketTopPages[0].organicTraffic)+" visites estimées"):"aucune page classée détectée"):providerFailure(topPagesData),topPagesData.available?"DataForSEO · mise à jour hebdomadaire":"non mesuré",topPagesData.available?(marketTopPages.length?"good":"warn"):""],
@@ -1935,8 +1953,8 @@ function renderReport(m){
     ["Liens",m.scores.liens+"/100",m.linksChecked+" vérifiés · "+brokenLinkCount+" brisé(s) · "+orphanCount+" orpheline(s)","score technique expliqué",scoreClass(m.scores.liens),linkProof],
     ["Indexabilité",m.scores.indexation+"/100",advanced.indexable+"/"+m.pages.length+" pages indexables","META + en-têtes HTTP",scoreClass(m.scores.indexation),indexProof],
     ["ALT vides — accueil",(advanced.homepageStrictMissing||0)+"/"+(advanced.homepageStrictTotal||0),(advanced.homepageDecorativeAltEmpty||0)+" décoratif(s) correct(s) · "+(advanced.homepageContentAltMissing||0)+" photo(s) de contenu à corriger","lecture expliquée",advanced.homepageContentAltMissing?"warn":"good"],
-    ["Trafic organique",traffic.available?traffic.organic.toLocaleString("fr-CA"):"—",traffic.available?"visites mensuelles organiques estimées · Canada":trafficClientText,traffic.available?"estimation DataForSEO":"non mesuré",traffic.available?"good":trafficUnavailable[2]],
-    ["Trafic payant",traffic.available?traffic.paid.toLocaleString("fr-CA"):"—",traffic.available?"visites mensuelles payantes estimées · Canada":trafficClientText,traffic.available?"estimation DataForSEO":"non mesuré",traffic.available&&traffic.paid>0?"warn":trafficUnavailable[2]],
+    ["Trafic organique",traffic.available?traffic.organic.toLocaleString("fr-CA"):"—",traffic.available?"visites mensuelles organiques estimées · "+marketLabel:trafficClientText,traffic.available?"estimation DataForSEO":"non mesuré",traffic.available?"good":trafficUnavailable[2]],
+    ["Trafic payant",traffic.available?traffic.paid.toLocaleString("fr-CA"):"—",traffic.available?"visites mensuelles payantes estimées · "+marketLabel:trafficClientText,traffic.available?"estimation DataForSEO":"non mesuré",traffic.available&&traffic.paid>0?"warn":trafficUnavailable[2]],
     ["Backlinks",backlinkData.available?fmt(backlinkData.backlinks):"—",backlinkData.available?fmt(backlinkData.referringDomains)+" domaines référents · rang "+(Number.isFinite(Number(backlinkData.rank))?Number(backlinkData.rank):"—"):providerFailure(backlinkData),backlinkData.available?"mesure DataForSEO":"non mesuré",backlinkData.available?(backlinkData.backlinks?"good":"warn"):""],
     // « Non mesuré » n'est jamais présenté comme un zéro : l'outil ne peut pas
     // affirmer qu'une marque est absente des IA s'il n'a pas pu la chercher.
@@ -2174,7 +2192,7 @@ function renderReport(m){
 
     ${traffic.available||externalKeywords.available||competitorData.available||topPagesData.available||backlinkData.available||aiMentionData.available?`
     <div class="sec-h"><h3>Intelligence de marché DataForSEO</h3><div class="rule"></div></div>
-    <p class="sec-intro">Mesures externes comparables à un outil de marché : positions Google au Canada en français, concurrents dans les mêmes résultats, profil de liens et mentions observées dans la base IA. <span class="screen-only">Les résultats sont conservés sept jours pour maîtriser les frais de collecte.</span></p>
+    <p class="sec-intro">Mesures externes comparables à un outil de marché : positions Google ${marketPhraseFor(m)} (Semrush additionne aussi les langues), concurrents dans les mêmes résultats, profil de liens et mentions observées dans la base IA. <span class="screen-only">Les résultats sont conservés sept jours pour maîtriser les frais de collecte.</span></p>
 
     ${externalKeywords.available?`<h4>Mots-clés Google classés et occasions</h4>
     <p class="sec-intro">Ce sont des requêtes sur lesquelles le domaine est déjà visible. Elles servent à choisir les gains rapides; elles ne remplacent pas les objectifs d'affaires fournis par le client.</p>
@@ -2183,7 +2201,7 @@ function renderReport(m){
     </tbody></table></div>`:""}
 
     ${competitorData.available?`<div class="sec-h"><h3>Concurrents organiques</h3><span class="cnt">${marketCompetitors.length}</span><div class="rule"></div></div>
-    <p class="sec-intro"><b>Concurrents dans Google, pas nécessairement concurrents commerciaux.</b> Ces domaines apparaissent sur les mêmes requêtes que le site analysé. Le chevauchement indique le nombre de mots-clés communs; les volumes et le trafic sont des estimations hebdomadaires DataForSEO pour le Canada en français.</p>
+    <p class="sec-intro"><b>Concurrents dans Google, pas nécessairement concurrents commerciaux.</b> Ces domaines apparaissent sur les mêmes requêtes que le site analysé. Le chevauchement indique le nombre de mots-clés communs; les volumes et le trafic sont des estimations hebdomadaires DataForSEO ${marketPhraseFor(m)}.</p>
     <div class="tbl-wrap"><table><thead><tr><th>Domaine</th><th class="c">Mots-clés communs</th><th class="c">Position moyenne</th><th class="c">Mots-clés organiques</th><th class="c">Trafic organique estimé</th><th>Lecture</th></tr></thead><tbody>
       ${marketCompetitors.length?marketCompetitors.map((competitor,index)=>{const stronger=competitor.organicTraffic>(traffic.organic||0);const reading=Number(competitor.intersections)<3?"Chevauchement accidentel":competitor===realCompetitors[0]?"Concurrent le plus proche":stronger?"Visibilité estimée supérieure":"Concurrent à surveiller";return `<tr><td><b>${esc(competitor.domain)}</b></td><td class="c tnum">${fmt(competitor.intersections)}</td><td class="c tnum">${competitor.averagePosition==null?"—":Number(competitor.averagePosition).toLocaleString("fr-CA",{maximumFractionDigits:1})}</td><td class="c tnum">${fmt(competitor.organicKeywords)}</td><td class="c tnum">${fmt(competitor.organicTraffic)}</td><td><span class="tag ${index===0?"mid":stronger?"no":""}">${reading}</span></td></tr>`}).join(""):`<tr><td colspan="6">Aucun domaine concurrent significatif trouvé dans cette base pour le marché Canada/français.</td></tr>`}
     </tbody></table></div>
