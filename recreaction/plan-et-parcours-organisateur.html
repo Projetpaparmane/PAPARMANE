@@ -152,12 +152,14 @@ a{color:#14201B}a:hover{color:#000000}
 </sc-if>
 
 <sc-if value="{{isRoute}}" hint-placeholder-val="{{false}}">
+<sc-if value="{{notDrawing}}" hint-placeholder-val="{{true}}">
 <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start">
 
 <section aria-label="Tracés des parcours" style="flex: 999 1 640px; min-width: 0; background: #FFFFFF; border-radius: 20px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px">
 <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px">
 <h2 style="margin: 0; font-size: 18px; font-weight: 700">Tracés GPX</h2>
 <div style="display: flex; gap: 8px; flex-wrap: wrap">
+<button type="button" onClick="{{startDraw}}" style="height: 44px; padding: 0 14px; border: 0; border-radius: 12px; background: #FF5B1A; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer">Tracer un parcours</button>
 <button type="button" style="height: 44px; padding: 0 14px; border: 2px solid #14201B; border-radius: 12px; background: #FFFFFF; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer">Importer un GPX</button>
 <button type="button" style="height: 44px; padding: 0 14px; border: 0; border-radius: 12px; background: #14201B; color: #FFFFFF; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer">Exporter pour les montres</button>
 </div>
@@ -219,6 +221,73 @@ a{color:#14201B}a:hover{color:#000000}
 </div>
 </sc-for>
 <a href="benevoles.html" style="align-self: flex-start; font-size: 14px; font-weight: 700">Voir la couverture des postes bénévoles</a>
+</section>
+</aside>
+</div>
+</sc-if>
+<sc-if value="{{drawing}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start">
+<section aria-label="Tracer un parcours" style="flex: 999 1 640px; min-width: 0; background: #FFFFFF; border-radius: 20px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px">
+<div>
+<h2 style="margin: 0; font-size: 18px; font-weight: 700">Tracer un parcours</h2>
+<div style="font-size: 14px; color: #4A5650">Clique sur la carte pour ajouter des points de passage, à partir du départ.</div>
+</div>
+<button type="button" onClick="{{stopDraw}}" style="height: 44px; padding: 0 14px; border: 2px solid #14201B; border-radius: 12px; background: #FFFFFF; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer">Quitter le mode tracé</button>
+</div>
+<div style="position: relative; width: 100%; aspect-ratio: 338 / 196; border-radius: 12px; overflow: hidden; background: #EEF0EA">
+<img src="carte-drummondville.svg" alt="" style="position: absolute; left: {{dimg.l}}%; top: {{dimg.t}}%; width: {{dimg.w}}%; height: {{dimg.h}}%; max-width: none; opacity: 0.85">
+<sc-for list="{{dlabels}}" as="l" hint-placeholder-count="6">
+<span style="position: absolute; left: {{l.x}}%; top: {{l.y}}%; transform: translate(-50%, -50%) rotate({{l.r}}deg); font-size: 12px; font-weight: 600; font-style: {{l.style}}; letter-spacing: {{l.ls}}; color: {{l.color}}; white-space: nowrap; pointer-events: none; text-shadow: 0 0 2px #F3F4F0, 0 0 2px #F3F4F0, 0 0 4px #F3F4F0">{{l.t}}</span>
+</sc-for>
+<svg viewBox="{{dvb}}" preserveAspectRatio="none" aria-hidden="true" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block">
+<path d="{{drawD}}" fill="none" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"></path>
+<path d="{{drawD}}" fill="none" stroke="#FF5B1A" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"></path>
+</svg>
+<button type="button" onClick="{{addPoint}}" aria-label="Ajouter un point de passage à cet endroit de la carte" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; background: transparent; cursor: crosshair"></button>
+<sc-for list="{{dkms}}" as="k" hint-placeholder-count="3">
+<span style="position: absolute; left: {{k.x}}%; top: {{k.y}}%; min-width: 24px; height: 20px; margin: -10px 0 0 -12px; box-sizing: border-box; padding: 0 5px; border-radius: 999px; background: #FFFFFF; border: 1.5px solid #8A958F; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #3F4A44; pointer-events: none">{{k.label}}</span>
+</sc-for>
+<sc-for list="{{wpts}}" as="w" hint-placeholder-count="3">
+<span style="position: absolute; left: {{w.x}}%; top: {{w.y}}%; width: {{w.size}}px; height: {{w.size}}px; margin-left: {{w.off}}px; margin-top: {{w.off}}px; box-sizing: border-box; border-radius: 999px; background: {{w.bg}}; border: 3px solid #FFFFFF; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35); pointer-events: none"></span>
+</sc-for>
+<span style="position: absolute; right: 6px; bottom: 4px; padding: 1px 6px; border-radius: 4px; background: rgba(255, 255, 255, 0.85); font-size: 11px; color: #4A5650; pointer-events: none">© les contributeurs d’OpenStreetMap</span>
+</div>
+<div style="font-size: 13px; color: #4A5650">Chaque clic ajoute un point. La distance et les kilomètres se mettent à jour à chaque point.</div>
+</section>
+<aside style="flex: 1 1 380px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+<section aria-label="Nouveau tracé" style="background: #FFFFFF; border-radius: 20px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: baseline; gap: 10px">
+<span style="font-family: 'Barlow Condensed', sans-serif; font-size: 44px; font-weight: 700; line-height: 1">{{drawKm}} km</span>
+<span style="font-size: 14px; color: #4A5650">{{drawPts}}</span>
+</div>
+<div>
+<div style="font-size: 13px; font-weight: 700; margin-bottom: 6px">Distance visée</div>
+<div role="group" aria-label="Distance visée" style="display: flex; flex-wrap: wrap; gap: 6px">
+<sc-for list="{{goals}}" as="g" hint-placeholder-count="6">
+<button type="button" onClick="{{g.pick}}" aria-pressed="{{g.pressed}}" style="height: 36px; padding: 0 12px; border-radius: 999px; border: 2px solid {{g.border}}; background: {{g.bg}}; color: {{g.fg}}; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer">{{g.label}}</button>
+</sc-for>
+</div>
+</div>
+<div style="height: 10px; border-radius: 999px; background: #E4E8E0; overflow: hidden"><div style="width: {{goalPct}}%; height: 10px; border-radius: 999px; background: {{goalColor}}"></div></div>
+<div style="font-size: 14px; font-weight: 600">{{goalText}}</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+<button type="button" onClick="{{undo}}" disabled="{{cantUndo}}" style="height: 44px; border: 2px solid #14201B; border-radius: 12px; background: #FFFFFF; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer">Annuler le dernier point</button>
+<button type="button" onClick="{{closeLoop}}" disabled="{{cantUndo}}" style="height: 44px; border: 2px solid #14201B; border-radius: 12px; background: #FFFFFF; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer">Revenir au départ</button>
+<button type="button" onClick="{{clearDraw}}" style="height: 44px; border: 2px solid #D9DDD5; border-radius: 12px; background: #FFFFFF; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer">Tout effacer</button>
+<button type="button" onClick="{{saveDraw}}" disabled="{{cantUndo}}" style="height: 44px; border: 0; border-radius: 12px; background: #FF5B1A; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer">Enregistrer le tracé</button>
+</div>
+<sc-if value="{{drawSaved}}" hint-placeholder-val="{{false}}">
+<div role="status" style="font-size: 14px; line-height: 1.4; color: #1F5E3A; font-weight: 600">{{savedText}}</div>
+</sc-if>
+</section>
+<section aria-label="Tes parcours, sans intermédiaire" style="background: #14201B; color: #FFFFFF; border-radius: 20px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px">
+<h2 style="margin: 0; font-size: 16px; font-weight: 700">Tes parcours, sans intermédiaire</h2>
+<ul style="margin: 0; padding-left: 18px; font-size: 14px; line-height: 1.5; color: #E4E8E0">
+<li>Carte OpenStreetMap, libre et à jour, comprise dans Récréaction.</li>
+<li>Tu traces, ou tu importes le GPX de ta montre ou de Strava.</li>
+<li>Kilomètres, profil et fichier GPX pour les montres, calculés automatiquement.</li>
+</ul>
 </section>
 </aside>
 </div>
@@ -378,8 +447,88 @@ class Component extends DCLogic {
       photo: { bg: '#3F6273', fg: '#FFFFFF', border: '#FFFFFF', radius: '999px', mark: 'P' }
     };
 
+    // ---------- Mode tracé : l'organisateur dessine son parcours sur la carte ----------
+    const drawing = st.drawing === true;
+    const START = DATA.map.start;
+    const wp = st.wp || [START];
+    const goal = st.goal || 10;
+    const dasp = 338 / 196;
+    const dcw = 1500, dch = dcw / dasp;
+    const dcx0 = Math.max(0, Math.min(DATA.map.w - dcw, 1150 - dcw / 2));
+    const dcy0 = Math.max(0, Math.min(DATA.map.h - dch, 1620 - dch / 2));
+    const dpx = (x) => (x - dcx0) / dcw * 100;
+    const dpy = (y) => (y - dcy0) / dch * 100;
+    let dUnits = 0;
+    const segs = [];
+    for (let i = 1; i < wp.length; i++) {
+      const len = Math.hypot(wp[i][0] - wp[i - 1][0], wp[i][1] - wp[i - 1][1]);
+      segs.push({ a: wp[i - 1], b: wp[i], len: len, start: dUnits });
+      dUnits += len;
+    }
+    const drawn = dUnits * 4 / 1000;
+    const dkms = [];
+    for (let k = 1; k < drawn; k++) {
+      const u = k * 1000 / 4;
+      const g = segs.find((x) => u >= x.start && u <= x.start + x.len);
+      if (!g) continue;
+      const t = (u - g.start) / (g.len || 1);
+      dkms.push({ label: String(k), x: dpx(g.a[0] + (g.b[0] - g.a[0]) * t).toFixed(2), y: dpy(g.a[1] + (g.b[1] - g.a[1]) * t).toFixed(2) });
+    }
+    const dplaced = [], dused = {}, dlabels = [];
+    DATA.labels.slice().sort((a, b) => (a.w ? -2 : a.q ? -1 : a.p) - (b.w ? -2 : b.q ? -1 : b.p)).forEach((l) => {
+      const x = dpx(l.x), y = dpy(l.y);
+      if (x < 6 || x > 94 || y < 5 || y > 92 || dused[l.t] || dlabels.length >= 12) return;
+      if (dplaced.some((q) => Math.abs(q[0] - x) < 12 && Math.abs(q[1] - y) < 6)) return;
+      dplaced.push([x, y]);
+      dused[l.t] = true;
+      let r = l.r;
+      if (r > 90) r -= 180;
+      if (r < -90) r += 180;
+      dlabels.push({ t: l.q ? l.t.toUpperCase() : l.t, x: x.toFixed(2), y: y.toFixed(2), r: r, style: l.w ? 'italic' : 'normal', color: l.w ? '#3F6E89' : '#56615B', ls: l.q ? '0.08em' : '0' });
+    });
+    const gap = drawn - goal;
+    const near = Math.abs(gap) <= goal * 0.02;
+    const GOALS = [1, 2, 5, 10, 21.1, 42.2];
     return {
       publishNote: published ? 'Publié à l’instant · visible dans l’app' : 'Modifications non publiées',
+      notDrawing: !drawing,
+      drawing: drawing,
+      startDraw: () => this.setState({ drawing: true, wp: [START], drawSaved: false }),
+      stopDraw: () => this.setState({ drawing: false }),
+      dimg: { l: (-dcx0 / dcw * 100).toFixed(3), t: (-dcy0 / dch * 100).toFixed(3), w: (DATA.map.w / dcw * 100).toFixed(3), h: (DATA.map.h / dch * 100).toFixed(3) },
+      dvb: dcx0.toFixed(1) + ' ' + dcy0.toFixed(1) + ' ' + dcw.toFixed(1) + ' ' + dch.toFixed(1),
+      dlabels: dlabels,
+      drawD: 'M' + wp.map((p) => p[0] + ' ' + p[1]).join(' L'),
+      dkms: dkms,
+      wpts: wp.map((p, i) => {
+        const first = i === 0, last = i === wp.length - 1 && i > 0;
+        const size = first ? 22 : (last ? 20 : 14);
+        return { x: dpx(p[0]).toFixed(2), y: dpy(p[1]).toFixed(2), size: size, off: -size / 2, bg: first ? '#14201B' : '#FF5B1A' };
+      }),
+      addPoint: (e) => {
+        const el = e && (e.currentTarget || e.target);
+        if (!el || !el.getBoundingClientRect || e.detail === 0) return;
+        const r = el.getBoundingClientRect();
+        const fx = (e.clientX - r.left) / r.width, fy = (e.clientY - r.top) / r.height;
+        this.setState({ wp: wp.concat([[Math.round(dcx0 + fx * dcw), Math.round(dcy0 + fy * dch)]]), drawSaved: false });
+      },
+      drawKm: fmt(drawn),
+      drawPts: wp.length + (wp.length > 1 ? ' points de passage' : ' point : le départ'),
+      goals: GOALS.map((g) => ({
+        label: fmt(g) + ' km', pressed: g === goal ? 'true' : 'false',
+        bg: g === goal ? '#14201B' : '#FFFFFF', fg: g === goal ? '#FFFFFF' : '#14201B', border: g === goal ? '#14201B' : '#D9DDD5',
+        pick: () => this.setState({ goal: g })
+      })),
+      goalPct: Math.min(100, Math.round(drawn / goal * 100)),
+      goalColor: near ? '#2E7D4F' : (gap > 0 ? '#C81E1E' : '#FF5B1A'),
+      goalText: near ? 'Distance visée atteinte : ' + fmt(goal) + ' km.' : (gap < 0 ? 'Encore ' + fmt(-gap) + ' km pour atteindre ' + fmt(goal) + ' km.' : fmt(goal) + ' km dépassés de ' + fmt(gap) + ' km.'),
+      cantUndo: wp.length < 2,
+      undo: () => this.setState({ wp: wp.length > 1 ? wp.slice(0, -1) : wp, drawSaved: false }),
+      closeLoop: () => this.setState({ wp: wp.concat([START]), drawSaved: false }),
+      clearDraw: () => this.setState({ wp: [START], drawSaved: false }),
+      saveDraw: () => this.setState({ drawSaved: true }),
+      drawSaved: st.drawSaved === true,
+      savedText: 'Tracé enregistré : ' + fmt(drawn) + ' km, ' + wp.length + ' points. Les kilomètres, le profil d’altitude et le GPX pour les montres sont prêts.',
       publish: () => this.setState({ published: true }),
       isPlan: view === 'plan',
       isRoute: view === 'route',
