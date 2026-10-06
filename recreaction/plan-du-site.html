@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Plan du site interactif · Récréaction</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=Barlow:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#14201B}a:hover{color:#000000}
+</style>
+<link rel="stylesheet" href="prototype.css">
+<script src="runtime.js" defer></script>
+</head>
+<body>
+<a class="proto-home" href="index.html">Tous les écrans</a>
+<div id="dc-root"></div>
+<template id="dc-template">
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #EEF0EA; color: #14201B; font-family: 'Barlow', sans-serif; display: flex; flex-direction: column; overflow: hidden">
+
+<header style="flex: none; padding: 20px 16px 6px">
+<h1 style="margin: 0; font-size: 22px; font-weight: 700; line-height: 1.15">Plan du site</h1>
+<div style="font-size: 14px; color: #4A5650">École Marie-Rivier · 265, rue St-Félix, Drummondville</div>
+</header>
+
+<main style="flex: 1; min-height: 0; overflow: hidden; padding: 4px 16px 10px; display: flex; flex-direction: column; gap: 8px">
+
+<div role="group" aria-label="Affichage de la carte" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; background: #DDE1D8; border-radius: 14px">
+<a href="parcours.html" style="height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 600; color: #3F4A44; text-decoration: none">Parcours</a>
+<span aria-current="page" style="height: 38px; border-radius: 10px; background: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; box-shadow: 0 1px 2px rgba(20, 32, 27, 0.15)">Plan du site</span>
+</div>
+
+<div role="group" aria-label="Filtrer les lieux" style="display: flex; gap: 6px; overflow-x: auto; margin: 0 -16px; padding: 0 16px">
+<sc-for list="{{chips}}" as="c" hint-placeholder-count="5">
+<button type="button" onClick="{{c.pick}}" aria-pressed="{{c.pressed}}" style="flex: none; height: 40px; padding: 0 14px; border-radius: 999px; border: 2px solid {{c.border}}; background: {{c.bg}}; color: {{c.fg}}; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px"><span style="width: 10px; height: 10px; border-radius: 999px; background: {{c.dot}}"></span>{{c.label}}</button>
+</sc-for>
+</div>
+
+<section aria-label="Plan illustré du site" style="position: relative; width: 358px; height: 300px; border-radius: 16px; overflow: hidden; flex: none; background: #2B302C">
+<img src="plan-des-chenes-toi.jpg" width="1000" height="500" alt="Plan illustré de l’École Marie-Rivier : zone entreprises, animation familiale, scène, départ et arrivée" style="position: absolute; left: {{ox}}px; top: {{oy}}px; width: 1000px; height: 500px; max-width: none; display: block">
+
+<sc-for list="{{pins}}" as="p" hint-placeholder-count="8">
+<button type="button" onClick="{{p.pick}}" aria-label="{{p.name}}" aria-pressed="{{p.pressed}}" style="position: absolute; left: {{p.left}}px; top: {{p.top}}px; width: 44px; height: 44px; padding: 0; border: 0; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center">
+<span style="width: {{p.size}}px; height: {{p.size}}px; box-sizing: border-box; border-radius: 999px; background: {{p.bg}}; color: {{p.fg}}; border: 2px solid #FFFFFF; box-shadow: {{p.shadow}}; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700">
+<sc-if value="{{p.hasIcon}}" hint-placeholder-val="{{true}}">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{p.icon}}"></path></svg>
+</sc-if>
+<sc-if value="{{p.hasTxt}}" hint-placeholder-val="{{false}}">{{p.txt}}</sc-if>
+</span>
+</button>
+</sc-for>
+
+<sc-if value="{{showTag}}" hint-placeholder-val="{{true}}">
+<span style="position: absolute; left: {{tagLeft}}px; top: {{tagTop}}px; height: 24px; box-sizing: border-box; padding: 0 8px; border-radius: 6px; background: #FFFFFF; color: #14201B; font-size: 12px; font-weight: 700; white-space: nowrap; display: flex; align-items: center; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4)">{{selName}}</span>
+</sc-if>
+
+<span style="position: absolute; left: {{meLeft}}px; top: {{meTop}}px; width: 20px; height: 20px; box-sizing: border-box; border-radius: 999px; background: #2F6FE4; border: 3px solid #FFFFFF; box-shadow: 0 0 0 7px rgba(47, 111, 228, 0.3)"></span>
+
+<div style="position: absolute; right: 8px; bottom: 8px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px">
+<button type="button" onClick="{{panLeft}}" aria-label="Déplacer le plan vers la gauche" style="width: 44px; height: 44px; border: 0; border-radius: 12px; background: #FFFFFF; color: #14201B; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg></button>
+<button type="button" onClick="{{panRight}}" aria-label="Déplacer le plan vers la droite" style="width: 44px; height: 44px; border: 0; border-radius: 12px; background: #FFFFFF; color: #14201B; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"></path></svg></button>
+</div>
+</section>
+
+<sc-if value="{{hasSel}}" hint-placeholder-val="{{true}}">
+<section aria-live="polite" style="background: #FFFFFF; border-radius: 18px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; align-items: flex-start; gap: 12px">
+<span style="width: 40px; height: 40px; flex: none; border-radius: 999px; background: {{selBg}}; color: {{selFg}}; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700">
+<sc-if value="{{selHasIcon}}" hint-placeholder-val="{{true}}">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{selIcon}}"></path></svg>
+</sc-if>
+<sc-if value="{{selHasTxt}}" hint-placeholder-val="{{false}}">{{selTxt}}</sc-if>
+</span>
+<div style="flex-grow: 1; min-width: 0">
+<div style="font-size: 12px; font-weight: 700; letter-spacing: 0.06em; color: #4A5650">{{selCat}}</div>
+<h2 style="margin: 0; font-size: 18px; font-weight: 700; line-height: 1.2">{{selName}}</h2>
+<div style="font-size: 14px; line-height: 1.35; margin-top: 2px">{{selDetail}}</div>
+</div>
+</div>
+<div style="display: flex; align-items: center; gap: 10px">
+<div style="flex-grow: 1; font-size: 14px; font-weight: 600; color: #1F4FAE">{{selWalk}}</div>
+<button type="button" style="height: 44px; padding: 0 16px; border: 0; border-radius: 12px; background: #14201B; color: #FFFFFF; font-family: 'Barlow', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer">M’y guider</button>
+</div>
+</section>
+</sc-if>
+<sc-if value="{{noSel}}" hint-placeholder-val="{{false}}">
+<section style="background: #FFFFFF; border-radius: 18px; padding: 16px 14px; font-size: 15px; color: #4A5650">Touche un repère pour voir le lieu et le temps de marche depuis ta position.</section>
+</sc-if>
+
+</main>
+
+<nav aria-label="Navigation principale" style="flex: none; height: 80px; box-sizing: border-box; padding: 6px 6px 20px; background: #FFFFFF; border-top: 1px solid #D9DDD5; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr))">
+<a href="accueil.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-decoration: none; color: #5C6862; font-size: 11px; font-weight: 600"><span style="display: flex; align-items: center; justify-content: center; width: 52px; height: 28px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"></path><path d="M5 10v10h14V10"></path></svg></span><span>Accueil</span></a>
+<a href="parcours.html" aria-current="page" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-decoration: none; color: #14201B; font-size: 11px; font-weight: 700"><span style="display: flex; align-items: center; justify-content: center; width: 52px; height: 28px; border-radius: 999px; background: #FF5B1A"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="18" r="2"></circle><circle cx="18" cy="6" r="2"></circle><path d="M8 18h6a3 3 0 0 0 0-6h-4a3 3 0 0 1 0-6h6"></path></svg></span><span>Parcours</span></a>
+<a href="dossard.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-decoration: none; color: #5C6862; font-size: 11px; font-weight: 600"><span style="display: flex; align-items: center; justify-content: center; width: 52px; height: 28px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"></rect><path d="M8 10h8"></path><path d="M8 14h5"></path></svg></span><span>Dossard</span></a>
+<a href="photos.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-decoration: none; color: #5C6862; font-size: 11px; font-weight: 600"><span style="display: flex; align-items: center; justify-content: center; width: 52px; height: 28px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg></span><span>Photos</span></a>
+<a href="avantages.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-decoration: none; color: #5C6862; font-size: 11px; font-weight: 600"><span style="display: flex; align-items: center; justify-content: center; width: 52px; height: 28px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12V4h8l10 10-8 8z"></path><circle cx="7.5" cy="8.5" r="1.5"></circle></svg></span><span>Avantages</span></a>
+</nav>
+
+</div>
+</template>
+<script type="text/x-dc" id="dc-logic">
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const cat = st.cat || 'all';
+    const sel = st.sel === undefined ? 'dossards' : st.sel;
+    // Plan affiché à 1000 × 500 px (moitié du plan de référence 2000 × 1000) dans une fenêtre de 358 × 300.
+    const K = 0.5, VW = 358, VH = 300, IW = 1000, IH = 500;
+    const ICON = {
+      flag: 'M5 21V4M5 4h12l-2.5 4L17 12H5',
+      bib: 'M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM8 10h8M8 14h5',
+      bag: 'M5 8h14l-1 12H6zM9 8V6a3 3 0 0 1 6 0v2',
+      medal: 'M8 3l4 6 4-6M12 21a5 5 0 1 0 0-10 5 5 0 0 0 0 10z',
+      cross: 'M12 5v14M5 12h14',
+      drop: 'M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z',
+      cup: 'M5 9h11v4a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5zM16 10h1.5a2.5 2.5 0 0 1 0 5H16M9 3v3M12 3v3',
+      bowl: 'M4 11h16a8 8 0 0 1-16 0zM9 4c0 2 2 2 2 4M14 4c0 2 2 2 2 4',
+      star: 'M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z',
+      screen: 'M3 5h18v11H3zM8 20h8M12 16v4',
+      music: 'M9 18V5l11-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM20 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z',
+      heart: 'M12 20s-7-4.6-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.4-7 10-7 10z',
+      tag: 'M3 12V4h8l10 10-8 8zM7.5 6.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 1 0 0-3'
+    };
+    const CATS = [
+      { id: 'course', label: 'Départ et arrivée', bg: '#FF5B1A', fg: '#14201B' },
+      { id: 'services', label: 'Services', bg: '#14201B', fg: '#FFFFFF' },
+      { id: 'sante', label: 'Santé et eau', bg: '#C81E1E', fg: '#FFFFFF' },
+      { id: 'manger', label: 'Manger', bg: '#F2B53A', fg: '#14201B' },
+      { id: 'famille', label: 'Famille', bg: '#5B3BB5', fg: '#FFFFFF' },
+      { id: 'partenaires', label: 'Partenaires', bg: '#2E7D4F', fg: '#FFFFFF' },
+      { id: 'pratique', label: 'Toilettes et vélos', bg: '#3F6273', fg: '#FFFFFF' }
+    ];
+    const PLACES = [
+      { id: 'depart', cat: 'course', x: 1668, y: 428, icon: 'flag', name: 'Départ', detail: 'Ligne de départ. Présente-toi quelques minutes avant l’heure de ta vague.' },
+      { id: 'arrivee', cat: 'course', x: 1620, y: 240, icon: 'flag', name: 'Arrivée', detail: 'Ligne d’arrivée. Continue ensuite vers les médailles et les premiers soins.' },
+      { id: 'dossards', cat: 'services', x: 600, y: 248, icon: 'bib', name: 'Dossards et inscriptions', detail: 'Remise des dossards et inscriptions sur place. Montre ton code QR : c’est réglé en 30 secondes.' },
+      { id: 'sacs', cat: 'services', x: 643, y: 383, icon: 'bag', name: 'Dépôt de sacs', detail: 'Laisse ton sac avant le départ, récupère-le avec ton numéro de dossard.' },
+      { id: 'medailles', cat: 'services', x: 1400, y: 372, icon: 'medal', name: 'Médailles de participation', detail: 'Ta médaille t’attend juste après l’arrivée.' },
+      { id: 'info', cat: 'services', x: 45, y: 330, txt: 'i', name: 'Information', detail: 'Questions et objets perdus.' },
+      { id: 'soins', cat: 'sante', x: 1447, y: 280, icon: 'cross', name: 'Premiers soins', detail: 'Équipe de premiers soins, tout près de l’arrivée.' },
+      { id: 'eau', cat: 'sante', x: 770, y: 288, icon: 'drop', name: 'Point d’eau', detail: 'Remplis ta gourde. Robinets communautaires juste à côté.' },
+      { id: 'alimentation', cat: 'manger', x: 880, y: 398, icon: 'bowl', name: 'Alimentation Maxi', detail: 'Zone d’alimentation présentée par Maxi.' },
+      { id: 'tim', cat: 'manger', x: 700, y: 298, icon: 'cup', name: 'Tim Hortons', detail: 'Café et collations. Ton offre est dans Avantages.' },
+      { id: 'animation', cat: 'famille', x: 870, y: 638, icon: 'star', name: 'Animation familiale', detail: 'Activités pour toute la famille, sur le terrain gazonné.' },
+      { id: 'scene', cat: 'famille', x: 1110, y: 718, icon: 'music', name: 'Scène', detail: 'Animation et annonces tout au long de la matinée.' },
+      { id: 'ecran', cat: 'famille', x: 985, y: 785, icon: 'screen', name: 'Écran géant', detail: 'Les arrivées en direct et les selfies des coureurs.' },
+      { id: 'retrouvailles', cat: 'famille', x: 1337, y: 548, icon: 'heart', name: 'Zone retrouvailles', detail: 'Point de rencontre après la course : donnez-vous rendez-vous ici.' },
+      { id: 'toyota', cat: 'partenaires', x: 105, y: 300, icon: 'tag', name: 'Zone Toyota Drummondville', detail: 'Espace du partenaire Toyota Drummondville.' },
+      { id: 'desjardins', cat: 'partenaires', x: 420, y: 400, icon: 'tag', name: 'Zone entreprises Desjardins', detail: 'Espace des équipes d’entreprises.' },
+      { id: 'bourret', cat: 'partenaires', x: 717, y: 500, icon: 'tag', name: 'Espace Bourret', detail: 'Espace du présentateur de l’événement.' },
+      { id: 'kiosques', cat: 'partenaires', x: 440, y: 300, icon: 'tag', name: 'Kiosques des exposants', detail: 'Sports Experts, Rydrate, Zio et les autres exposants.' },
+      { id: 'toilettes', cat: 'pratique', x: 760, y: 880, txt: 'WC', name: 'Toilettes', detail: 'Rangée de toilettes le long de la rue des Marguerites.' },
+      { id: 'toilettes-acc', cat: 'pratique', x: 1198, y: 612, txt: 'WC', name: 'Toilettes accessibles', detail: 'Accessibles en fauteuil roulant, près du kiosque Kartus.' },
+      { id: 'velos', cat: 'pratique', x: 140, y: 418, txt: 'P', name: 'Vélo parc', detail: 'Stationnement pour les vélos.' }
+    ];
+    const ME = { x: 1010, y: 905 };
+    const catOf = {};
+    CATS.forEach((c) => { catOf[c.id] = c; });
+    const visible = (p) => cat === 'all' || p.cat === cat;
+    const selP = PLACES.find((p) => p.id === sel && visible(p));
+    const clampX = (v) => Math.max(VW - IW, Math.min(0, v));
+    const clampY = (v) => Math.max(VH - IH, Math.min(0, v));
+    const centerOn = (p) => ({ ox: clampX(VW / 2 - p.x * K), oy: clampY(VH / 2 - 30 - p.y * K) });
+    const start = centerOn(PLACES.find((p) => p.id === 'dossards'));
+    const ox = st.ox == null ? start.ox : st.ox;
+    const oy = st.oy == null ? start.oy : st.oy;
+    // Environ 0,15 m par pixel du plan de référence, marche à 80 m par minute.
+    const walk = (p) => {
+      const m = Math.hypot(p.x - ME.x, p.y - ME.y) * 0.15;
+      return 'À ' + Math.max(1, Math.round(m / 80)) + ' min à pied de toi';
+    };
+    const chipList = [{ id: 'all', label: 'Tout', bg: '#8A958F' }].concat(CATS);
+    const tagW = selP ? selP.name.length * 6.4 + 16 : 0;
+    const selX = selP ? selP.x * K + ox : 0;
+    const selY = selP ? selP.y * K + oy : 0;
+    return {
+      ox: ox,
+      oy: oy,
+      chips: chipList.map((c) => {
+        const on = c.id === cat;
+        return {
+          label: c.label,
+          dot: c.bg,
+          pressed: on ? 'true' : 'false',
+          bg: on ? '#14201B' : '#FFFFFF',
+          fg: on ? '#FFFFFF' : '#14201B',
+          border: on ? '#14201B' : '#D9DDD5',
+          pick: () => this.setState({ cat: c.id })
+        };
+      }),
+      pins: PLACES.filter(visible).map((p) => {
+        const on = selP && p.id === selP.id;
+        const c = catOf[p.cat];
+        return {
+          name: p.name,
+          left: (p.x * K + ox - 22).toFixed(1),
+          top: (p.y * K + oy - 22).toFixed(1),
+          size: on ? 38 : 30,
+          bg: c.bg,
+          fg: c.fg,
+          shadow: on ? '0 0 0 4px #14201B, 0 2px 6px rgba(0, 0, 0, 0.45)' : '0 1px 4px rgba(0, 0, 0, 0.45)',
+          hasIcon: !p.txt,
+          hasTxt: !!p.txt,
+          icon: p.icon ? ICON[p.icon] : '',
+          txt: p.txt || '',
+          pressed: on ? 'true' : 'false',
+          pick: () => this.setState(Object.assign({ sel: p.id }, centerOn(p)))
+        };
+      }),
+      hasSel: !!selP,
+      noSel: !selP,
+      showTag: !!selP && selX > -20 && selX < VW + 20 && selY > 0 && selY < VH,
+      selName: selP ? selP.name : '',
+      selCat: selP ? catOf[selP.cat].label.toUpperCase() : '',
+      selDetail: selP ? selP.detail : '',
+      selWalk: selP ? walk(selP) : '',
+      selBg: selP ? catOf[selP.cat].bg : '#14201B',
+      selFg: selP ? catOf[selP.cat].fg : '#FFFFFF',
+      selHasIcon: selP ? !selP.txt : false,
+      selHasTxt: selP ? !!selP.txt : false,
+      selIcon: selP && selP.icon ? ICON[selP.icon] : '',
+      selTxt: selP && selP.txt ? selP.txt : '',
+      tagLeft: Math.max(4, Math.min(VW - 4 - tagW, selX - tagW / 2)).toFixed(1),
+      tagTop: Math.max(4, selY - 50).toFixed(1),
+      meLeft: (ME.x * K + ox - 10).toFixed(1),
+      meTop: (ME.y * K + oy - 10).toFixed(1),
+      panLeft: () => this.setState({ ox: clampX(ox + 200), oy: oy }),
+      panRight: () => this.setState({ ox: clampX(ox - 200), oy: oy })
+    };
+  }
+}
+</script>
+</body>
+</html>

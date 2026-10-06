@@ -29,7 +29,7 @@ a{color:#14201B}a:hover{color:#000000}
 </div>
 <div style="flex: 1 1 280px; min-width: 0">
 <h1 style="margin: 0; font-size: 24px; font-weight: 700; line-height: 1.2">Bénévoles</h1>
-<div style="font-size: 14px; color: #4A5650">Trail des Crêtes 2026 · répertoire et contacts</div>
+<div style="font-size: 14px; color: #4A5650">Des-Chênes-Toi! 2027 · répertoire et contacts</div>
 </div>
 </header>
 
@@ -38,6 +38,7 @@ a{color:#14201B}a:hover{color:#000000}
 <a href="benevoles.html" aria-current="page" style="height: 44px; box-sizing: border-box; padding: 0 18px; border-radius: 999px; border: 2px solid #14201B; background: #14201B; color: #FFFFFF; display: inline-flex; align-items: center; font-size: 15px; font-weight: 700; text-decoration: none">Bénévoles</a>
 <a href="partenaires-organisateur.html" style="height: 44px; box-sizing: border-box; padding: 0 18px; border-radius: 999px; border: 2px solid #D9DDD5; background: #FFFFFF; color: #14201B; display: inline-flex; align-items: center; font-size: 15px; font-weight: 700; text-decoration: none">Partenaires</a>
 <a href="infolettres.html" style="height: 44px; box-sizing: border-box; padding: 0 18px; border-radius: 999px; border: 2px solid #D9DDD5; background: #FFFFFF; color: #14201B; display: inline-flex; align-items: center; font-size: 15px; font-weight: 700; text-decoration: none">Infolettres</a>
+<a href="plan-et-parcours-organisateur.html" style="height: 44px; box-sizing: border-box; padding: 0 18px; border-radius: 999px; border: 2px solid #D9DDD5; background: #FFFFFF; color: #14201B; display: inline-flex; align-items: center; font-size: 15px; font-weight: 700; text-decoration: none">Plan et parcours</a>
 </nav>
 
 <nav aria-label="Vues des bénévoles" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: -8px">
@@ -141,18 +142,18 @@ class Component extends DCLogic {
     const sent = st.sent || {};
     const people = [
       { id: 'isabelle', name: 'Isabelle M.', initials: 'IM', poste: 'Ravito 2 · responsable', group: 'r2', lead: true, status: 'place', arrived: '6 h 48', time: 'Samedi, 6 h 45 à 11 h 30', phone: '(514) 555-0101', email: 'isabelle.m@example.com', skills: 'Premiers soins', since: '2022' },
-      { id: 'kim', name: 'Kim L.', initials: 'KL', poste: 'Ravito 2', group: 'r2', lead: false, status: 'absent', start: '7 h', time: 'Samedi, 7 h à 11 h', phone: '(514) 555-0142', email: 'kim.l@example.com', skills: 'Anglais', since: '2025' },
-      { id: 'paul', name: 'Paul R.', initials: 'PR', poste: 'Ravito 2', group: 'r2', lead: false, status: 'absent', start: '7 h', time: 'Samedi, 7 h à 11 h', phone: '(514) 555-0157', email: 'paul.r@example.com', skills: '—', since: '2026' },
+      { id: 'kim', name: 'Kim L.', initials: 'KL', poste: 'Ravito 2', group: 'r2', lead: false, status: 'absent', start: '7 h', time: 'Samedi, 7 h à 11 h', phone: '(514) 555-0142', email: 'kim.l@example.com', skills: 'Anglais', since: '2026' },
+      { id: 'paul', name: 'Paul R.', initials: 'PR', poste: 'Ravito 2', group: 'r2', lead: false, status: 'absent', start: '7 h', time: 'Samedi, 7 h à 11 h', phone: '(514) 555-0157', email: 'paul.r@example.com', skills: '—', since: '2027' },
       { id: 'sarah', name: 'Sarah D.', initials: 'SD', poste: 'Ravito 2', group: 'r2', lead: false, status: 'absent', start: '7 h', time: 'Samedi, 7 h à 11 h', phone: '(514) 555-0163', email: 'sarah.d@example.com', skills: 'Premiers soins', since: '2024' },
-      { id: 'felix', name: 'Félix N.', initials: 'FN', poste: 'Signaleur · chemin du Lac', group: 'sig', lead: false, status: 'absent', start: '7 h 30', time: 'Samedi, 7 h 30 à 10 h 30', phone: '(514) 555-0171', email: 'felix.n@example.com', skills: 'Permis de conduire', since: '2026' },
+      { id: 'felix', name: 'Félix N.', initials: 'FN', poste: 'Signaleur · intersections', group: 'sig', lead: false, status: 'absent', start: '7 h 30', time: 'Samedi, 7 h 30 à 10 h 30', phone: '(514) 555-0171', email: 'felix.n@example.com', skills: 'Permis de conduire', since: '2027' },
       { id: 'hugo', name: 'Hugo T.', initials: 'HT', poste: 'Signaleur · km 9', group: 'sig', lead: false, status: 'place', arrived: '7 h 05', time: 'Samedi, 7 h 30 à 10 h 30', phone: '(514) 555-0118', email: 'hugo.t@example.com', skills: 'Permis de conduire', since: '2023' },
       { id: 'marcandre', name: 'Marc-André P.', initials: 'MP', poste: 'Signaleurs · responsable', group: 'sig', lead: true, status: 'place', arrived: '7 h 12', time: 'Samedi, 7 h à 11 h', phone: '(514) 555-0125', email: 'marcandre.p@example.com', skills: 'Radio', since: '2021' },
       { id: 'nadia', name: 'Nadia B.', initials: 'NB', poste: 'Arrivée et médailles · responsable', group: 'arr', lead: true, status: 'place', arrived: '8 h 40', time: 'Samedi, 8 h 30 à 13 h', phone: '(514) 555-0133', email: 'nadia.b@example.com', skills: 'Anglais', since: '2022' },
       { id: 'olivier', name: 'Olivier G.', initials: 'OG', poste: 'Navette des abandons', group: 'nav', lead: false, status: 'place', arrived: '7 h 50', time: 'Samedi, 8 h à 14 h', phone: '(514) 555-0146', email: 'olivier.g@example.com', skills: 'Permis de conduire', since: '2024' },
-      { id: 'leo', name: 'Léo F.', initials: 'LF', poste: 'Volant · en réserve au village', group: 'vol', lead: false, status: 'place', arrived: '6 h 58', time: 'Samedi, 7 h à 12 h', phone: '(514) 555-0150', email: 'leo.f@example.com', skills: 'Premiers soins', since: '2025' },
+      { id: 'leo', name: 'Léo F.', initials: 'LF', poste: 'Volant · en réserve au village', group: 'vol', lead: false, status: 'place', arrived: '6 h 58', time: 'Samedi, 7 h à 12 h', phone: '(514) 555-0150', email: 'leo.f@example.com', skills: 'Premiers soins', since: '2026' },
       { id: 'amelie', name: 'Amélie C.', initials: 'AC', poste: 'Départ et sas', group: 'dep', lead: false, status: 'place', arrived: '6 h 20', time: 'Samedi, 6 h 30 à 9 h', phone: '(514) 555-0168', email: 'amelie.c@example.com', skills: '—', since: '2023' },
-      { id: 'julien', name: 'Julien S.', initials: 'JS', poste: 'Village et kiosques', group: 'vil', lead: false, status: 'place', arrived: '7 h 55', time: 'Samedi, 8 h à 14 h', phone: '(514) 555-0174', email: 'julien.s@example.com', skills: 'Anglais', since: '2026' },
-      { id: 'chloe', name: 'Chloé V.', initials: 'CV', poste: 'Remise des dossards', group: 'dos', lead: false, status: 'fini', time: 'Vendredi, 16 h à 20 h', phone: '(514) 555-0189', email: 'chloe.v@example.com', skills: 'Anglais', since: '2024' }
+      { id: 'julien', name: 'Julien S.', initials: 'JS', poste: 'Village et kiosques', group: 'vil', lead: false, status: 'place', arrived: '7 h 55', time: 'Samedi, 8 h à 14 h', phone: '(514) 555-0174', email: 'julien.s@example.com', skills: 'Anglais', since: '2027' },
+      { id: 'chloe', name: 'Chloé V.', initials: 'CV', poste: 'Remise des dossards', group: 'dos', lead: false, status: 'fini', time: 'Samedi, 10 h à 18 h', phone: '(514) 555-0189', email: 'chloe.v@example.com', skills: 'Anglais', since: '2024' }
     ];
     const statusOf = (p) => {
       if (p.status === 'place') return { label: 'Sur place · ' + p.arrived, bg: '#E3F1E8', fg: '#14201B' };
@@ -176,9 +177,9 @@ class Component extends DCLogic {
     if (sel.status === 'absent') {
       thread.push({ time: '6 h 55', who: 'Texto automatique', text: 'Bonjour ' + first + ', ton quart (' + sel.poste + ') commence à ' + sel.start + '. Tout va bien? Réponds OUI ou appelle ton responsable.', meta: 'Livré · sans réponse', bg: '#EEF0EA' });
     } else if (sel.status === 'place') {
-      thread.push({ time: '9 h 40', who: 'Message au groupe', text: 'Les coureurs du 50 km passent entre 9 h 30 et 11 h. Merci d’être là!', meta: 'Lu', bg: '#EEF0EA' });
+      thread.push({ time: '9 h 40', who: 'Message au groupe', text: 'Les coureurs du marathon passent entre 8 h 15 et 10 h 30. Merci d’être là!', meta: 'Lu', bg: '#EEF0EA' });
     } else {
-      thread.push({ time: 'Vendredi, 20 h 05', who: 'Remerciement automatique', text: 'Merci ' + first + '! Ton attestation d’heures arrive après l’événement.', meta: 'Lu', bg: '#EEF0EA' });
+      thread.push({ time: 'Samedi, 20 h 05', who: 'Remerciement automatique', text: 'Merci ' + first + '! Ton attestation d’heures arrive après l’événement.', meta: 'Lu', bg: '#EEF0EA' });
     }
     if (sent[sel.id]) {
       thread.push({ time: '10 h 45', who: 'Toi', text: sent[sel.id], meta: 'Envoyé par texto et dans l’app', bg: '#FFE6D2' });

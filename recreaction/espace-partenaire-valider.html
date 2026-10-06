@@ -24,7 +24,7 @@ a{color:#14201B}a:hover{color:#000000}
 <a href="espace-partenaire.html" aria-label="Retour à l’espace partenaire" style="width: 44px; height: 44px; flex: none; border-radius: 999px; color: #14201B; display: flex; align-items: center; justify-content: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg></a>
 <div style="flex-grow: 1">
 <h1 style="margin: 0; font-size: 20px; font-weight: 700">Valider un coupon</h1>
-<div style="font-size: 13px; color: #4A5650">Café du Village · -20 % sur le brunch</div>
+<div style="font-size: 13px; color: #4A5650">Tim Hortons · -20 % sur le déjeuner</div>
 </div>
 </header>
 
@@ -55,11 +55,11 @@ a{color:#14201B}a:hover{color:#000000}
 <span style="font-family: 'Barlow Condensed', sans-serif; font-size: 44px; font-weight: 700; line-height: 1; background: #14201B; color: #FF5B1A; border-radius: 12px; padding: 4px 12px">1247</span>
 <span style="display: flex; flex-direction: column">
 <strong style="font-size: 18px">Julie G.</strong>
-<span style="font-size: 13px; color: #4A5650">Trail des Crêtes · 25 km</span>
+<span style="font-size: 13px; color: #4A5650">Des-Chênes-Toi! · demi-marathon</span>
 </span>
 </div>
 <div style="background: #EEF0EA; border-radius: 12px; padding: 10px 12px; font-size: 14px; line-height: 1.4">
-<strong>-20 % sur le brunch</strong><br>{{usage}}
+<strong>-20 % sur le déjeuner</strong><br>{{usage}}
 </div>
 <sc-if value="{{notConfirmed}}" hint-placeholder-val="{{true}}">
 <button type="button" onClick="{{confirm}}" style="height: 54px; border: 0; border-radius: 14px; background: #FF5B1A; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 17px; font-weight: 700; cursor: pointer">Confirmer l’utilisation</button>
@@ -93,7 +93,7 @@ class Component extends DCLogic {
       confirmed: step === 'done',
       notConfirmed: step !== 'done',
       title: step === 'done' ? 'Coupon utilisé' : 'Coupon valide',
-      usage: step === 'done' ? 'Utilisé à 10 h 42. Bon brunch!' : 'Une utilisation par participant · pas encore utilisé',
+      usage: step === 'done' ? 'Utilisé à 10 h 42. Bon appétit!' : 'Une utilisation par participant · pas encore utilisé',
       scan: () => this.setState({ step: 'found' }),
       confirm: () => this.setState({ step: 'done' }),
       reset: () => this.setState({ step: 'scan' })

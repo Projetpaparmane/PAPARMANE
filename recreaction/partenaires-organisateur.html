@@ -29,7 +29,7 @@ a{color:#14201B}a:hover{color:#000000}
 </div>
 <div style="flex: 1 1 280px; min-width: 0">
 <h1 style="margin: 0; font-size: 24px; font-weight: 700; line-height: 1.2">Partenaires et commandites</h1>
-<div style="font-size: 14px; color: #4A5650">Trail des Crêtes 2026 · samedi 17 octobre</div>
+<div style="font-size: 14px; color: #4A5650">Course Des-Chênes-Toi! Bourret 2027 · dimanche 23 mai</div>
 </div>
 <button type="button" style="height: 44px; padding: 0 16px; border: 2px solid #FF5B1A; border-radius: 12px; background: #FF5B1A; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer">+ Ajouter un partenaire</button>
 </header>
@@ -39,6 +39,7 @@ a{color:#14201B}a:hover{color:#000000}
 <a href="benevoles.html" style="height: 44px; box-sizing: border-box; padding: 0 18px; border-radius: 999px; border: 2px solid #D9DDD5; background: #FFFFFF; color: #14201B; display: inline-flex; align-items: center; font-size: 15px; font-weight: 700; text-decoration: none">Bénévoles</a>
 <a href="partenaires-organisateur.html" aria-current="page" style="height: 44px; box-sizing: border-box; padding: 0 18px; border-radius: 999px; border: 2px solid #14201B; background: #14201B; color: #FFFFFF; display: inline-flex; align-items: center; font-size: 15px; font-weight: 700; text-decoration: none">Partenaires</a>
 <a href="infolettres.html" style="height: 44px; box-sizing: border-box; padding: 0 18px; border-radius: 999px; border: 2px solid #D9DDD5; background: #FFFFFF; color: #14201B; display: inline-flex; align-items: center; font-size: 15px; font-weight: 700; text-decoration: none">Infolettres</a>
+<a href="plan-et-parcours-organisateur.html" style="height: 44px; box-sizing: border-box; padding: 0 18px; border-radius: 999px; border: 2px solid #D9DDD5; background: #FFFFFF; color: #14201B; display: inline-flex; align-items: center; font-size: 15px; font-weight: 700; text-decoration: none">Plan et parcours</a>
 </nav>
 
 <section aria-label="Indicateurs des partenariats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px">
@@ -49,8 +50,8 @@ a{color:#14201B}a:hover{color:#000000}
 </div>
 <div style="background: #FFFFFF; border-radius: 16px; padding: 14px 16px">
 <div style="font-size: 13px; font-weight: 600; color: #4A5650">Partenaires</div>
-<div style="font-family: 'Barlow Condensed', sans-serif; font-size: 40px; font-weight: 700; line-height: 1.05">8</div>
-<div style="font-size: 12px; color: #4A5650">1 présentateur · 2 or · 3 argent · 2 collaborateurs</div>
+<div style="font-family: 'Barlow Condensed', sans-serif; font-size: 40px; font-weight: 700; line-height: 1.05">11</div>
+<div style="font-size: 12px; color: #4A5650">1 présentateur · 2 or · 3 argent · 5 collaborateurs</div>
 </div>
 <div style="background: #FFFFFF; border-radius: 16px; padding: 14px 16px">
 <div style="font-size: 13px; font-weight: 600; color: #4A5650">Vues des logos</div>
@@ -107,7 +108,7 @@ a{color:#14201B}a:hover{color:#000000}
 <span style="display: flex; flex-direction: column; line-height: 1.25"><span style="font-size: 12px; font-weight: 700; letter-spacing: 0.1em; color: #FF5B1A">PARTENAIRE OFFICIEL DE RÉCRÉACTION</span><strong style="font-size: 16px">Mutuelle Sentiers · assurances</strong></span>
 </div>
 <p style="margin: 0; font-size: 13px; line-height: 1.45; color: #C9D2CC">Visible à l’écran de démarrage de l’app et au bas de la page des partenaires, sur tous les événements. Jamais sur vos emplacements ni dans les messages de sécurité.</p>
-<p style="margin: 0; font-size: 13px; line-height: 1.45; color: #C9D2CC">Catégorie exclusive : aucun de vos partenaires n’est un assureur. Si vous en signez un, il a priorité sur votre événement.</p>
+<p style="margin: 0; font-size: 13px; line-height: 1.45; color: #C9D2CC">Catégorie exclusive : assurances. Si un de vos partenaires est un assureur, il a priorité et Mutuelle Sentiers n’apparaît pas sur votre événement.</p>
 </section>
 
 <section aria-label="Rapport de visibilité" style="background: #FFFFFF; border-radius: 20px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px">
@@ -139,14 +140,17 @@ class Component extends DCLogic {
       collab: { label: 'Collaborateur', color: '#4A5650' }
     };
     const partners = [
-      { initials: 'BF', name: 'Boutique Foulée', tier: 'pres', amount: '8 000 $', placements: 'Nom de l’événement, dossard, cadre des photos, page d’inscription', views: '9 840 vues', status: 'Signé', logoBg: '#FF5B1A', logoFg: '#14201B' },
-      { initials: 'E+', name: 'Électro+', tier: 'or', amount: '3 500 $', placements: 'Plan de course, écran géant, courriel J+1', views: '6 120 vues', status: 'Signé', logoBg: '#E4E8E0', logoFg: '#14201B' },
-      { initials: 'PS', name: 'Physio Sommet', tier: 'or', amount: '3 000 $', placements: 'Sac du coureur, écran géant', views: '64 réservations', status: 'Signé', logoBg: '#2E5E8C', logoFg: '#FFFFFF' },
-      { initials: 'VC', name: 'Ville de Val-des-Crêtes', tier: 'argent', amount: '2 000 $', placements: 'Page d’événement, carte du parcours', views: '3 480 vues', status: 'Signé', logoBg: '#14201B', logoFg: '#FFFFFF' },
-      { initials: 'CV', name: 'Café du Village', tier: 'argent', amount: '1 000 $', placements: 'Carte-rabais en ville, carte du parcours', views: '112 coupons', status: 'Signé', logoBg: '#7A4A2A', logoFg: '#FFFFFF' },
-      { initials: 'AL', name: 'Auberge du Lac', tier: 'argent', amount: '1 000 $', placements: 'Carte-rabais en ville', views: '—', status: 'À signer', logoBg: '#4F6B5A', logoFg: '#FFFFFF' },
-      { initials: 'CC', name: 'Club de course Les Crêtes', tier: 'collab', amount: 'Échange', placements: 'Page des partenaires', views: '—', status: 'Signé', logoBg: '#E4E8E0', logoFg: '#14201B' },
-      { initials: 'CS', name: 'Croix-Verte secours', tier: 'collab', amount: 'Échange', placements: 'Page des partenaires, poste de secours', views: '—', status: 'Signé', logoBg: '#2E7D4F', logoFg: '#FFFFFF' }
+      { initials: 'BO', name: 'Bourret', tier: 'pres', amount: '8 000 $', placements: 'Nom de l’événement, dossard, cadre des photos, page d’inscription', views: '9 840 vues', status: 'Signé', logoBg: '#D7191F', logoFg: '#FFFFFF' },
+      { initials: 'DJ', name: 'Desjardins', tier: 'or', amount: '3 500 $', placements: 'Zone entreprises, écran géant, courriel J+1', views: '6 120 vues', status: 'Signé', logoBg: '#2E7D4F', logoFg: '#FFFFFF' },
+      { initials: 'TY', name: 'Toyota Drummondville', tier: 'or', amount: '3 000 $', placements: 'Zone Toyota, sac du coureur, écran géant', views: '4 870 vues', status: 'Signé', logoBg: '#14201B', logoFg: '#FFFFFF' },
+      { initials: 'MX', name: 'Maxi', tier: 'argent', amount: '2 000 $', placements: 'Zone d’alimentation, plan du site', views: '3 480 vues', status: 'Signé', logoBg: '#F2B53A', logoFg: '#14201B' },
+      { initials: 'TH', name: 'Tim Hortons', tier: 'argent', amount: '1 000 $', placements: 'Carte-rabais en ville, plan du site', views: '112 coupons', status: 'Signé', logoBg: '#7A4A2A', logoFg: '#FFFFFF' },
+      { initials: 'SE', name: 'Sports Experts', tier: 'argent', amount: '1 000 $', placements: 'Sac du coureur, courriel J+1', views: '—', status: 'À signer', logoBg: '#2E5E8C', logoFg: '#FFFFFF' },
+      { initials: 'RY', name: 'Rydrate', tier: 'collab', amount: 'Échange', placements: 'Plan de course, point d’eau', views: '—', status: 'Signé', logoBg: '#E4E8E0', logoFg: '#14201B' },
+      { initials: 'CA', name: 'Canimex', tier: 'collab', amount: 'Échange', placements: 'Page des partenaires, espace Canimex', views: '—', status: 'Signé', logoBg: '#C81E1E', logoFg: '#FFFFFF' },
+      { initials: 'KA', name: 'Kartus', tier: 'collab', amount: 'Échange', placements: 'Page des partenaires, kiosque', views: '—', status: 'Signé', logoBg: '#4F6B5A', logoFg: '#FFFFFF' },
+      { initials: 'CH', name: 'Chanv', tier: 'collab', amount: 'Échange', placements: 'Page des partenaires, kiosque', views: '—', status: 'Signé', logoBg: '#5C6862', logoFg: '#FFFFFF' },
+      { initials: 'ZI', name: 'Zio', tier: 'collab', amount: 'Échange', placements: 'Page des partenaires, kiosque', views: '—', status: 'Signé', logoBg: '#3F6273', logoFg: '#FFFFFF' }
     ].map((p) => ({
       initials: p.initials,
       name: p.name,

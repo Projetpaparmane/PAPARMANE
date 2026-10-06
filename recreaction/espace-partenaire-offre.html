@@ -24,7 +24,7 @@ a{color:#14201B}a:hover{color:#000000}
 <a href="espace-partenaire.html" aria-label="Retour à l’espace partenaire" style="width: 44px; height: 44px; flex: none; border-radius: 999px; color: #14201B; display: flex; align-items: center; justify-content: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg></a>
 <div style="flex-grow: 1">
 <h1 style="margin: 0; font-size: 20px; font-weight: 700">Mon offre</h1>
-<div style="font-size: 13px; color: #4A5650">Trail des Crêtes 2026 · sac du coureur</div>
+<div style="font-size: 13px; color: #4A5650">Des-Chênes-Toi! 2027 · sac du coureur</div>
 </div>
 </header>
 
@@ -57,10 +57,10 @@ a{color:#14201B}a:hover{color:#000000}
 <div style="display: flex; flex-direction: column; gap: 6px">
 <span style="font-size: 14px; font-weight: 700">Aperçu dans l’app</span>
 <article style="background: #FFFFFF; border-radius: 16px; padding: 12px 14px; display: flex; gap: 12px; align-items: flex-start">
-<span aria-hidden="true" style="width: 44px; height: 44px; flex: none; border-radius: 12px; background: #7A4A2A; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', sans-serif; font-size: 18px; font-weight: 700">CV</span>
+<span aria-hidden="true" style="width: 44px; height: 44px; flex: none; border-radius: 12px; background: #7A4A2A; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', sans-serif; font-size: 18px; font-weight: 700">TH</span>
 <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
 <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px">
-<span style="font-size: 13px; font-weight: 600; color: #4A5650">Café du Village</span>
+<span style="font-size: 13px; font-weight: 600; color: #4A5650">Tim Hortons</span>
 <span style="font-family: 'Barlow Condensed', sans-serif; font-size: 19px; font-weight: 700; line-height: 1.3; background: #FF5B1A; color: #14201B; border-radius: 8px; padding: 0 8px">{{discountLabel}}</span>
 </div>
 <div style="font-size: 15px; font-weight: 700; line-height: 1.25">{{titleOrPlaceholder}}</div>
@@ -90,7 +90,7 @@ a{color:#14201B}a:hover{color:#000000}
 class Component extends DCLogic {
   renderVals() {
     const st = this.state || {};
-    const title = st.title === undefined ? 'Brunch sur présentation du dossard numérique' : st.title;
+    const title = st.title === undefined ? 'Déjeuner sur présentation du dossard numérique' : st.title;
     const discount = st.discount || 20;
     const audience = st.audience || 'ext';
     const sent = st.sent === true;

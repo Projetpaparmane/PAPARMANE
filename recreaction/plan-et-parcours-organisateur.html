@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Plan du site et parcours de l’organisateur · Récréaction</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=Barlow:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#14201B}a:hover{color:#000000}
+</style>
+<link rel="stylesheet" href="prototype.css">
+<script src="runtime.js" defer></script>
+</head>
+<body>
+<a class="proto-home" href="index.html">Tous les écrans</a>
+<div id="dc-root"></div>
+<template id="dc-template">
+<div style="min-height: 100vh; box-sizing: border-box; background: #EEF0EA; color: #14201B; font-family: 'Barlow', sans-serif">
+<div style="max-width: 1440px; margin: 0 auto; box-sizing: border-box; padding: 24px 32px 40px; display: flex; flex-direction: column; gap: 20px">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px">
+<div style="display: flex; align-items: center; gap: 8px">
+<span aria-hidden="true" style="width: 32px; height: 32px; border-radius: 8px; background: #FF5B1A; color: #14201B; display: flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700">R</span>
+<span style="font-family: 'Barlow Condensed', sans-serif; font-size: 28px; font-weight: 700">Récréaction</span>
+<span style="margin-left: 6px; padding-left: 12px; border-left: 1px solid #C5CBC2; font-size: 14px; font-weight: 600; color: #4A5650">Espace organisateur</span>
+</div>
+<div style="flex: 1 1 280px; min-width: 0">
+<h1 style="margin: 0; font-size: 24px; font-weight: 700; line-height: 1.2">Plan du site et parcours</h1>
+<div style="font-size: 14px; color: #4A5650">Course Des-Chênes-Toi! Bourret 2027 · dimanche 23 mai</div>
+</div>
+<div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap">
+<span style="font-size: 13px; color: #4A5650">{{publishNote}}</span>
+<button type="button" onClick="{{publish}}" style="height: 44px; padding: 0 16px; border: 2px solid #FF5B1A; border-radius: 12px; background: #FF5B1A; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer">Publier dans l’app</button>
+</div>
+</header>
+
+<nav aria-label="Sections de l’espace organisateur" style="display: flex; flex-wrap: wrap; gap: 8px">
+<a href="organisateur.html" style="height: 44px; box-sizing: border-box; padding: 0 18px; border-radius: 999px; border: 2px solid #D9DDD5; background: #FFFFFF; color: #14201B; display: inline-flex; align-items: center; font-size: 15px; font-weight: 700; text-decoration: none">Poste de commandement</a>
+<a href="benevoles.html" style="height: 44px; box-sizing: border-box; padding: 0 18px; border-radius: 999px; border: 2px solid #D9DDD5; background: #FFFFFF; color: #14201B; display: inline-flex; align-items: center; font-size: 15px; font-weight: 700; text-decoration: none">Bénévoles</a>
+<a href="partenaires-organisateur.html" style="height: 44px; box-sizing: border-box; padding: 0 18px; border-radius: 999px; border: 2px solid #D9DDD5; background: #FFFFFF; color: #14201B; display: inline-flex; align-items: center; font-size: 15px; font-weight: 700; text-decoration: none">Partenaires</a>
+<a href="infolettres.html" style="height: 44px; box-sizing: border-box; padding: 0 18px; border-radius: 999px; border: 2px solid #D9DDD5; background: #FFFFFF; color: #14201B; display: inline-flex; align-items: center; font-size: 15px; font-weight: 700; text-decoration: none">Infolettres</a>
+<a href="plan-et-parcours-organisateur.html" aria-current="page" style="height: 44px; box-sizing: border-box; padding: 0 18px; border-radius: 999px; border: 2px solid #14201B; background: #14201B; color: #FFFFFF; display: inline-flex; align-items: center; font-size: 15px; font-weight: 700; text-decoration: none">Plan et parcours</a>
+</nav>
+
+<div role="group" aria-label="Affichage" style="display: inline-flex; align-self: flex-start; gap: 4px; padding: 4px; background: #DDE1D8; border-radius: 14px">
+<button type="button" onClick="{{showPlan}}" aria-pressed="{{planPressed}}" style="height: 40px; padding: 0 18px; border: 0; border-radius: 10px; background: {{planTabBg}}; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer">Plan du site</button>
+<button type="button" onClick="{{showRoute}}" aria-pressed="{{routePressed}}" style="height: 40px; padding: 0 18px; border: 0; border-radius: 10px; background: {{routeTabBg}}; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer">Parcours</button>
+</div>
+
+<sc-if value="{{isPlan}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start">
+
+<section aria-label="Plan du site" style="flex: 999 1 640px; min-width: 0; background: #FFFFFF; border-radius: 20px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px">
+<div style="display: flex; align-items: center; gap: 10px; flex: 1 1 320px; min-width: 0">
+<span aria-hidden="true" style="width: 40px; height: 40px; flex: none; border-radius: 10px; background: #FFE6D2; color: #A33A00; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700">PDF</span>
+<div style="min-width: 0">
+<div style="font-size: 15px; font-weight: 700">plan-du-site-2027-4x8.pdf</div>
+<div style="font-size: 13px; color: #4A5650">Ton plan illustré, importé tel quel · {{pinCount}} repères placés</div>
+</div>
+</div>
+<button type="button" style="height: 44px; padding: 0 14px; border: 2px solid #14201B; border-radius: 12px; background: #FFFFFF; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer">Remplacer le plan</button>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px">
+<span style="font-size: 14px; font-weight: 700; margin-right: 4px">Ajouter un repère :</span>
+<sc-for list="{{palette}}" as="t" hint-placeholder-count="6">
+<button type="button" onClick="{{t.add}}" style="height: 40px; padding: 0 12px 0 8px; border: 2px solid #D9DDD5; border-radius: 999px; background: #FFFFFF; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px"><span style="width: 22px; height: 22px; border-radius: 999px; background: {{t.bg}}; color: {{t.fg}}; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700">+</span>{{t.label}}</button>
+</sc-for>
+</div>
+
+<div style="position: relative; width: 100%; aspect-ratio: 2 / 1; border-radius: 12px; overflow: hidden; background: #2B302C">
+<img src="plan-des-chenes-toi.jpg" alt="Plan illustré du site de l’École Marie-Rivier, avec les repères placés par l’organisateur" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block">
+<sc-for list="{{pins}}" as="p" hint-placeholder-count="10">
+<button type="button" onClick="{{p.pick}}" aria-label="{{p.aria}}" aria-pressed="{{p.pressed}}" style="position: absolute; left: {{p.lx}}%; top: {{p.ty}}%; width: {{p.size}}px; height: {{p.size}}px; margin-left: {{p.offset}}px; margin-top: {{p.offset}}px; box-sizing: border-box; padding: 0; border-radius: 999px; border: 2px {{p.borderStyle}} #FFFFFF; background: {{p.bg}}; color: {{p.fg}}; opacity: {{p.opacity}}; box-shadow: {{p.shadow}}; display: flex; align-items: center; justify-content: center; font-family: 'Barlow', sans-serif; font-size: 11px; font-weight: 700; cursor: pointer">{{p.mark}}</button>
+</sc-for>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: #4A5650">
+<sc-for list="{{legend}}" as="l" hint-placeholder-count="7">
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 12px; height: 12px; border-radius: 999px; background: {{l.bg}}"></span>{{l.label}}</span>
+</sc-for>
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 12px; height: 12px; box-sizing: border-box; border-radius: 999px; border: 2px dashed #4A5650"></span>Masqué dans l’app</span>
+</div>
+</section>
+
+<aside style="flex: 1 1 360px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+
+<sc-if value="{{hasSel}}" hint-placeholder-val="{{true}}">
+<section aria-label="Repère sélectionné" style="background: #FFFFFF; border-radius: 20px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: center; gap: 10px">
+<span aria-hidden="true" style="width: 36px; height: 36px; flex: none; border-radius: 999px; background: {{selBg}}; color: {{selFg}}; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700">{{selMark}}</span>
+<h2 style="margin: 0; font-size: 18px; font-weight: 700">Repère sélectionné</h2>
+</div>
+<label style="display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 700">Nom affiché dans l’app
+<input id="repere-nom" type="text" value="{{selName}}" onChange="{{setName}}" style="height: 44px; box-sizing: border-box; border: 2px solid #D9DDD5; border-radius: 10px; padding: 0 12px; background: #FFFFFF; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 15px; font-weight: 600">
+</label>
+<label style="display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 700">Catégorie
+<button type="button" aria-haspopup="listbox" style="height: 44px; box-sizing: border-box; border: 2px solid #D9DDD5; border-radius: 10px; padding: 0 10px; background: #FFFFFF; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 15px; text-align: left; display: flex; align-items: center; justify-content: space-between; gap: 6px; min-width: 0; cursor: pointer"><span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{selCatLabel}}</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M6 9l6 6 6-6"></path></svg></button>
+</label>
+<label style="display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 700">Description
+<textarea rows="2" style="box-sizing: border-box; border: 2px solid #D9DDD5; border-radius: 10px; padding: 8px 12px; background: #FFFFFF; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 15px; resize: vertical">{{selDesc}}</textarea>
+</label>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+<label style="display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 700; min-width: 0">Poste bénévole
+<button type="button" aria-haspopup="listbox" style="height: 44px; box-sizing: border-box; border: 2px solid #D9DDD5; border-radius: 10px; padding: 0 10px; background: #FFFFFF; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 14px; text-align: left; display: flex; align-items: center; justify-content: space-between; gap: 6px; min-width: 0; cursor: pointer"><span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{selPoste}}</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M6 9l6 6 6-6"></path></svg></button>
+</label>
+<label style="display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 700; min-width: 0">Partenaire
+<button type="button" aria-haspopup="listbox" style="height: 44px; box-sizing: border-box; border: 2px solid #D9DDD5; border-radius: 10px; padding: 0 10px; background: #FFFFFF; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 14px; text-align: left; display: flex; align-items: center; justify-content: space-between; gap: 6px; min-width: 0; cursor: pointer"><span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{selPartner}}</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><path d="M6 9l6 6 6-6"></path></svg></button>
+</label>
+</div>
+<div style="display: flex; align-items: center; gap: 12px">
+<button type="button" role="switch" aria-checked="{{selVisibleStr}}" aria-label="Visible dans l’app" onClick="{{toggleVisible}}" style="width: 52px; height: 32px; flex: none; border: 0; border-radius: 999px; background: {{switchBg}}; padding: 3px; display: flex; justify-content: {{switchJustify}}; cursor: pointer"><span style="width: 26px; height: 26px; border-radius: 999px; background: #FFFFFF"></span></button>
+<span style="font-size: 14px; font-weight: 600">{{visibleText}}</span>
+</div>
+<div style="display: flex; gap: 8px; flex-wrap: wrap">
+<button type="button" style="height: 44px; padding: 0 14px; border: 2px solid #14201B; border-radius: 12px; background: #FFFFFF; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer">Code QR de ce lieu</button>
+<button type="button" onClick="{{removeSel}}" style="height: 44px; padding: 0 14px; border: 2px solid #C81E1E; border-radius: 12px; background: #FFFFFF; color: #C81E1E; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer">Retirer le repère</button>
+</div>
+</section>
+</sc-if>
+<sc-if value="{{noSel}}" hint-placeholder-val="{{false}}">
+<section style="background: #FFFFFF; border-radius: 20px; padding: 18px; font-size: 15px; color: #4A5650">Clique un repère sur le plan pour le modifier, ou ajoute-en un avec les boutons au-dessus du plan.</section>
+</sc-if>
+
+<section aria-label="Affiche imprimée et codes QR" style="background: #14201B; color: #FFFFFF; border-radius: 20px; padding: 16px 18px; display: flex; gap: 14px; align-items: center">
+<svg width="76" height="76" viewBox="0 0 21 21" aria-hidden="true" style="flex: none; background: #FFFFFF; border-radius: 8px; padding: 6px; box-sizing: content-box" shape-rendering="crispEdges">
+<path d="M0 0h7v7H0zM1 1v5h5V1zM2 2h3v3H2zM14 0h7v7h-7zM15 1v5h5V1zM16 2h3v3h-3zM0 14h7v7H0zM1 15v5h5v-5zM2 16h3v3H2zM8 0h1v2H8zM10 1h2v1h-2zM9 3h3v1H9zM8 5h2v2H8zM11 5h1v3h-1zM0 8h2v1H0zM3 8h3v1H3zM8 8h2v2H8zM12 9h3v1h-3zM16 8h2v2h-2zM19 8h2v1h-2zM1 10h2v2H1zM5 10h2v1H5zM9 11h2v2H9zM13 11h1v3h-1zM15 11h3v1h-3zM19 11h1v3h-1zM8 14h3v1H8zM15 13h2v2h-2zM9 16h2v2H9zM12 15h2v1h-2zM17 16h3v1h-3zM14 17h2v2h-2zM8 19h3v2H8zM12 19h1v2h-1zM17 18h1v3h-1zM19 19h2v2h-2z" fill="#14201B"></path>
+</svg>
+<div style="min-width: 0">
+<div style="font-size: 16px; font-weight: 700">Ton affiche 4 × 8 devient interactive</div>
+<div style="font-size: 13px; color: #C9D2CC; line-height: 1.4; margin-top: 2px">Ajoute ce code QR sur le plan imprimé : on le scanne et le plan s’ouvre dans l’app. Un code par lieu aussi, pour les affiches des toilettes, de l’eau et des dossards.</div>
+<div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px">
+<button type="button" style="height: 40px; padding: 0 12px; border: 0; border-radius: 10px; background: #FF5B1A; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer">Télécharger le code QR</button>
+<button type="button" style="height: 40px; padding: 0 12px; border: 2px solid #FFFFFF; border-radius: 10px; background: transparent; color: #FFFFFF; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer">Codes par lieu ({{pinCount}})</button>
+</div>
+</div>
+</section>
+
+<section aria-label="Utilisation du plan" style="background: #FFFFFF; border-radius: 20px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px">
+<h2 style="margin: 0; font-size: 16px; font-weight: 700">Les 7 derniers jours</h2>
+<div style="display: flex; align-items: baseline; gap: 8px"><span style="font-family: 'Barlow Condensed', sans-serif; font-size: 34px; font-weight: 700; line-height: 1">1 204</span><span style="font-size: 14px; color: #4A5650">ouvertures du plan</span></div>
+<div style="font-size: 14px; line-height: 1.5">Les plus cherchés : <strong>Toilettes</strong> (312), <strong>Dossards</strong> (288), <strong>Dépôt de sacs</strong> (190)</div>
+<div style="font-size: 12px; color: #4A5650">Statistiques globales, sans données personnelles.</div>
+</section>
+
+</aside>
+</div>
+</sc-if>
+
+<sc-if value="{{isRoute}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start">
+
+<section aria-label="Tracés des parcours" style="flex: 999 1 640px; min-width: 0; background: #FFFFFF; border-radius: 20px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px">
+<h2 style="margin: 0; font-size: 18px; font-weight: 700">Tracés GPX</h2>
+<div style="display: flex; gap: 8px; flex-wrap: wrap">
+<button type="button" style="height: 44px; padding: 0 14px; border: 2px solid #14201B; border-radius: 12px; background: #FFFFFF; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer">Importer un GPX</button>
+<button type="button" style="height: 44px; padding: 0 14px; border: 0; border-radius: 12px; background: #14201B; color: #FFFFFF; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer">Exporter pour les montres</button>
+</div>
+</div>
+<div role="group" aria-label="Distance" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px">
+<sc-for list="{{races}}" as="r" hint-placeholder-count="4">
+<button type="button" onClick="{{r.pick}}" aria-pressed="{{r.pressed}}" style="min-height: 76px; box-sizing: border-box; padding: 10px 12px; border-radius: 14px; border: 2px solid {{r.border}}; background: #FFFFFF; color: #14201B; font-family: 'Barlow', sans-serif; text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 3px">
+<span style="font-size: 16px; font-weight: 700">{{r.name}}</span>
+<span style="font-size: 12px; color: #4A5650; overflow-wrap: anywhere">{{r.file}}</span>
+<span style="align-self: flex-start; padding: 2px 8px; border-radius: 999px; background: {{r.chipBg}}; color: {{r.chipFg}}; font-size: 12px; font-weight: 700">{{r.status}}</span>
+</button>
+</sc-for>
+</div>
+<div style="position: relative; width: 100%; aspect-ratio: 338 / 196; border-radius: 12px; overflow: hidden; background: #E3E9DF">
+<svg viewBox="0 0 338 196" role="img" aria-label="{{mapLabel}}" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block">
+<rect x="150" y="118" width="70" height="26" rx="6" fill="#CFE0C3"></rect>
+<path d="M0 46 C 70 30, 130 78, 200 64 S 300 40, 338 52" fill="none" stroke="#BFD3DE" stroke-width="16"></path>
+<path d="M0 104H338M0 140H338M0 176H338M40 0V196M100 0V196M160 0V196M220 0V196M280 0V196" stroke="#D3DACD" stroke-width="1.5"></path>
+<path d="M0 124H338M128 0V196M246 0V196" stroke="#F5F6F2" stroke-width="4"></path>
+<path d="{{routeD}}" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="{{routeD}}" fill="none" stroke="#14201B" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></path>
+<circle cx="60" cy="150" r="7" fill="#14201B"></circle>
+</svg>
+<sc-for list="{{marks}}" as="m" hint-placeholder-count="6">
+<span style="position: absolute; left: {{m.lx}}%; top: {{m.ty}}%; width: 24px; height: 24px; margin-left: -12px; margin-top: -12px; box-sizing: border-box; border-radius: {{m.radius}}; background: {{m.bg}}; border: 2px solid {{m.border}}; color: {{m.fg}}; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700">{{m.mark}}</span>
+</sc-for>
+<span style="position: absolute; left: 10px; top: 10px; height: 26px; padding: 0 10px; border-radius: 6px; background: rgba(20, 32, 27, 0.8); color: #FFFFFF; font-size: 12px; font-weight: 700; display: flex; align-items: center">Aperçu · tracé de démonstration</span>
+</div>
+<div style="position: relative; width: 100%; height: 90px">
+<svg viewBox="0 0 338 72" preserveAspectRatio="none" aria-hidden="true" style="position: absolute; left: 0; top: 0; width: 100%; height: 90px; display: block">
+<path d="{{profArea}}" fill="#FFE6D2"></path>
+<path d="{{profLine}}" fill="none" stroke="#A33A00" stroke-width="2" vector-effect="non-scaling-stroke"></path>
+</svg>
+</div>
+<div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px; font-size: 13px; color: #4A5650"><span>0 km</span><span>{{profSummary}}</span><span>{{distLabel}}</span></div>
+</section>
+
+<aside style="flex: 1 1 380px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+<section aria-label="Points du parcours" style="background: #FFFFFF; border-radius: 20px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 10px">
+<h2 style="margin: 0; font-size: 18px; font-weight: 700">Points du parcours</h2>
+<button type="button" style="height: 40px; padding: 0 12px; border: 2px solid #D9DDD5; border-radius: 10px; background: #FFFFFF; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer">+ Ajouter un point</button>
+</div>
+<sc-for list="{{rows}}" as="w" hint-placeholder-count="6">
+<div style="display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid #E4E8E0">
+<span style="width: 52px; flex: none; font-family: 'Barlow Condensed', sans-serif; font-size: 18px; font-weight: 700">km {{w.km}}</span>
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25"><strong style="font-size: 15px">{{w.name}}</strong><span style="font-size: 13px; color: #4A5650">{{w.detail}}</span></span>
+<span style="flex: none; max-width: 150px; padding: 3px 8px; border-radius: 8px; background: {{w.teamBg}}; color: {{w.teamFg}}; font-size: 12px; font-weight: 700; text-align: right">{{w.team}}</span>
+</div>
+</sc-for>
+</section>
+
+<section aria-label="Vérifications automatiques" style="background: #FFFFFF; border-radius: 20px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px">
+<h2 style="margin: 0; font-size: 18px; font-weight: 700">Vérifications automatiques</h2>
+<sc-for list="{{checks}}" as="c" hint-placeholder-count="4">
+<div style="display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.4">
+<span aria-hidden="true" style="width: 24px; height: 24px; flex: none; border-radius: 999px; background: {{c.bg}}; color: {{c.fg}}; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700">{{c.icon}}</span>
+<span><span class="sr-label" style="font-weight: 700">{{c.state}} : </span>{{c.text}}</span>
+</div>
+</sc-for>
+<a href="benevoles.html" style="align-self: flex-start; font-size: 14px; font-weight: 700">Voir la couverture des postes bénévoles</a>
+</section>
+</aside>
+</div>
+</sc-if>
+
+</div>
+</div>
+</template>
+<script type="text/x-dc" id="dc-logic">
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const view = st.view || 'plan';
+    const names = st.names || {};
+    const hidden = st.hidden || {};
+    const removed = st.removed || {};
+    const added = st.added || [];
+    const published = st.published === true;
+
+    // ---------- Plan du site (coordonnées sur le plan de référence 2000 × 1000) ----------
+    const CATS = [
+      { id: 'course', label: 'Départ et arrivée', bg: '#FF5B1A', fg: '#14201B' },
+      { id: 'services', label: 'Services', bg: '#14201B', fg: '#FFFFFF' },
+      { id: 'sante', label: 'Santé et eau', bg: '#C81E1E', fg: '#FFFFFF' },
+      { id: 'manger', label: 'Manger', bg: '#F2B53A', fg: '#14201B' },
+      { id: 'famille', label: 'Famille', bg: '#5B3BB5', fg: '#FFFFFF' },
+      { id: 'partenaires', label: 'Partenaires', bg: '#2E7D4F', fg: '#FFFFFF' },
+      { id: 'pratique', label: 'Toilettes et vélos', bg: '#3F6273', fg: '#FFFFFF' }
+    ];
+    const catOf = {};
+    CATS.forEach((c) => { catOf[c.id] = c; });
+    const BASE = [
+      { id: 'depart', cat: 'course', x: 1668, y: 428, name: 'Départ', desc: 'Ligne de départ.', poste: 'Départ et sas' },
+      { id: 'arrivee', cat: 'course', x: 1620, y: 240, name: 'Arrivée', desc: 'Ligne d’arrivée.', poste: 'Arrivée et médailles' },
+      { id: 'marathon', cat: 'course', x: 1085, y: 410, name: 'Zone marathon', desc: 'Espace réservé aux coureurs du marathon.' },
+      { id: 'dossards', cat: 'services', x: 590, y: 244, name: 'Remise des dossards', desc: 'Samedi 10 h à 18 h, dimanche dès 6 h.', poste: 'Remise des dossards' },
+      { id: 'inscriptions', cat: 'services', x: 628, y: 255, name: 'Inscriptions', desc: 'Inscriptions sur place.', poste: 'Remise des dossards' },
+      { id: 'medailles-gagnants', cat: 'services', x: 665, y: 270, name: 'Médailles des gagnants', desc: 'Podiums.' },
+      { id: 'sacs', cat: 'services', x: 643, y: 383, name: 'Dépôt de sacs', desc: 'Sacs identifiés au numéro de dossard.' },
+      { id: 'medailles', cat: 'services', x: 1400, y: 372, name: 'Médailles de participation', desc: 'Juste après l’arrivée.', poste: 'Arrivée et médailles' },
+      { id: 'info', cat: 'services', x: 45, y: 330, name: 'Information', desc: 'Questions et objets perdus.' },
+      { id: 'soins', cat: 'sante', x: 1447, y: 280, name: 'Premiers soins', desc: 'Près de l’arrivée.' },
+      { id: 'eau', cat: 'sante', x: 770, y: 288, name: 'Point d’eau', desc: 'Remplis ta gourde.', partner: 'Rydrate' },
+      { id: 'robinets', cat: 'sante', x: 720, y: 330, name: 'Robinets communautaires', desc: 'Bouteilles réutilisables.' },
+      { id: 'alimentation', cat: 'manger', x: 880, y: 398, name: 'Alimentation Maxi', desc: 'Zone d’alimentation.', partner: 'Maxi' },
+      { id: 'tim', cat: 'manger', x: 700, y: 298, name: 'Tim Hortons', desc: 'Café et collations. Offre dans le sac du coureur.', partner: 'Tim Hortons' },
+      { id: 'animation', cat: 'famille', x: 870, y: 638, name: 'Animation familiale', desc: 'Activités pour toute la famille.' },
+      { id: 'scene', cat: 'famille', x: 1110, y: 718, name: 'Scène', desc: 'Animation et annonces.' },
+      { id: 'ecran', cat: 'famille', x: 985, y: 785, name: 'Écran géant', desc: 'Arrivées et selfies en direct.' },
+      { id: 'retrouvailles', cat: 'famille', x: 1337, y: 548, name: 'Zone retrouvailles', desc: 'Point de rencontre après la course.' },
+      { id: 'toyota', cat: 'partenaires', x: 105, y: 300, name: 'Zone Toyota Drummondville', desc: 'Espace du partenaire.', poste: 'Village et kiosques', partner: 'Toyota Drummondville' },
+      { id: 'desjardins', cat: 'partenaires', x: 420, y: 400, name: 'Zone entreprises Desjardins', desc: 'Équipes d’entreprises.', poste: 'Village et kiosques', partner: 'Desjardins' },
+      { id: 'kiosques', cat: 'partenaires', x: 440, y: 300, name: 'Kiosques des exposants', desc: 'Sports Experts, Rydrate, Zio et les autres exposants.', poste: 'Village et kiosques', partner: 'Sports Experts' },
+      { id: 'bourret', cat: 'partenaires', x: 717, y: 500, name: 'Espace Bourret', desc: 'Espace du présentateur.', partner: 'Bourret' },
+      { id: 'espace-maxi', cat: 'partenaires', x: 625, y: 552, name: 'Espace Maxi', desc: 'Espace du partenaire.', partner: 'Maxi' },
+      { id: 'canimex', cat: 'partenaires', x: 1078, y: 548, name: 'Espace Canimex', desc: 'Espace du partenaire.', partner: 'Canimex' },
+      { id: 'kartus', cat: 'partenaires', x: 1150, y: 574, name: 'Kartus', desc: 'Kiosque du partenaire.', partner: 'Kartus' },
+      { id: 'chanv', cat: 'partenaires', x: 1240, y: 503, name: 'Chanv', desc: 'Kiosque du partenaire.', partner: 'Chanv' },
+      { id: 'toilettes', cat: 'pratique', x: 760, y: 880, name: 'Toilettes', desc: 'Le long de la rue des Marguerites.' },
+      { id: 'toilettes-acc-1', cat: 'pratique', x: 1198, y: 612, name: 'Toilette accessible', desc: 'Près du kiosque Kartus.' },
+      { id: 'toilettes-acc-2', cat: 'pratique', x: 1296, y: 662, name: 'Toilette accessible', desc: 'Près de la zone retrouvailles.' },
+      { id: 'velos', cat: 'pratique', x: 140, y: 418, name: 'Vélo parc', desc: 'Stationnement pour les vélos.', poste: 'Stationnement' }
+    ];
+    const SPOTS = [[1520, 640], [300, 640], [1820, 250], [560, 720], [1250, 400], [1000, 560]];
+    const places = BASE.concat(added).filter((p) => !removed[p.id]);
+    const sel = st.sel === undefined ? 'tim' : st.sel;
+    const selP = places.find((p) => p.id === sel);
+    const markOf = (p) => (p.cat === 'pratique' ? (p.id === 'velos' ? 'P' : 'WC') : (p.cat === 'sante' ? '+' : p.name.charAt(0)));
+    const nameOf = (p) => (names[p.id] != null ? names[p.id] : p.name);
+    const selVisible = selP ? !hidden[selP.id] : true;
+
+    // ---------- Parcours (mêmes tracés que l’app participant) ----------
+    const RACES = [
+      { id: 'renald', dist: 2, name: 'Course de M. Renald', file: 'parcours-renald-2027.gpx', measured: '1 km et 2 km', ok: true,
+        route: [[60,150],[84,152],[98,138],[90,122],[68,122],[54,134]],
+        alt: [[0,92],[0.5,94],[1,95],[1.5,93],[2,92]],
+        pts: [
+          { km: 0.5, kind: 'fans', name: 'Demi-tour du 1 km', detail: 'Les jeunes du 1 km reviennent vers l’arrivée', team: 'Signaleurs · 2/2' },
+          { km: 1.5, kind: 'fans', name: 'Zone des parents', detail: 'Encouragements près de l’arrivée', team: 'Animation' }
+        ],
+        checks: [['ok', 'Distances mesurées : 1,01 km et 2,01 km.'], ['warn', 'Ajoute un point d’eau à l’arrivée pour les jeunes.']] },
+      { id: '5', dist: 5, name: '5 km', file: 'parcours-5k-2027.gpx', measured: '5,02 km', ok: true,
+        route: [[60,150],[100,150],[120,128],[110,104],[78,104],[56,124]],
+        alt: [[0,92],[1,95],[2,99],[2.5,97],[3.5,93],[4.2,90],[5,92]],
+        pts: [
+          { km: 1.5, kind: 'fans', name: 'Zone d’encouragement', detail: 'Musique et spectateurs', team: 'Animation' },
+          { km: 2.5, kind: 'ravito', name: 'Point d’eau', detail: 'Eau', team: 'Ravito 1 · 6/6' }
+        ],
+        checks: [['ok', 'Distance mesurée : 5,02 km pour 5 km annoncés.'], ['ok', 'Point d’eau au km 2,5.'], ['ok', 'Tracé publié dans l’app et en GPX.']] },
+      { id: '10', dist: 10, name: '10 km', file: 'parcours-10k-2027.gpx', measured: '10,04 km', ok: true,
+        route: [[60,150],[110,152],[150,140],[176,112],[160,86],[120,84],[86,96],[62,118]],
+        alt: [[0,92],[2,96],[3,101],[4.5,94],[6,88],[7.5,96],[9,99],[10,92]],
+        pts: [
+          { km: 3, kind: 'ravito', name: 'Ravito 1', detail: 'Eau et électrolytes', team: 'Ravito 1 · 6/6' },
+          { km: 5, kind: 'fans', name: 'Zone d’encouragement', detail: 'Musique et spectateurs', team: 'Animation' },
+          { km: 6.5, kind: 'ravito', name: 'Ravito 2', detail: 'Eau, électrolytes et fruits', team: 'Ravito 2 · 5/8', warn: true },
+          { km: 8, kind: 'secours', name: 'Poste de secours', detail: 'Secouristes et défibrillateur', team: 'Équipe médicale' }
+        ],
+        checks: [['ok', 'Distance mesurée : 10,04 km pour 10 km annoncés.'], ['ok', 'Un ravito au moins tous les 5 km.'], ['warn', 'Ravito 2 : il manque 3 bénévoles.']] },
+      { id: '21', dist: 21.1, name: 'Demi-marathon', file: 'parcours-demi-2027.gpx', measured: '21,13 km', ok: true,
+        route: [[60,150],[110,154],[160,150],[206,138],[246,118],[268,96],[250,78],[214,86],[178,100],[140,96],[104,92],[74,108],[58,128]],
+        alt: [[0,92],[3,98],[5,104],[7,95],[9,86],[10.5,84],[12,90],[14,101],[16,107],[18,98],[20,93],[21.1,92]],
+        pts: [
+          { km: 5, kind: 'ravito', name: 'Ravito 1', detail: 'Eau et électrolytes', team: 'Ravito 1 · 6/6' },
+          { km: 8, kind: 'secours', name: 'Poste de secours', detail: 'Secouristes et défibrillateur', team: 'Équipe médicale' },
+          { km: 10.5, kind: 'ravito', name: 'Ravito 2', detail: 'Eau, électrolytes et fruits', team: 'Ravito 2 · 5/8', warn: true },
+          { km: 13, kind: 'fans', name: 'Zone d’encouragement', detail: 'Musique et spectateurs', team: 'Animation' },
+          { km: 16, kind: 'ravito', name: 'Ravito 3', detail: 'Eau et fruits', team: 'Ravito 3 · 6/6' },
+          { km: 18, kind: 'secours', name: 'Poste de secours', detail: 'Secouristes et défibrillateur', team: 'Équipe médicale' }
+        ],
+        checks: [['ok', 'Distance mesurée : 21,13 km pour 21,1 km annoncés.'], ['ok', 'Un ravito au moins tous les 5,5 km.'], ['warn', 'Ravito 2 : il manque 3 bénévoles.'], ['ok', 'Tracé publié dans l’app et en GPX pour les montres.']] },
+      { id: '42', dist: 42.2, name: 'Marathon', file: 'parcours-marathon-2026.gpx', measured: '42,24 km', ok: false,
+        route: [[60,150],[110,160],[170,166],[232,160],[286,146],[318,120],[322,92],[300,74],[262,40],[220,30],[176,40],[150,62],[120,96],[90,110],[66,128]],
+        alt: [[0,92],[5,104],[9,88],[12,84],[16,99],[20,110],[24,96],[28,86],[32,94],[36,108],[39,99],[42.2,92]],
+        pts: [
+          { km: 5, kind: 'ravito', name: 'Ravito 1', detail: 'Eau et électrolytes', team: 'Ravito 1 · 6/6' },
+          { km: 10, kind: 'ravito', name: 'Ravito 2', detail: 'Eau et électrolytes', team: 'Ravito 2 · 5/8', warn: true },
+          { km: 12, kind: 'secours', name: 'Poste de secours', detail: 'Secouristes et défibrillateur', team: 'Équipe médicale' },
+          { km: 15, kind: 'ravito', name: 'Ravito 3', detail: 'Eau, électrolytes et fruits', team: 'Ravito 3 · 6/6' },
+          { km: 21, kind: 'fans', name: 'Mi-parcours', detail: 'Zone d’encouragement', team: 'Animation' },
+          { km: 25, kind: 'ravito', name: 'Ravito 4', detail: 'Eau, électrolytes et fruits', team: 'À assigner', warn: true },
+          { km: 30, kind: 'ravito', name: 'Ravito 5', detail: 'Eau, gels et fruits', team: 'À assigner', warn: true },
+          { km: 32, kind: 'secours', name: 'Poste de secours', detail: 'Secouristes et défibrillateur', team: 'Équipe médicale' },
+          { km: 35, kind: 'ravito', name: 'Ravito 6', detail: 'Eau et fruits', team: 'À assigner', warn: true },
+          { km: 40, kind: 'ravito', name: 'Ravito 7', detail: 'Eau · dernier ravito', team: 'À assigner', warn: true }
+        ],
+        checks: [['warn', 'Le GPX date de 2026 : importe le tracé 2027 avant de publier.'], ['ok', 'Un ravito au moins tous les 5 km.'], ['warn', '4 ravitos n’ont pas encore d’équipe de bénévoles.']] }
+    ];
+    const race = RACES.find((r) => r.id === (st.race || '21')) || RACES[3];
+    const D = race.dist;
+    const fmt = (n) => String(Math.round(n * 10) / 10).replace('.', ',');
+    const P = race.route;
+    const n = P.length;
+    const dense = [];
+    for (let i = 0; i < n; i++) {
+      const p0 = P[(i - 1 + n) % n], p1 = P[i], p2 = P[(i + 1) % n], p3 = P[(i + 2) % n];
+      for (let s = 0; s < 8; s++) {
+        const t = s / 8, t2 = t * t, t3 = t2 * t;
+        const f = (a, b, c, d) => 0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3);
+        dense.push([f(p0[0], p1[0], p2[0], p3[0]), f(p0[1], p1[1], p2[1], p3[1])]);
+      }
+    }
+    dense.push(P[0]);
+    const seg = [];
+    let L = 0;
+    for (let i = 1; i < dense.length; i++) {
+      const d = Math.hypot(dense[i][0] - dense[i - 1][0], dense[i][1] - dense[i - 1][1]);
+      seg.push(d);
+      L += d;
+    }
+    const at = (k) => {
+      let t = Math.max(0, Math.min(1, k / D)) * L;
+      for (let i = 0; i < seg.length; i++) {
+        if (t <= seg[i] || i === seg.length - 1) {
+          const f = seg[i] ? Math.min(1, t / seg[i]) : 0;
+          return { x: dense[i][0] + (dense[i + 1][0] - dense[i][0]) * f, y: dense[i][1] + (dense[i + 1][1] - dense[i][1]) * f };
+        }
+        t -= seg[i];
+      }
+      return { x: P[0][0], y: P[0][1] };
+    };
+    const A = race.alt;
+    const altAt = (k) => {
+      if (k <= A[0][0]) return A[0][1];
+      for (let i = 1; i < A.length; i++) {
+        if (k <= A[i][0]) return A[i - 1][1] + (A[i][1] - A[i - 1][1]) * (k - A[i - 1][0]) / (A[i][0] - A[i - 1][0]);
+      }
+      return A[A.length - 1][1];
+    };
+    const alts = A.map((a) => a[1]);
+    const lo = Math.min.apply(null, alts) - 12, hi = Math.max.apply(null, alts) + 12;
+    const py = (a) => 68 - (a - lo) / (hi - lo) * 58;
+    const samples = [];
+    for (let i = 0; i <= 84; i++) samples.push((338 * i / 84).toFixed(1) + ' ' + py(altAt(D * i / 84)).toFixed(1));
+    const profLine = 'M' + samples.join(' L');
+    let gain = 0;
+    for (let i = 1; i < A.length; i++) gain += Math.max(0, A[i][1] - A[i - 1][1]);
+    const KIND = {
+      ravito: { bg: '#FFFFFF', fg: '#14201B', border: '#14201B', radius: '999px', mark: 'R' },
+      secours: { bg: '#C81E1E', fg: '#FFFFFF', border: '#FFFFFF', radius: '6px', mark: '+' },
+      fans: { bg: '#5B3BB5', fg: '#FFFFFF', border: '#FFFFFF', radius: '999px', mark: '♪' }
+    };
+
+    return {
+      publishNote: published ? 'Publié à l’instant · visible dans l’app' : 'Modifications non publiées',
+      publish: () => this.setState({ published: true }),
+      isPlan: view === 'plan',
+      isRoute: view === 'route',
+      planPressed: view === 'plan' ? 'true' : 'false',
+      routePressed: view === 'route' ? 'true' : 'false',
+      planTabBg: view === 'plan' ? '#FFFFFF' : 'transparent',
+      routeTabBg: view === 'route' ? '#FFFFFF' : 'transparent',
+      showPlan: () => this.setState({ view: 'plan' }),
+      showRoute: () => this.setState({ view: 'route' }),
+
+      pinCount: places.length,
+      palette: [
+        { label: 'Toilettes', cat: 'pratique' },
+        { label: 'Point d’eau', cat: 'sante' },
+        { label: 'Premiers soins', cat: 'sante' },
+        { label: 'Information', cat: 'services' },
+        { label: 'Partenaire', cat: 'partenaires' },
+        { label: 'Famille', cat: 'famille' }
+      ].map((t) => ({
+        label: t.label,
+        bg: catOf[t.cat].bg,
+        fg: catOf[t.cat].fg,
+        add: () => {
+          const spot = SPOTS[added.length % SPOTS.length];
+          const id = 'nouveau-' + (added.length + 1);
+          this.setState({ added: added.concat([{ id: id, cat: t.cat, x: spot[0], y: spot[1], name: t.label + ' (nouveau)', desc: '' }]), sel: id, published: false });
+        }
+      })),
+      pins: places.map((p) => {
+        const on = selP && p.id === selP.id;
+        const c = catOf[p.cat];
+        const isHidden = !!hidden[p.id];
+        const size = on ? 34 : 26;
+        return {
+          aria: nameOf(p) + (isHidden ? ' (masqué)' : ''),
+          lx: (p.x / 20).toFixed(2),
+          ty: (p.y / 10).toFixed(2),
+          size: size,
+          offset: -size / 2,
+          bg: isHidden ? '#FFFFFF' : c.bg,
+          fg: isHidden ? '#4A5650' : c.fg,
+          borderStyle: isHidden ? 'dashed' : 'solid',
+          opacity: isHidden ? 0.85 : 1,
+          shadow: on ? '0 0 0 4px #FF5B1A, 0 2px 6px rgba(0, 0, 0, 0.5)' : '0 1px 4px rgba(0, 0, 0, 0.5)',
+          mark: markOf(p),
+          pressed: on ? 'true' : 'false',
+          pick: () => this.setState({ sel: p.id })
+        };
+      }),
+      legend: CATS.map((c) => ({ label: c.label, bg: c.bg })),
+      hasSel: !!selP,
+      noSel: !selP,
+      selBg: selP ? catOf[selP.cat].bg : '#14201B',
+      selFg: selP ? catOf[selP.cat].fg : '#FFFFFF',
+      selMark: selP ? markOf(selP) : '',
+      selName: selP ? nameOf(selP) : '',
+      selDesc: selP ? selP.desc : '',
+      setName: (e) => {
+        const next = Object.assign({}, names);
+        next[selP.id] = e.target.value;
+        this.setState({ names: next, published: false });
+      },
+      selCatLabel: selP ? catOf[selP.cat].label : '',
+      selPoste: selP ? (selP.poste || 'Aucun') : '',
+      selPartner: selP ? (selP.partner || 'Aucun') : '',
+      selVisibleStr: selVisible ? 'true' : 'false',
+      switchBg: selVisible ? '#2E7D4F' : '#7D8781',
+      switchJustify: selVisible ? 'flex-end' : 'flex-start',
+      visibleText: selVisible ? 'Visible dans l’app des participants' : 'Masqué dans l’app (visible ici seulement)',
+      toggleVisible: () => {
+        const next = Object.assign({}, hidden);
+        next[selP.id] = selVisible;
+        this.setState({ hidden: next, published: false });
+      },
+      removeSel: () => {
+        const next = Object.assign({}, removed);
+        next[selP.id] = true;
+        this.setState({ removed: next, sel: null, published: false });
+      },
+
+      races: RACES.map((r) => {
+        const on = r.id === race.id;
+        return {
+          name: r.name,
+          file: r.file + ' · ' + r.measured,
+          status: r.ok ? 'À jour' : 'Tracé 2026 à remplacer',
+          chipBg: r.ok ? '#E3F1E8' : '#FFE6D2',
+          chipFg: r.ok ? '#14201B' : '#A33A00',
+          border: on ? '#14201B' : '#D9DDD5',
+          pressed: on ? 'true' : 'false',
+          pick: () => this.setState({ race: r.id })
+        };
+      }),
+      mapLabel: 'Tracé du ' + race.name.toLowerCase() + ' avec ' + race.pts.length + ' points.',
+      routeD: 'M' + dense.map((p) => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' L'),
+      marks: race.pts.map((p) => {
+        const q = at(p.km);
+        const k = KIND[p.kind];
+        return { lx: (q.x / 338 * 100).toFixed(2), ty: (q.y / 196 * 100).toFixed(2), bg: k.bg, fg: k.fg, border: k.border, radius: k.radius, mark: k.mark };
+      }),
+      profLine: profLine,
+      profArea: profLine + ' L338 72 L0 72 Z',
+      profSummary: 'Altitude de ' + Math.min.apply(null, alts) + ' à ' + Math.max.apply(null, alts) + ' m · ' + gain + ' m de montée au total',
+      distLabel: fmt(D) + ' km',
+      rows: race.pts.map((p) => ({
+        km: fmt(p.km),
+        name: p.name,
+        detail: p.detail,
+        team: p.team,
+        teamBg: p.warn ? '#FFE6D2' : '#EEF0EA',
+        teamFg: p.warn ? '#A33A00' : '#14201B'
+      })),
+      checks: race.checks.map((c) => ({
+        icon: c[0] === 'ok' ? '✓' : '!',
+        state: c[0] === 'ok' ? 'Conforme' : 'À corriger',
+        bg: c[0] === 'ok' ? '#E3F1E8' : '#FFE6D2',
+        fg: c[0] === 'ok' ? '#2E7D4F' : '#A33A00',
+        text: c[1]
+      }))
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -24,7 +24,7 @@ a{color:#14201B}a:hover{color:#000000}
 <button type="button" aria-label="Retour" style="width: 44px; height: 44px; flex: none; border: 0; background: transparent; color: #14201B; border-radius: 999px; display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg></button>
 <div style="flex-grow: 1">
 <h1 style="margin: 0; font-size: 20px; font-weight: 700">Devenir bénévole</h1>
-<div style="font-size: 13px; color: #4A5650">Trail des Crêtes 2026 · 16 et 17 octobre</div>
+<div style="font-size: 13px; color: #4A5650">Des-Chênes-Toi! 2027 · 22 et 23 mai</div>
 </div>
 </header>
 
@@ -97,11 +97,11 @@ class Component extends DCLogic {
     const joined = st.joined === true;
     const sk = st.skills || { soins: true };
     const list = [
-      { id: 'dossards', name: 'Remise des dossards', time: 'Vendredi, 16 h à 20 h', have: 6, need: 8 },
-      { id: 'balisage', name: 'Balisage du parcours', time: 'Vendredi, 13 h à 17 h · bonne forme', have: 4, need: 6 },
-      { id: 'r2', name: 'Ravito 2 · km 12,5', time: 'Samedi, 7 h à 11 h', have: 6, need: 8 },
-      { id: 'sig', name: 'Signaleur · chemin du Lac', time: 'Samedi, 7 h 30 à 10 h 30 · formation 15 min', have: 11, need: 12 },
-      { id: 'arr', name: 'Arrivée et médailles', time: 'Samedi, 9 h à 13 h', have: 10, need: 10 }
+      { id: 'dossards', name: 'Remise des dossards', time: 'Samedi, 10 h à 18 h', have: 6, need: 8 },
+      { id: 'balisage', name: 'Balisage du parcours', time: 'Samedi, 13 h à 17 h · bonne forme', have: 4, need: 6 },
+      { id: 'r2', name: 'Ravito 2 · km 10,5', time: 'Dimanche, 7 h à 11 h', have: 6, need: 8 },
+      { id: 'sig', name: 'Signaleur · intersections', time: 'Dimanche, 7 h à 11 h · formation 15 min', have: 11, need: 12 },
+      { id: 'arr', name: 'Arrivée et médailles', time: 'Dimanche, 9 h à 13 h', have: 10, need: 10 }
     ];
     const sel = list.find((p) => p.id === poste) || list[2];
     const postes = list.map((p) => {
