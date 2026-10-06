@@ -614,7 +614,7 @@ async function runAudit(){
     log("Découverte du site (robots.txt, sitemap, llms.txt)…");
     const disc = await api({mode:"discover", site:raw});
     const origin = disc.origin;
-    const trafficCacheKey="pap_intelligence_v4_"+new URL(origin).hostname+"_canada_fr-en";
+    const trafficCacheKey="pap_intelligence_v5_"+new URL(origin).hostname+"_canada_fr-en";
     let cachedTraffic=null;
     try{const saved=JSON.parse(localStorage.getItem(trafficCacheKey)||"null");if(saved&&Date.now()-saved.cachedAt<604800000)cachedTraffic=saved.data;}catch{}
     const trafficPromise=cachedTraffic?Promise.resolve({...cachedTraffic,cached:true}):api({mode:"traffic",site:origin,location:"Canada",language:"fr,en"}).then(data=>{if(data.available||data.strategicKeywords?.available||data.competitors?.available||data.topPages?.available||data.backlinks?.available||data.aiMentions?.available)localStorage.setItem(trafficCacheKey,JSON.stringify({cachedAt:Date.now(),data}));return data;}).catch(e=>({configured:false,available:false,reason:e.code||"request_error",error:e.message}));
@@ -1180,6 +1180,48 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   const homepage=pages.find(p=>{try{return new URL(p.finalUrl||p.url).pathname.replace(/\/+$/,"")==="";}catch{return false;}})||pages[0];
   const faviconReady=!!(homepage?.faviconDeclared||disc.favicon?.fallbackExists);
   const analyticsTools=[...new Set(pages.flatMap(p=>p.analytics||[]))];
+  // Outils Google et robots.txt : ce qui est installé, sur quelles pages, avec
+  // les identifiants trouvés comme preuve.
+  const trackedPages=pages.filter(p=>p.tracking);
+  const tk=key=>[...new Set(trackedPages.flatMap(p=>p.tracking[key]||[]))];
+  const hasTool=(p,key,flag)=>!!(p.tracking?.[key]?.length||(flag&&p.tracking?.[flag]));
+  const coverage=(key,flag)=>{const on=trackedPages.filter(p=>hasTool(p,key,flag));return {count:on.length,total:trackedPages.length,missing:trackedPages.filter(p=>!hasTool(p,key,flag))};};
+  const googleTools={
+    measured:trackedPages.length>0,
+    gtm:{ids:tk("gtm"),...coverage("gtm","gtmScript")},
+    ga4:{ids:tk("ga4"),...coverage("ga4","gtagScript")},
+    ua:{ids:tk("ua"),...coverage("ua")},
+    gscMeta:trackedPages.some(p=>p.tracking.googleSiteVerification),
+    gscDns:!!disc.dns?.googleSiteVerification,
+    dnsChecked:!!disc.dns?.checked,
+    bing:trackedPages.some(p=>p.tracking.bingSiteVerification)||!!disc.dns?.bingSiteVerification,
+    siteKit:trackedPages.some(p=>p.tracking.siteKit),
+  };
+  if(googleTools.measured){
+    const g=googleTools;
+    if(!g.gtm.count&&!g.ga4.count) issues.push({sev:"warn",cat:"qualite",title:g.ua.count?"Seul l'ancien Google Analytics (Universal) est installé : il ne mesure plus rien":"Aucun outil de mesure d'audience Google détecté",
+      body:(g.ua.count?"Le site charge encore Universal Analytics ("+g.ua.ids.map(esc).join(", ")+"), arrêté par Google en juillet 2023 : il ne collecte plus aucune donnée. ":"Ni Google Tag Manager ni Google Analytics 4 n'ont été trouvés dans le code des pages. ")+"Sans mesure, impossible de savoir d'où viennent les visiteurs, quelles pages convertissent et si le travail SEO porte ses fruits.",
+      where:["Pages analysées : "+plur(trackedPages.length,"page","pages")+" — aucun identifiant GTM-… ni G-… trouvé dans les scripts"],
+      steps:["Créer une propriété Google Analytics 4 (analytics.google.com).","Installer la balise : directement, via Google Tag Manager, ou avec l'extension Site Kit sur WordPress.","Relier Analytics à Google Search Console."],effort:"30 min",gain:"mesure des résultats"});
+    else if(g.ua.count) issues.push({sev:"info",cat:"qualite",title:"Code de l'ancien Google Analytics (Universal) encore présent",
+      body:"Universal Analytics ("+g.ua.ids.map(esc).join(", ")+") ne collecte plus rien depuis juillet 2023. Ce code alourdit les pages pour rien.",
+      where:g.ua.ids.map(id=>"<code>"+esc(id)+"</code>"),steps:["Retirer l'ancien code UA du thème ou de Tag Manager."],effort:"10 min",gain:"propreté"});
+    for(const [key,label] of [["gtm","Google Tag Manager"],["ga4","Google Analytics 4"]]){
+      const c=g[key];
+      if(c.count&&c.missing.length&&c.count>=c.missing.length) issues.push({sev:"info",cat:"qualite",title:label+" absent de "+plur(c.missing.length,"page","pages"),
+        body:label+" est installé sur "+c.count+" page(s) sur "+c.total+", mais pas sur celles-ci. Les visites de ces pages ne sont pas mesurées.",
+        where:c.missing.slice(0,10).map(p=>"<code>"+esc(sh(p.url))+"</code>"),
+        steps:["Vérifier que ces pages utilisent le même modèle (en-tête) que le reste du site.","Ajouter la balise manquante, puis vérifier avec l'extension Tag Assistant."],effort:"15 min",gain:"mesure complète"});
+    }
+    if(!g.gscMeta&&!g.gscDns) issues.push({sev:"info",cat:"indexation",title:"Validation Google Search Console non détectable de l'extérieur",
+      body:"Aucune balise de validation Google ni enregistrement DNS de validation n'a été trouvé"+(g.dnsChecked?"":" (la vérification DNS n'a pas pu aboutir)")+". Le site peut quand même être validé par fichier HTML ou via Analytics, invisibles de l'extérieur : <b>ce n'est pas la preuve qu'il manque</b>. Search Console est le seul outil qui montre les vraies recherches et les vrais clics Google. Ce point ne réduit pas le score.",
+      where:["Balise <code>google-site-verification</code> : absente des pages analysées","Enregistrement DNS TXT <code>google-site-verification</code> : "+(g.dnsChecked?"absent":"non vérifiable")],
+      steps:["Demander au client s'il a accès à Google Search Console pour ce domaine.","Sinon, ajouter la propriété « Domaine » dans search.google.com/search-console et la valider par DNS."],effort:"15 min",gain:"données Google réelles"});
+  }
+  if(disc.robots&&!disc.robots.exists&&!disc.robots.unverifiable) issues.push({sev:"info",cat:"indexation",title:"Aucun fichier robots.txt",
+    body:"Le site n'a pas de fichier <code>robots.txt</code>. Google explore alors tout le site, ce qui convient souvent, mais le fichier sert aussi à indiquer l'adresse du plan de site et à encadrer les robots d'IA.",
+    where:["<code>"+esc(origin)+"/robots.txt</code> — "+(disc.robots.status?"statut "+esc(disc.robots.status):"introuvable")],
+    steps:[isWP?"L'extension SEO (Yoast, Rank Math) peut le générer.":"Créer un fichier robots.txt à la racine du site.","Y déclarer le plan de site : <code>Sitemap: "+esc(origin)+"/sitemap.xml</code>"],effort:"10 min",gain:"exploration"});
   const hreflangLinks=pages.reduce((sum,p)=>sum+(p.hreflang||[]).length,0);
 
   // ---- Validation hreflang (entièrement en mémoire, aucun appel réseau) ----
@@ -1584,7 +1626,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
     strictAltMissing,strictAltPages:strictAltPages.length,contentAltMissing:contentBad,decorativeAltEmpty:Math.max(0,strictAltMissing-contentBad),homepageStrictMissing,homepageStrictTotal:homepageStrictImages.length,homepageContentAltMissing,homepageDecorativeAltEmpty,images:webImages.length,dimensionCoverage:webImages.length?Math.round(100*(1-imagesMissingDimensions.length/webImages.length)):100,
     modernCoverage:formatKnown.length?Math.round(100*modernImages.length/formatKnown.length):null,lazyCoverage:webImages.length?Math.round(100*lazyImages.length/webImages.length):null,
     avgResponseMs,slowPages:slowPages.length,compressedPages:compressedPages.length,avgResources,heavyPages:resourceHeavyPages.length,
-    orphanPages:orphanPages.length,iframeTotal,iframeMissing:iframeMissingTotal,faviconReady,analyticsTools,hreflangLinks,inlineStyleCount,obsoletePages:obsoletePages.length,
+    orphanPages:orphanPages.length,googleTools,iframeTotal,iframeMissing:iframeMissingTotal,faviconReady,analyticsTools,hreflangLinks,inlineStyleCount,obsoletePages:obsoletePages.length,
   };
   return {origin, disc, pages, keywordPages, deadPages, issues, wins, scores, scoreEvidence, global, imgPages, uniqFiles, isWP, aiReadiness, searchAgents, siteKeywords, cannibalization, targetMap, clientName:options.clientName||"",contactName:options.contactName||"",publicContacts,pagesNeedingWork,quickWins,proofCount,opportunityScore,schemaAudit:{inventory:schemaInventory,expectedMissing,entityNames,entityIds,identityReady},advancedAudit,auditMeta,
           counts,
@@ -1788,6 +1830,71 @@ function marketLabelFor(m){
 function marketPhraseFor(m){
   const l=measuredLanguages(m);
   return l.includes("fr")&&l.includes("en")?"pour le Canada, français et anglais réunis":"pour le Canada en "+(l[0]==="en"?"anglais":"français")+" seulement";
+}
+
+// Listes détaillées des domaines référents et des backlinks (DataForSEO).
+// Chaque adresse vient du site d'un tiers : tout passe par esc(), et seuls les
+// liens http(s) deviennent cliquables.
+function backlinkTablesHtml(b,m){
+  if(!b) return "";
+  const fmtN=v=>Number(v||0).toLocaleString("fr-CA");
+  const safeHref=u=>/^https?:\/\//i.test(String(u||""))?esc(u):"";
+  const link=(u,label)=>safeHref(u)?`<a href="${safeHref(u)}" target="_blank" rel="noopener nofollow">${esc(label)}</a>`:esc(label);
+  const shortUrl=u=>{try{const x=new URL(u);return (x.hostname.replace(/^www\./,"")+x.pathname+x.search).replace(/\/$/,"");}catch{return String(u||"");}};
+  const target=u=>{try{return short(u,m.origin);}catch{return String(u||"");}};
+  const date=d=>d?esc(d):"—";
+  // Le PDF garde les 25 plus forts ; la liste complète reste à l'écran.
+  const PRINT_ROWS=25;
+  const printMore=n=>n>PRINT_ROWS?`<p class="sec-intro print-only">Les ${PRINT_ROWS} plus forts sont imprimés; ${fmtN(n-PRINT_ROWS)} autres sont disponibles sur demande.</p>`:"";
+  let out="";
+  if(Array.isArray(b.referringDomainList)){
+    const list=b.referringDomainList;
+    out+=`<div class="sec-h"><h3>Domaines référents</h3><span class="cnt">${fmtN(list.length)}${b.referringDomains>list.length?" / "+fmtN(b.referringDomains):""}</span><div class="rule"></div></div>
+    <p class="sec-intro">Sites qui font au moins un lien vers le domaine, classés du plus fort au plus faible selon le rang DataForSEO (sur 100).${b.referringDomains>list.length?" Les "+fmtN(list.length)+" premiers sont listés.":""} Un score de spam élevé signale un site de piètre qualité à surveiller.</p>
+    ${list.length?`<div class="tbl-wrap"><table><thead><tr><th>Domaine</th><th class="c">Rang</th><th class="c">Backlinks</th><th class="c">Spam</th><th class="c">Vu depuis</th></tr></thead><tbody>
+      ${list.map((d,i)=>`<tr${i>=PRINT_ROWS?' class="screen-only"':""}><td class="pg">${link("https://"+d.domain,d.domain)}</td><td class="c tnum">${d.rank==null?"—":esc(d.rank)}</td><td class="c tnum">${fmtN(d.backlinks)}</td><td class="c tnum">${typeof d.spamScore==="number"?`<span class="tag ${d.spamScore>=60?"no":d.spamScore>=30?"mid":"ok"}">${esc(d.spamScore)}</span>`:"—"}</td><td class="c tnum">${date(d.firstSeen)}</td></tr>`).join("")}
+    </tbody></table></div>${printMore(list.length)}`:`<p class="sec-intro">Aucun domaine référent vivant détecté.</p>`}`;
+  }
+  if(Array.isArray(b.backlinkList)){
+    const list=b.backlinkList;
+    out+=`<div class="sec-h"><h3>Backlinks</h3><span class="cnt">${fmtN(list.length)}${b.backlinks>list.length?" / "+fmtN(b.backlinks):""}</span><div class="rule"></div></div>
+    <p class="sec-intro">Le lien le plus fort de chaque domaine référent : page qui fait le lien, texte cliquable (ancre) et page du site visée. « Suivi » transmet de l'autorité à Google ; « nofollow » non.</p>
+    ${list.length?`<div class="tbl-wrap"><table><thead><tr><th>Page qui fait le lien</th><th>Ancre</th><th>Page visée</th><th class="c">Type</th><th class="c">Rang</th><th class="c">Vu depuis</th></tr></thead><tbody>
+      ${list.map((l,i)=>`<tr${i>=PRINT_ROWS?' class="screen-only"':""}><td class="pg">${link(l.from,shortUrl(l.from))}</td><td>${l.anchor?esc(l.anchor):`<span class="tag">image ou sans texte</span>`}</td><td class="pg">${esc(target(l.to))}</td><td class="c"><span class="tag ${l.dofollow?"ok":"mid"}">${l.dofollow?"Suivi":"nofollow"}</span></td><td class="c tnum">${l.domainRank==null?"—":esc(l.domainRank)}</td><td class="c tnum">${date(l.firstSeen)}</td></tr>`).join("")}
+    </tbody></table></div>${printMore(list.length)}`:`<p class="sec-intro">Aucun backlink vivant détecté.</p>`}`;
+  }
+  return out;
+}
+
+// Tableau « Outils Google et robots.txt » : état, preuve et couverture.
+function googleToolsHtml(m){
+  const g=m.advancedAudit?.googleTools, r=m.disc?.robots;
+  if(!g&&!r) return "";
+  const yes=t=>`<span class="tag ok">${t}</span>`, no=t=>`<span class="tag no">${t}</span>`, mid=t=>`<span class="tag mid">${t}</span>`;
+  const ids=list=>list?.length?list.map(id=>"<code>"+esc(id)+"</code>").join(" "):"";
+  const cov=c=>c.total?" · sur "+c.count+"/"+plur(c.total,"page","pages"):"";
+  const rows=[];
+  if(r){
+    const declared=(m.disc.sitemapDeclared||[]).length;
+    rows.push(["robots.txt",r.exists?yes("Présent"):r.unverifiable?mid("Non vérifiable"):no("Absent"),
+      r.exists?`<a href="${esc(m.origin)}/robots.txt" target="_blank" rel="noopener">${esc(short(m.origin+"/robots.txt",m.origin))}</a> · ${declared?plur(declared,"plan de site déclaré","plans de site déclarés"):"aucun plan de site déclaré"}${r.searchBlocked?" · <b>bloque Google</b>":""}`
+      :r.unverifiable?esc(sitemapOutcomeLabel({outcome:r.unverifiable,status:r.status})):"statut "+esc(r.status||"—")]);
+  }
+  if(g?.measured){
+    rows.push(["Google Tag Manager",g.gtm.count?yes("Installé"):no("Non détecté"),g.gtm.count?(ids(g.gtm.ids)||"conteneur chargé")+cov(g.gtm):"aucun identifiant GTM-… dans les scripts"]);
+    rows.push(["Google Analytics 4",g.ga4.count?yes("Installé"):g.gtm.count?mid("Peut-être via GTM"):no("Non détecté"),
+      g.ga4.count?(ids(g.ga4.ids)||"balise gtag chargée")+cov(g.ga4):g.gtm.count?"aucune balise G-… dans le code; GA4 est souvent chargé par Tag Manager, invisible de l'extérieur":"aucun identifiant G-… dans les scripts"]);
+    if(g.ua.count) rows.push(["Universal Analytics",no("Obsolète"),ids(g.ua.ids)+" · arrêté par Google en juillet 2023"]);
+    rows.push(["Google Search Console",g.gscMeta||g.gscDns?yes("Validé"):mid("Non détectable"),
+      g.gscMeta||g.gscDns?[g.gscMeta?"balise de validation dans les pages":"",g.gscDns?"enregistrement DNS":""].filter(Boolean).join(" + "):"validation possible par fichier ou via Analytics, invisible de l'extérieur"]);
+    if(g.siteKit) rows.push(["Site Kit (WordPress)",yes("Installé"),"extension officielle de Google qui relie Analytics et Search Console"]);
+    if(g.bing) rows.push(["Bing Webmaster Tools",yes("Validé"),"balise ou enregistrement DNS de validation Bing"]);
+  }
+  return `<div class="sec-h"><h3>Outils Google et robots.txt</h3><div class="rule"></div></div>
+    <p class="sec-intro">Ce qui est installé sur le site, avec l'identifiant trouvé comme preuve. Un outil ajouté uniquement dans Tag Manager ou validé par fichier n'est pas visible de l'extérieur : « non détectable » n'est pas « absent ».</p>
+    <div class="tbl-wrap"><table><thead><tr><th>Outil</th><th class="c">État</th><th>Preuve</th></tr></thead><tbody>
+      ${rows.map(([a,b,c])=>`<tr><td><b>${a}</b></td><td class="c">${b}</td><td>${c}</td></tr>`).join("")}
+    </tbody></table></div>`;
 }
 
 function renderReport(m){
@@ -2158,6 +2265,8 @@ function renderReport(m){
       ${typeof score==="number"?`<div class="track"><div class="fill" style="width:${Math.max(0,Math.min(100,score))}%;background:${barColor(score)}"></div></div>`:""}
       <p>${esc(detail)}</p></div>`).join("")}</div>
 
+    ${googleToolsHtml(m)}
+
     <div class="cats">${catRows}</div>
 
     ${m.previous?`<div class="sec-h"><h3>Évolution depuis le dernier audit</h3><div class="rule"></div></div>
@@ -2220,7 +2329,8 @@ function renderReport(m){
       <div class="ai-card"><div class="ai-card-head"><span>Domaines référents</span><span class="ai-card-score">${fmt(backlinkData.referringDomains)}</span></div><p>${fmt(backlinkData.referringMainDomains)} domaines principaux · ${fmt(backlinkData.referringPages)} pages référentes.</p></div>
       <div class="ai-card"><div class="ai-card-head"><span>Rang du domaine</span><span class="ai-card-score">${Number.isFinite(Number(backlinkData.rank))?Number(backlinkData.rank):"—"}/100</span></div><p>Indice DataForSEO sur une échelle de 100, distinct du score d'audit Paparmane.</p></div>
       <div class="ai-card"><div class="ai-card-head"><span>Liens à surveiller</span><span class="ai-card-score">${fmt(backlinkData.brokenBacklinks)}</span></div><p>${fmt(backlinkData.nofollow)} liens nofollow${typeof backlinkData.spamScore==="number"?" · score de spam moyen "+backlinkData.spamScore:""}.</p></div>
-    </div>`:""}
+    </div>
+    ${backlinkTablesHtml(backlinkData,m)}`:""}
 
     ${aiMentionData.available?`<div class="sec-h"><h3>Mentions IA mesurées</h3><div class="rule"></div></div>
     <p class="sec-intro"><b>Mesure réelle de la base DataForSEO, distincte de la préparation technique IA.</b> Elle comptabilise les mentions observées sur les plateformes couvertes pour ${esc(aiMentionData.scope||"la portée disponible")}. Il ne s'agit pas d'un test personnalisé de chaque question qu'un client pourrait poser.</p>
