@@ -10,8 +10,9 @@ les montants et les offres des partenaires sont fictifs ou à confirmer avec l'o
 
 ## Contenu
 
-- `index.html` : la liste des 29 écrans, classés par public.
+- `index.html` : la liste des 30 écrans, classés par public.
 - `plan-interactif.html` et `plan-des-chenes-toi.jpg` : le plan du site 4 × 8 en version web.
+- `logo-des-chenes-toi.png` : le logo de la course, posé sur les photos partagées.
 - Un fichier `.html` par écran (téléphone, ordinateur, courriel ou télé).
 - `runtime.js` : le petit moteur qui affiche chaque écran et ses interactions.
 - `prototype.css` : l'habillage autour des écrans à taille fixe.
