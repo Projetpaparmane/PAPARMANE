@@ -1180,6 +1180,48 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   const homepage=pages.find(p=>{try{return new URL(p.finalUrl||p.url).pathname.replace(/\/+$/,"")==="";}catch{return false;}})||pages[0];
   const faviconReady=!!(homepage?.faviconDeclared||disc.favicon?.fallbackExists);
   const analyticsTools=[...new Set(pages.flatMap(p=>p.analytics||[]))];
+  // Outils Google et robots.txt : ce qui est installé, sur quelles pages, avec
+  // les identifiants trouvés comme preuve.
+  const trackedPages=pages.filter(p=>p.tracking);
+  const tk=key=>[...new Set(trackedPages.flatMap(p=>p.tracking[key]||[]))];
+  const hasTool=(p,key,flag)=>!!(p.tracking?.[key]?.length||(flag&&p.tracking?.[flag]));
+  const coverage=(key,flag)=>{const on=trackedPages.filter(p=>hasTool(p,key,flag));return {count:on.length,total:trackedPages.length,missing:trackedPages.filter(p=>!hasTool(p,key,flag))};};
+  const googleTools={
+    measured:trackedPages.length>0,
+    gtm:{ids:tk("gtm"),...coverage("gtm","gtmScript")},
+    ga4:{ids:tk("ga4"),...coverage("ga4","gtagScript")},
+    ua:{ids:tk("ua"),...coverage("ua")},
+    gscMeta:trackedPages.some(p=>p.tracking.googleSiteVerification),
+    gscDns:!!disc.dns?.googleSiteVerification,
+    dnsChecked:!!disc.dns?.checked,
+    bing:trackedPages.some(p=>p.tracking.bingSiteVerification)||!!disc.dns?.bingSiteVerification,
+    siteKit:trackedPages.some(p=>p.tracking.siteKit),
+  };
+  if(googleTools.measured){
+    const g=googleTools;
+    if(!g.gtm.count&&!g.ga4.count) issues.push({sev:"warn",cat:"qualite",title:g.ua.count?"Seul l'ancien Google Analytics (Universal) est installé : il ne mesure plus rien":"Aucun outil de mesure d'audience Google détecté",
+      body:(g.ua.count?"Le site charge encore Universal Analytics ("+g.ua.ids.map(esc).join(", ")+"), arrêté par Google en juillet 2023 : il ne collecte plus aucune donnée. ":"Ni Google Tag Manager ni Google Analytics 4 n'ont été trouvés dans le code des pages. ")+"Sans mesure, impossible de savoir d'où viennent les visiteurs, quelles pages convertissent et si le travail SEO porte ses fruits.",
+      where:["Pages analysées : "+plur(trackedPages.length,"page","pages")+" — aucun identifiant GTM-… ni G-… trouvé dans les scripts"],
+      steps:["Créer une propriété Google Analytics 4 (analytics.google.com).","Installer la balise : directement, via Google Tag Manager, ou avec l'extension Site Kit sur WordPress.","Relier Analytics à Google Search Console."],effort:"30 min",gain:"mesure des résultats"});
+    else if(g.ua.count) issues.push({sev:"info",cat:"qualite",title:"Code de l'ancien Google Analytics (Universal) encore présent",
+      body:"Universal Analytics ("+g.ua.ids.map(esc).join(", ")+") ne collecte plus rien depuis juillet 2023. Ce code alourdit les pages pour rien.",
+      where:g.ua.ids.map(id=>"<code>"+esc(id)+"</code>"),steps:["Retirer l'ancien code UA du thème ou de Tag Manager."],effort:"10 min",gain:"propreté"});
+    for(const [key,label] of [["gtm","Google Tag Manager"],["ga4","Google Analytics 4"]]){
+      const c=g[key];
+      if(c.count&&c.missing.length&&c.count>=c.missing.length) issues.push({sev:"info",cat:"qualite",title:label+" absent de "+plur(c.missing.length,"page","pages"),
+        body:label+" est installé sur "+c.count+" page(s) sur "+c.total+", mais pas sur celles-ci. Les visites de ces pages ne sont pas mesurées.",
+        where:c.missing.slice(0,10).map(p=>"<code>"+esc(sh(p.url))+"</code>"),
+        steps:["Vérifier que ces pages utilisent le même modèle (en-tête) que le reste du site.","Ajouter la balise manquante, puis vérifier avec l'extension Tag Assistant."],effort:"15 min",gain:"mesure complète"});
+    }
+    if(!g.gscMeta&&!g.gscDns) issues.push({sev:"info",cat:"indexation",title:"Validation Google Search Console non détectable de l'extérieur",
+      body:"Aucune balise de validation Google ni enregistrement DNS de validation n'a été trouvé"+(g.dnsChecked?"":" (la vérification DNS n'a pas pu aboutir)")+". Le site peut quand même être validé par fichier HTML ou via Analytics, invisibles de l'extérieur : <b>ce n'est pas la preuve qu'il manque</b>. Search Console est le seul outil qui montre les vraies recherches et les vrais clics Google. Ce point ne réduit pas le score.",
+      where:["Balise <code>google-site-verification</code> : absente des pages analysées","Enregistrement DNS TXT <code>google-site-verification</code> : "+(g.dnsChecked?"absent":"non vérifiable")],
+      steps:["Demander au client s'il a accès à Google Search Console pour ce domaine.","Sinon, ajouter la propriété « Domaine » dans search.google.com/search-console et la valider par DNS."],effort:"15 min",gain:"données Google réelles"});
+  }
+  if(disc.robots&&!disc.robots.exists&&!disc.robots.unverifiable) issues.push({sev:"info",cat:"indexation",title:"Aucun fichier robots.txt",
+    body:"Le site n'a pas de fichier <code>robots.txt</code>. Google explore alors tout le site, ce qui convient souvent, mais le fichier sert aussi à indiquer l'adresse du plan de site et à encadrer les robots d'IA.",
+    where:["<code>"+esc(origin)+"/robots.txt</code> — "+(disc.robots.status?"statut "+esc(disc.robots.status):"introuvable")],
+    steps:[isWP?"L'extension SEO (Yoast, Rank Math) peut le générer.":"Créer un fichier robots.txt à la racine du site.","Y déclarer le plan de site : <code>Sitemap: "+esc(origin)+"/sitemap.xml</code>"],effort:"10 min",gain:"exploration"});
   const hreflangLinks=pages.reduce((sum,p)=>sum+(p.hreflang||[]).length,0);
 
   // ---- Validation hreflang (entièrement en mémoire, aucun appel réseau) ----
@@ -1584,7 +1626,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
     strictAltMissing,strictAltPages:strictAltPages.length,contentAltMissing:contentBad,decorativeAltEmpty:Math.max(0,strictAltMissing-contentBad),homepageStrictMissing,homepageStrictTotal:homepageStrictImages.length,homepageContentAltMissing,homepageDecorativeAltEmpty,images:webImages.length,dimensionCoverage:webImages.length?Math.round(100*(1-imagesMissingDimensions.length/webImages.length)):100,
     modernCoverage:formatKnown.length?Math.round(100*modernImages.length/formatKnown.length):null,lazyCoverage:webImages.length?Math.round(100*lazyImages.length/webImages.length):null,
     avgResponseMs,slowPages:slowPages.length,compressedPages:compressedPages.length,avgResources,heavyPages:resourceHeavyPages.length,
-    orphanPages:orphanPages.length,iframeTotal,iframeMissing:iframeMissingTotal,faviconReady,analyticsTools,hreflangLinks,inlineStyleCount,obsoletePages:obsoletePages.length,
+    orphanPages:orphanPages.length,googleTools,iframeTotal,iframeMissing:iframeMissingTotal,faviconReady,analyticsTools,hreflangLinks,inlineStyleCount,obsoletePages:obsoletePages.length,
   };
   return {origin, disc, pages, keywordPages, deadPages, issues, wins, scores, scoreEvidence, global, imgPages, uniqFiles, isWP, aiReadiness, searchAgents, siteKeywords, cannibalization, targetMap, clientName:options.clientName||"",contactName:options.contactName||"",publicContacts,pagesNeedingWork,quickWins,proofCount,opportunityScore,schemaAudit:{inventory:schemaInventory,expectedMissing,entityNames,entityIds,identityReady},advancedAudit,auditMeta,
           counts,
@@ -1822,6 +1864,37 @@ function backlinkTablesHtml(b,m){
     </tbody></table></div>${printMore(list.length)}`:`<p class="sec-intro">Aucun backlink vivant détecté.</p>`}`;
   }
   return out;
+}
+
+// Tableau « Outils Google et robots.txt » : état, preuve et couverture.
+function googleToolsHtml(m){
+  const g=m.advancedAudit?.googleTools, r=m.disc?.robots;
+  if(!g&&!r) return "";
+  const yes=t=>`<span class="tag ok">${t}</span>`, no=t=>`<span class="tag no">${t}</span>`, mid=t=>`<span class="tag mid">${t}</span>`;
+  const ids=list=>list?.length?list.map(id=>"<code>"+esc(id)+"</code>").join(" "):"";
+  const cov=c=>c.total?" · sur "+c.count+"/"+plur(c.total,"page","pages"):"";
+  const rows=[];
+  if(r){
+    const declared=(m.disc.sitemapDeclared||[]).length;
+    rows.push(["robots.txt",r.exists?yes("Présent"):r.unverifiable?mid("Non vérifiable"):no("Absent"),
+      r.exists?`<a href="${esc(m.origin)}/robots.txt" target="_blank" rel="noopener">${esc(short(m.origin+"/robots.txt",m.origin))}</a> · ${declared?plur(declared,"plan de site déclaré","plans de site déclarés"):"aucun plan de site déclaré"}${r.searchBlocked?" · <b>bloque Google</b>":""}`
+      :r.unverifiable?esc(sitemapOutcomeLabel({outcome:r.unverifiable,status:r.status})):"statut "+esc(r.status||"—")]);
+  }
+  if(g?.measured){
+    rows.push(["Google Tag Manager",g.gtm.count?yes("Installé"):no("Non détecté"),g.gtm.count?(ids(g.gtm.ids)||"conteneur chargé")+cov(g.gtm):"aucun identifiant GTM-… dans les scripts"]);
+    rows.push(["Google Analytics 4",g.ga4.count?yes("Installé"):g.gtm.count?mid("Peut-être via GTM"):no("Non détecté"),
+      g.ga4.count?(ids(g.ga4.ids)||"balise gtag chargée")+cov(g.ga4):g.gtm.count?"aucune balise G-… dans le code; GA4 est souvent chargé par Tag Manager, invisible de l'extérieur":"aucun identifiant G-… dans les scripts"]);
+    if(g.ua.count) rows.push(["Universal Analytics",no("Obsolète"),ids(g.ua.ids)+" · arrêté par Google en juillet 2023"]);
+    rows.push(["Google Search Console",g.gscMeta||g.gscDns?yes("Validé"):mid("Non détectable"),
+      g.gscMeta||g.gscDns?[g.gscMeta?"balise de validation dans les pages":"",g.gscDns?"enregistrement DNS":""].filter(Boolean).join(" + "):"validation possible par fichier ou via Analytics, invisible de l'extérieur"]);
+    if(g.siteKit) rows.push(["Site Kit (WordPress)",yes("Installé"),"extension officielle de Google qui relie Analytics et Search Console"]);
+    if(g.bing) rows.push(["Bing Webmaster Tools",yes("Validé"),"balise ou enregistrement DNS de validation Bing"]);
+  }
+  return `<div class="sec-h"><h3>Outils Google et robots.txt</h3><div class="rule"></div></div>
+    <p class="sec-intro">Ce qui est installé sur le site, avec l'identifiant trouvé comme preuve. Un outil ajouté uniquement dans Tag Manager ou validé par fichier n'est pas visible de l'extérieur : « non détectable » n'est pas « absent ».</p>
+    <div class="tbl-wrap"><table><thead><tr><th>Outil</th><th class="c">État</th><th>Preuve</th></tr></thead><tbody>
+      ${rows.map(([a,b,c])=>`<tr><td><b>${a}</b></td><td class="c">${b}</td><td>${c}</td></tr>`).join("")}
+    </tbody></table></div>`;
 }
 
 function renderReport(m){
@@ -2191,6 +2264,8 @@ function renderReport(m){
       <div class="ai-card-head"><span>${esc(label)}</span><span class="ai-card-score">${esc(value)}</span></div>
       ${typeof score==="number"?`<div class="track"><div class="fill" style="width:${Math.max(0,Math.min(100,score))}%;background:${barColor(score)}"></div></div>`:""}
       <p>${esc(detail)}</p></div>`).join("")}</div>
+
+    ${googleToolsHtml(m)}
 
     <div class="cats">${catRows}</div>
 

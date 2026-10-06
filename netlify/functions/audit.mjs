@@ -6,7 +6,7 @@
 //   ?mode=verify (POST urls[])→ vérifie des liens (statut + redirections)
 // ============================================================
 
-import { lookup } from "node:dns/promises";
+import { lookup, resolveTxt } from "node:dns/promises";
 import { isIP } from "node:net";
 import { gunzipSync } from "node:zlib";
 
@@ -687,9 +687,36 @@ function analyzePage(url, html, finalUrl, response = {}) {
     iframes: iframes.length,
   };
   resources.total = resources.scripts + resources.stylesheets + resources.images + resources.iframes + 1;
+  // Outils de mesure. Les identifiants ne sont cherchés que dans les scripts et
+  // l'iFrame de secours de Tag Manager : un « G-ABCDE12 » écrit dans le texte
+  // d'une page n'est pas une installation de Google Analytics.
+  const trackingZone = [
+    ...[...html.matchAll(/<script\b[\s\S]*?<\/script>/gi)].map(m => m[0]),
+    ...[...html.matchAll(/<iframe\b[^>]*googletagmanager[^>]*>/gi)].map(m => m[0]),
+    ...[...html.matchAll(/<link\b[^>]*(?:googletagmanager|google-analytics)[^>]*>/gi)].map(m => m[0]),
+  ].join("\n");
+  const ids = re => [...new Set([...trackingZone.matchAll(re)].map(m => m[1].toUpperCase()))].slice(0, 5);
+  const gtmIds = ids(/\b(GTM-[A-Z0-9]{4,9})\b/gi);
+  // « GT-… » : balise Google unifiée, souvent posée par Site Kit, qui charge GA4.
+  const ga4Ids = ids(/\b(GT?-[A-Z0-9]{6,12})\b/g);
+  const uaIds = ids(/\b(UA-\d{4,10}-\d{1,4})\b/g);
+  const trackingMetaTags = [...html.matchAll(/<meta\b[^>]*>/gi)].map(m => m[0]);
+  const metaContent = name => trackingMetaTags.filter(t => (tagAttr(t, "name") || "").toLowerCase() === name).map(t => tagAttr(t, "content") || "").filter(Boolean);
+  const tracking = {
+    gtm: gtmIds,
+    ga4: ga4Ids,
+    // Universal Analytics ne collecte plus rien depuis juillet 2023.
+    ua: uaIds,
+    gtmScript: /googletagmanager\.com\/gtm\.js/i.test(trackingZone),
+    gtagScript: /googletagmanager\.com\/gtag\/js/i.test(trackingZone),
+    googleSiteVerification: metaContent("google-site-verification").length > 0,
+    bingSiteVerification: metaContent("msvalidate.01").length > 0,
+    siteKit: /google-site-kit|googlesitekit|site kit by google/i.test(html),
+  };
   const analytics = [
-    /googletagmanager\.com\/gtm\.js|\bGTM-[A-Z0-9]+\b/i.test(html) ? "Google Tag Manager" : null,
-    /googletagmanager\.com\/gtag\/js|google-analytics\.com|\bG-[A-Z0-9]{5,}\b/i.test(html) ? "Google Analytics" : null,
+    gtmIds.length || tracking.gtmScript ? "Google Tag Manager" : null,
+    ga4Ids.length || tracking.gtagScript ? "Google Analytics 4" : null,
+    uaIds.length ? "Universal Analytics (obsolète)" : null,
     /matomo\.js|piwik\.js/i.test(html) ? "Matomo" : null,
   ].filter(Boolean);
 
@@ -790,6 +817,7 @@ function analyzePage(url, html, finalUrl, response = {}) {
     iframes: { total: iframes.length, missingTitle: iframeMissingTitle },
     resources,
     analytics: [...new Set(analytics)],
+    tracking,
     inlineStyles: (html.match(/\sstyle\s*=\s*["']/gi) || []).length,
     obsoleteElements: (html.match(/<(?:font|center|marquee|frameset|frame)\b/gi) || []).length,
     response: {
@@ -969,6 +997,14 @@ async function discover(site) {
   // reste laissait parfois moins d'une seconde au sitemap d'un serveur lent,
   // qui passait alors pour absent. Les redirections (www, https) sont suivies
   // requête par requête : l'adresse saisie suffit pour lancer les lectures.
+  // Lancée dès le départ, en parallèle du reste : ne rallonge pas l'appel.
+  const dnsTxtPromise = (() => {
+    const host = new URL(typedOrigin).hostname.replace(/^www\./i, "");
+    return Promise.race([
+      Promise.allSettled([resolveTxt(host), resolveTxt("www." + host)]),
+      new Promise(resolve => setTimeout(() => resolve(null), 3000)),
+    ]);
+  })();
   let probe404 = typedOrigin + "/paparmane-audit-" + hashText(typedOrigin) + "-page-inexistante/";
   const SITEMAP_RESERVE = 3000; // budget gardé pour la seconde vague de sitemaps
   const step = () => Math.max(1500, Math.min(FETCH_TIMEOUT, remaining(deadline) - SITEMAP_RESERVE));
@@ -1140,7 +1176,22 @@ async function discover(site) {
   out.pages = [...pages];
   out.sitemapQueue = [...new Set(sitemapQueue)];
 
-  // 3. llms.txt
+  // 3. Validation Google Search Console par enregistrement DNS TXT (méthode
+  // « domaine »). Les validations par balise sont lues page par page ; celles
+  // par fichier HTML ou via Analytics ne sont pas observables de l'extérieur.
+  try {
+    const txt = await dnsTxtPromise;
+    if (txt) {
+      const records = txt.filter(r => r.status === "fulfilled").flatMap(r => r.value.map(parts => parts.join("")));
+      out.dns = {
+        checked: txt.some(r => r.status === "fulfilled") || txt.every(r => /ENODATA|ENOTFOUND/.test(r.reason?.code || "")),
+        googleSiteVerification: records.some(r => /^google-site-verification=/i.test(r)),
+        bingSiteVerification: records.some(r => /^ms=ms\d+/i.test(r)),
+      };
+    } else out.dns = { checked: false };
+  } catch { out.dns = { checked: false }; }
+
+  // 4. llms.txt
   const isReal = lm.ok && lm.status === 200 && !/<html|<!doctype/i.test(lm.body.slice(0, 300)) && lm.body.trim().length > 40;
   out.llms = { exists: isReal };
   if (isReal) {
