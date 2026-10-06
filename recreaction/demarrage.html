@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Écran de démarrage · Récréaction</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=Barlow:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#FFFFFF}a:hover{color:#FF5B1A}
+</style>
+<link rel="stylesheet" href="prototype.css">
+<script src="runtime.js" defer></script>
+</head>
+<body>
+<a class="proto-home" href="index.html">Tous les écrans</a>
+<div id="dc-root"></div>
+<template id="dc-template">
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #14201B; color: #FFFFFF; font-family: 'Barlow', sans-serif; display: flex; flex-direction: column; align-items: center; padding: 0 24px 40px; overflow: hidden">
+
+<div style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px">
+<span aria-hidden="true" style="width: 96px; height: 96px; border-radius: 24px; background: #FF5B1A; color: #14201B; display: flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', sans-serif; font-size: 64px; font-weight: 700">R</span>
+<h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-size: 48px; font-weight: 700; line-height: 1">Récréaction</h1>
+<p style="margin: 0; font-size: 16px; color: #C9D2CC">Vis l’événement à fond.</p>
+</div>
+
+<div style="display: flex; flex-direction: column; align-items: center; gap: 10px">
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 0.14em; color: #C9D2CC">PARTENAIRE OFFICIEL</span>
+<div style="display: flex; align-items: center; gap: 12px; background: #FFFFFF; color: #14201B; border-radius: 16px; padding: 12px 18px">
+<span aria-hidden="true" style="width: 40px; height: 40px; border-radius: 10px; background: #1F5F6B; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', sans-serif; font-size: 18px; font-weight: 700">MS</span>
+<span style="display: flex; flex-direction: column; line-height: 1.2">
+<strong style="font-size: 17px">Mutuelle Sentiers</strong>
+<span style="font-size: 12px; color: #4A5650">Assurances</span>
+</span>
+</div>
+<a href="accueil.html" style="margin-top: 14px; min-height: 44px; display: inline-flex; align-items: center; font-size: 14px; font-weight: 700">Continuer</a>
+</div>
+
+</div>
+</template>
+<script type="text/x-dc" id="dc-logic">
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

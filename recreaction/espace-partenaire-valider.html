@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Valider un coupon · Récréaction</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&amp;family=Barlow:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#14201B}a:hover{color:#000000}
+</style>
+<link rel="stylesheet" href="prototype.css">
+<script src="runtime.js" defer></script>
+</head>
+<body>
+<a class="proto-home" href="index.html">Tous les écrans</a>
+<div id="dc-root"></div>
+<template id="dc-template">
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #EEF0EA; color: #14201B; font-family: 'Barlow', sans-serif; display: flex; flex-direction: column; overflow: hidden">
+
+<header style="flex: none; display: flex; align-items: center; gap: 6px; padding: 20px 12px 4px">
+<a href="espace-partenaire.html" aria-label="Retour à l’espace partenaire" style="width: 44px; height: 44px; flex: none; border-radius: 999px; color: #14201B; display: flex; align-items: center; justify-content: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg></a>
+<div style="flex-grow: 1">
+<h1 style="margin: 0; font-size: 20px; font-weight: 700">Valider un coupon</h1>
+<div style="font-size: 13px; color: #4A5650">Café du Village · -20 % sur le brunch</div>
+</div>
+</header>
+
+<main style="flex: 1; min-height: 0; overflow: hidden; padding: 6px 16px 12px; display: flex; flex-direction: column; gap: 12px">
+
+<sc-if value="{{scanning}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; flex-direction: column; gap: 12px">
+<div style="position: relative; height: 330px; border-radius: 22px; background: #14201B; overflow: hidden; display: flex; align-items: center; justify-content: center">
+<span aria-hidden="true" style="position: absolute; left: 50%; top: 50%; width: 180px; height: 180px; margin: -90px 0 0 -90px; border-radius: 12px; background: #22332C"></span>
+<span aria-hidden="true" style="position: absolute; left: 70px; top: 55px; width: 36px; height: 36px; border-top: 4px solid #FF5B1A; border-left: 4px solid #FF5B1A; border-top-left-radius: 10px"></span>
+<span aria-hidden="true" style="position: absolute; right: 70px; top: 55px; width: 36px; height: 36px; border-top: 4px solid #FF5B1A; border-right: 4px solid #FF5B1A; border-top-right-radius: 10px"></span>
+<span aria-hidden="true" style="position: absolute; left: 70px; bottom: 55px; width: 36px; height: 36px; border-bottom: 4px solid #FF5B1A; border-left: 4px solid #FF5B1A; border-bottom-left-radius: 10px"></span>
+<span aria-hidden="true" style="position: absolute; right: 70px; bottom: 55px; width: 36px; height: 36px; border-bottom: 4px solid #FF5B1A; border-right: 4px solid #FF5B1A; border-bottom-right-radius: 10px"></span>
+<span style="position: absolute; left: 0; right: 0; bottom: 18px; text-align: center; font-size: 14px; color: #C9D2CC">Place le code du dossard dans le cadre</span>
+</div>
+<button type="button" onClick="{{scan}}" style="height: 54px; border: 0; border-radius: 14px; background: #FF5B1A; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 17px; font-weight: 700; cursor: pointer">Scanner</button>
+<button type="button" style="height: 48px; border: 2px solid #14201B; border-radius: 14px; background: transparent; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer">Entrer le numéro de dossard</button>
+</div>
+</sc-if>
+
+<sc-if value="{{found}}" hint-placeholder-val="{{false}}">
+<section role="status" style="background: #FFFFFF; border: 3px solid #2E7D4F; border-radius: 22px; padding: 18px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: center; gap: 10px">
+<span aria-hidden="true" style="width: 36px; height: 36px; flex: none; border-radius: 999px; background: #2E7D4F; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"></path></svg></span>
+<strong style="font-size: 20px">{{title}}</strong>
+</div>
+<div style="display: flex; align-items: center; gap: 14px">
+<span style="font-family: 'Barlow Condensed', sans-serif; font-size: 44px; font-weight: 700; line-height: 1; background: #14201B; color: #FF5B1A; border-radius: 12px; padding: 4px 12px">1247</span>
+<span style="display: flex; flex-direction: column">
+<strong style="font-size: 18px">Julie G.</strong>
+<span style="font-size: 13px; color: #4A5650">Trail des Crêtes · 25 km</span>
+</span>
+</div>
+<div style="background: #EEF0EA; border-radius: 12px; padding: 10px 12px; font-size: 14px; line-height: 1.4">
+<strong>-20 % sur le brunch</strong><br>{{usage}}
+</div>
+<sc-if value="{{notConfirmed}}" hint-placeholder-val="{{true}}">
+<button type="button" onClick="{{confirm}}" style="height: 54px; border: 0; border-radius: 14px; background: #FF5B1A; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 17px; font-weight: 700; cursor: pointer">Confirmer l’utilisation</button>
+</sc-if>
+<sc-if value="{{confirmed}}" hint-placeholder-val="{{false}}">
+<button type="button" onClick="{{reset}}" style="height: 48px; border: 2px solid #14201B; border-radius: 14px; background: transparent; color: #14201B; font-family: 'Barlow', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer">Valider un autre coupon</button>
+</sc-if>
+</section>
+</sc-if>
+
+<div style="display: flex; gap: 8px; align-items: flex-start; font-size: 12px; line-height: 1.4; color: #4A5650"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>Tu vois seulement le prénom, l’initiale du nom et le numéro de dossard. Jamais le courriel ni le téléphone.</div>
+
+</main>
+
+<nav aria-label="Navigation partenaire" style="flex: none; height: 80px; box-sizing: border-box; padding: 6px 6px 20px; background: #FFFFFF; border-top: 1px solid #D9DDD5; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr))">
+<a href="espace-partenaire.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-decoration: none; color: #5C6862; font-size: 11px; font-weight: 600"><span style="display: flex; align-items: center; justify-content: center; width: 52px; height: 28px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"></path><path d="M5 10v10h14V10"></path></svg></span><span>Accueil</span></a>
+<a href="espace-partenaire-valider.html" aria-current="page" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-decoration: none; color: #14201B; font-size: 11px; font-weight: 700"><span style="display: flex; align-items: center; justify-content: center; width: 52px; height: 28px; border-radius: 999px; background: #FF5B1A"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"></path><path d="M7 12h10"></path></svg></span><span>Valider</span></a>
+<a href="espace-partenaire-offre.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-decoration: none; color: #5C6862; font-size: 11px; font-weight: 600"><span style="display: flex; align-items: center; justify-content: center; width: 52px; height: 28px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12V4h8l10 10-8 8z"></path><circle cx="7.5" cy="8.5" r="1.5"></circle></svg></span><span>Mon offre</span></a>
+</nav>
+
+</div>
+</template>
+<script type="text/x-dc" id="dc-logic">
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const step = st.step || 'scan';
+    return {
+      scanning: step === 'scan',
+      found: step !== 'scan',
+      confirmed: step === 'done',
+      notConfirmed: step !== 'done',
+      title: step === 'done' ? 'Coupon utilisé' : 'Coupon valide',
+      usage: step === 'done' ? 'Utilisé à 10 h 42. Bon brunch!' : 'Une utilisation par participant · pas encore utilisé',
+      scan: () => this.setState({ step: 'found' }),
+      confirm: () => this.setState({ step: 'done' }),
+      reset: () => this.setState({ step: 'scan' })
+    };
+  }
+}
+</script>
+</body>
+</html>
