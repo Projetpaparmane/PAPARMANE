@@ -31,7 +31,7 @@ a{color:#14201B}a:hover{color:#000000}
 <main style="flex: 1; min-height: 0; overflow: hidden; padding: 6px 16px 12px; display: flex; flex-direction: column; gap: 12px">
 
 <div style="position: relative; height: 360px; flex: none; border-radius: 22px; overflow: hidden; background: #BFD7E6">
-<svg viewBox="0 0 358 360" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Aperçu du selfie sur le pont au km 10,5, avec des coureurs de face juste derrière : familles, enfants, femmes et hommes" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%">
+<svg viewBox="0 0 358 360" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Aperçu du selfie sur le pont au km 15,3, avec des coureurs de face juste derrière : familles, enfants, femmes et hommes" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%">
 <rect x="0" y="0" width="358" height="360" fill="#BFD7E6"></rect>
 <path d="M-30 140 L-30 126 Q -15 106 0 126 Q 15 112 30 126 Q 45 106 60 126 Q 75 112 90 126 Q 105 106 120 126 Q 135 112 150 126 Q 165 106 180 126 Q 195 112 210 126 Q 225 106 240 126 Q 255 112 270 126 Q 285 106 300 126 Q 315 112 330 126 Q 345 106 360 126 Q 375 112 390 126 L388 140 Z" fill="#7FA37A"></path>
 <rect x="0" y="138" width="358" height="222" fill="#7FA6BF"></rect>
@@ -63,7 +63,7 @@ a{color:#14201B}a:hover{color:#000000}
 <span aria-hidden="true" style="position: absolute; right: 14px; top: 14px; width: 28px; height: 28px; border-top: 3px solid #FFFFFF; border-right: 3px solid #FFFFFF; border-top-right-radius: 8px"></span>
 <span aria-hidden="true" style="position: absolute; left: 14px; bottom: 14px; width: 28px; height: 28px; border-bottom: 3px solid #FFFFFF; border-left: 3px solid #FFFFFF; border-bottom-left-radius: 8px"></span>
 <span aria-hidden="true" style="position: absolute; right: 14px; bottom: 14px; width: 28px; height: 28px; border-bottom: 3px solid #FFFFFF; border-right: 3px solid #FFFFFF; border-bottom-right-radius: 8px"></span>
-<span style="position: absolute; left: 24px; top: 24px; background: #FFFFFF; color: #14201B; font-size: 12px; font-weight: 700; border-radius: 999px; padding: 4px 10px">Sur le pont · km 10,5</span>
+<span style="position: absolute; left: 24px; top: 24px; background: #FFFFFF; color: #14201B; font-size: 12px; font-weight: 700; border-radius: 999px; padding: 4px 10px">Sur le pont · km 15,3</span>
 <button type="button" aria-label="Reprendre la photo" style="position: absolute; right: 24px; top: 18px; width: 44px; height: 44px; border: 0; border-radius: 999px; background: #14201B; color: #FFFFFF; display: flex; align-items: center; justify-content: center; cursor: pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"></path><path d="M20 4v7h-7"></path></svg></button>
 </div>
 
@@ -108,7 +108,7 @@ class Component extends DCLogic {
     const st = this.state || {};
     const sent = st.sent === true;
     const onTv = st.onTv !== false;
-    const caption = st.caption === undefined ? 'Mi-parcours! Plus que 10 km' : st.caption;
+    const caption = st.caption === undefined ? 'Le pont! Plus que 6 km' : st.caption;
     return {
       caption: caption,
       setCaption: (e) => this.setState({ caption: e.target.value.slice(0, 60) }),
