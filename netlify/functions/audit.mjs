@@ -1236,7 +1236,82 @@ function marketName(code) {
   return code ? String(code) : "Portée DataForSEO";
 }
 
+// Un même marché peut couvrir plusieurs langues (Canada : français ET anglais).
+// Semrush et Ahrefs comptent toutes les langues d'un pays ensemble ; DataForSEO
+// sépare chaque langue. Interroger le français seul faisait disparaître les
+// recherches en anglais, souvent la majorité (nom de marque en anglais, pages
+// /en) : 2 visites estimées là où Semrush en voyait plus de 100.
+const parseLanguages = value => [...new Set(String(value || "fr").split(/[,\s]+/).map(l => l.trim().toLowerCase()).filter(l => /^[a-z]{2}$/.test(l)))].slice(0, 3);
+
+// Appelle le même point d'accès pour chaque langue et fusionne les résultats
+// bruts. Une langue en erreur n'efface pas les autres ; si toutes échouent,
+// la première erreur remonte comme avant.
+async function perLanguage(languages, path, bodyFor, authorization, merge, timeoutMs) {
+  const settled = await Promise.allSettled(languages.map(language => dataForSeoPost(path, bodyFor(language), authorization, timeoutMs)));
+  const ok = settled.filter(s => s.status === "fulfilled").map(s => s.value);
+  const covered = languages.filter((_, i) => settled[i].status === "fulfilled");
+  const cost = settled.reduce((sum, s) => sum + Number((s.status === "fulfilled" ? s.value.providerCostUsd : s.reason?.providerCostUsd) || 0), 0);
+  if (!ok.length) { const error = settled[0].reason; if (error) error.providerCostUsd = cost; throw error; }
+  const results = ok.map(v => v.result).filter(Boolean);
+  return { result: results.length ? (results.length === 1 ? results[0] : merge(results)) : null, providerCostUsd: cost, languages: covered };
+}
+
+const num = v => Number(v) || 0;
+function sumMetrics(list) {
+  const out = {};
+  for (const m of list) for (const [k, v] of Object.entries(m || {})) if (typeof v === "number") out[k] = (out[k] || 0) + v;
+  return out;
+}
+const mergeTraffic = results => {
+  const items = results.map(r => r.items?.[0] || r);
+  return { items: [{ metrics: {
+    organic: sumMetrics(items.map(i => i.metrics?.organic || i.organic)),
+    paid: sumMetrics(items.map(i => i.metrics?.paid || i.paid)),
+  } }] };
+};
+const mergeRanked = results => {
+  const byKeyword = new Map();
+  for (const r of results) for (const item of r.items || []) {
+    const key = (item.keyword_data?.keyword || item.keyword || "").toLowerCase();
+    const prev = byKeyword.get(key);
+    if (!prev || num(item.ranked_serp_element?.serp_item?.etv) > num(prev.ranked_serp_element?.serp_item?.etv)) byKeyword.set(key, item);
+  }
+  const items = [...byKeyword.values()].sort((a, b) => num(b.keyword_data?.keyword_info?.search_volume) - num(a.keyword_data?.keyword_info?.search_volume));
+  return { total_count: results.reduce((s, r) => s + num(r.total_count), 0), items };
+};
+const mergeCompetitors = results => {
+  const byDomain = new Map();
+  for (const r of results) for (const item of r.items || []) {
+    const prev = byDomain.get(item.domain);
+    if (!prev) { byDomain.set(item.domain, JSON.parse(JSON.stringify(item))); continue; }
+    // Les chevauchements et le trafic partagé s'additionnent d'une langue à
+    // l'autre ; la taille totale du concurrent aussi, chaque langue étant un
+    // sous-ensemble distinct de ses mots-clés au Canada.
+    const total = num(prev.intersections) + num(item.intersections);
+    if (prev.avg_position != null && item.avg_position != null && total) prev.avg_position = (num(prev.avg_position) * num(prev.intersections) + num(item.avg_position) * num(item.intersections)) / total;
+    prev.intersections = total;
+    for (const block of ["metrics", "competitor_metrics", "full_domain_metrics"]) {
+      prev[block] ??= {};
+      for (const kind of ["organic", "paid"]) prev[block][kind] = sumMetrics([prev[block]?.[kind], item[block]?.[kind]]);
+    }
+  }
+  const items = [...byDomain.values()].sort((a, b) => num(b.intersections) - num(a.intersections));
+  return { total_count: Math.max(...results.map(r => num(r.total_count))), items };
+};
+const mergePages = results => {
+  const byPage = new Map();
+  for (const r of results) for (const item of r.items || []) {
+    const prev = byPage.get(item.page_address);
+    if (!prev) { byPage.set(item.page_address, JSON.parse(JSON.stringify(item))); continue; }
+    prev.metrics ??= {};
+    prev.metrics.organic = sumMetrics([prev.metrics.organic, item.metrics?.organic]);
+  }
+  const items = [...byPage.values()].sort((a, b) => num(b.metrics?.organic?.etv) - num(a.metrics?.organic?.etv));
+  return { total_count: results.reduce((s, r) => s + num(r.total_count), 0), items };
+};
+
 async function externalIntelligence(site, location = "Canada", language = "fr") {
+  const languages = parseLanguages(language);
   const login = process.env.DATAFORSEO_LOGIN;
   const password = process.env.DATAFORSEO_PASSWORD;
   if (!login || !password) return {
@@ -1250,17 +1325,17 @@ async function externalIntelligence(site, location = "Canada", language = "fr") 
   const authorization = "Basic " + btoa(`${login}:${password}`);
 
   const requests = await Promise.allSettled([
-    dataForSeoPost("/v3/dataforseo_labs/google/bulk_traffic_estimation/live", {
-      targets: [target], location_name: location, language_code: language,
+    perLanguage(languages, "/v3/dataforseo_labs/google/bulk_traffic_estimation/live", lang => ({
+      targets: [target], location_name: location, language_code: lang,
       item_types: ["organic", "paid", "featured_snippet", "local_pack"],
-    }, authorization),
-    dataForSeoPost("/v3/dataforseo_labs/google/ranked_keywords/live", {
-      target, location_name: location, language_code: language,
+    }), authorization, mergeTraffic),
+    perLanguage(languages, "/v3/dataforseo_labs/google/ranked_keywords/live", lang => ({
+      target, location_name: location, language_code: lang,
       item_types: ["organic", "featured_snippet", "local_pack"],
       ignore_synonyms: true,
       limit: 20,
       order_by: ["keyword_data.keyword_info.search_volume,desc"],
-    }, authorization),
+    }), authorization, mergeRanked),
     dataForSeoPost("/v3/backlinks/summary/live", {
       target,
       include_subdomains: true,
@@ -1283,25 +1358,25 @@ async function externalIntelligence(site, location = "Canada", language = "fr") 
       }],
       limit: 20,
     }, authorization),
-    dataForSeoPost("/v3/dataforseo_labs/google/competitors_domain/live", {
+    perLanguage(languages, "/v3/dataforseo_labs/google/competitors_domain/live", lang => ({
       target,
       location_name: location,
-      language_code: language,
+      language_code: lang,
       item_types: ["organic", "paid"],
       exclude_top_domains: true,
       ignore_synonyms: true,
       limit: 10,
-    }, authorization),
-    dataForSeoPost("/v3/dataforseo_labs/google/relevant_pages/live", {
+    }), authorization, mergeCompetitors),
+    perLanguage(languages, "/v3/dataforseo_labs/google/relevant_pages/live", lang => ({
       target,
       location_name: location,
-      language_code: language,
+      language_code: lang,
       item_types: ["organic", "featured_snippet", "local_pack"],
       historical_serp_mode: "live",
       ignore_synonyms: true,
       limit: 10,
       order_by: ["metrics.organic.etv,desc"],
-    }, authorization),
+    }), authorization, mergePages),
   ]);
 
   const [trafficRequest, keywordRequest, backlinkRequest, aiRequest, competitorRequest, topPagesRequest] = requests;
@@ -1312,6 +1387,9 @@ async function externalIntelligence(site, location = "Canada", language = "fr") 
   let competitors = competitorRequest.status === "fulfilled" ? competitorRequest.value : unavailableProviderResult(competitorRequest.reason);
   let topPages = topPagesRequest.status === "fulfilled" ? topPagesRequest.value : unavailableProviderResult(topPagesRequest.reason);
 
+  // Langues réellement mesurées : si l'anglais échoue, le rapport ne doit pas
+  // prétendre l'avoir compté.
+  const coveredLanguages = trafficRequest.status === "fulfilled" ? trafficRequest.value.languages || languages : languages;
   if (traffic.result) {
     const item = traffic.result.items?.[0] || traffic.result;
     const organic = item.metrics?.organic || item.organic || {};
@@ -1347,7 +1425,7 @@ async function externalIntelligence(site, location = "Canada", language = "fr") 
           url: serp.url || serp.relative_url || "",
           estimatedVisits: Math.round(serp.etv ?? 0),
         };
-      }).filter(item => item.keyword),
+      }).filter(item => item.keyword).slice(0, 20),
       providerCostUsd: strategicKeywords.providerCostUsd,
     };
   } else if (strategicKeywords.available !== false) {
@@ -1484,7 +1562,8 @@ async function externalIntelligence(site, location = "Canada", language = "fr") 
     source: "DataForSEO",
     target,
     location,
-    language,
+    language: coveredLanguages.join(","),
+    languages: coveredLanguages,
     organic: traffic.organic ?? 0,
     paid: traffic.paid ?? 0,
     organicKeywords: traffic.organicKeywords ?? null,
@@ -1534,20 +1613,24 @@ async function keywordGapIntelligence(site, competitor, location = "Canada", lan
     error: "Le concurrent doit être différent du site analysé.",
   };
   const authorization = "Basic " + btoa(`${login}:${password}`);
+  const languages = parseLanguages(language);
   let response;
   try {
     // target1 = concurrent, target2 = client, intersections=false : mots-clés
-    // où le concurrent est présent et le client absent.
-    response = await dataForSeoPost("/v3/dataforseo_labs/google/domain_intersection/live", {
+    // où le concurrent est présent et le client absent. Une requête par langue.
+    response = await perLanguage(languages, "/v3/dataforseo_labs/google/domain_intersection/live", lang => ({
       target1: competitorDomain,
       target2: target,
       location_name: location,
-      language_code: language,
+      language_code: lang,
       intersections: false,
       item_types: ["organic", "featured_snippet", "local_pack"],
       limit: 25,
       order_by: ["keyword_data.keyword_info.search_volume,desc"],
-    }, authorization, 12000);
+    }), authorization, results => ({
+      total_count: results.reduce((sum, r) => sum + num(r.total_count), 0),
+      items: results.flatMap(r => r.items || []).sort((a, b) => num(b.keyword_data?.keyword_info?.search_volume) - num(a.keyword_data?.keyword_info?.search_volume)).slice(0, 25),
+    }), 12000);
   } catch (error) {
     return { configured: true, target, competitor: competitorDomain, ...unavailableProviderResult(error) };
   }
@@ -1560,7 +1643,7 @@ async function keywordGapIntelligence(site, competitor, location = "Canada", lan
     target,
     competitor: competitorDomain,
     location,
-    language,
+    language: languages.join(","),
     totalCount: result?.total_count ?? items.length,
     items: items.map(entry => {
       const keyword = entry.keyword_data || {};
