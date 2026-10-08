@@ -174,6 +174,7 @@
   .rpane>.sec-h:first-child{margin-top:4px}
   .pane-next{display:flex;justify-content:flex-end;margin-top:26px}
   .sec-h{scroll-margin-top:64px}
+  .ps-opps{margin:0 0 14px 18px;font-size:14px;color:var(--ink-soft)} .ps-opps li{margin:4px 0}
   details.tbl-toggle>summary{cursor:pointer;display:inline-block;margin:6px 0 10px;font-size:13.5px;font-weight:650;color:var(--accent);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:7px 14px;list-style:none}
   details.tbl-toggle>summary::-webkit-details-marker{display:none}
   details.tbl-toggle[open]>summary{display:none}
@@ -443,6 +444,60 @@ const isUnverifiableStatus = s => !s||s===401||s===403||s===429||s===503;
 // un pare-feu, une page anti-robot, un délai ou une erreur serveur ne prouvent
 // rien et donnent « non vérifiable », sans retirer de point.
 const SITEMAP_ABSENT = new Set(["missing","not-xml","invalid","unreachable","redirect-loop"]);
+// Attente bornée d'un module facultatif : un service lent ne bloque jamais le rapport.
+const withTimeout=(promise,ms,fallback)=>Promise.race([promise,new Promise(r=>setTimeout(()=>r(fallback),ms))]);
+// Core Web Vitals : seuils Google (bon / à améliorer / lent), formats et libellés.
+const fmtSec=ms=>ms==null?"—":(ms/1000).toFixed(ms>=10000?0:1).replace(".",",")+" s";
+const fmtMs=ms=>ms==null?"—":Math.round(ms).toLocaleString("fr-CA")+" ms";
+const fmtCls=v=>v==null?"—":Number(v).toFixed(Number(v)<0.01?3:2).replace(".",",");
+const CWV={lcp:[2500,4000,fmtSec,"LCP — affichage du contenu principal"],inp:[200,500,fmtMs,"INP — réactivité aux clics"],cls:[0.1,0.25,fmtCls,"CLS — stabilité visuelle"],tbt:[200,600,fmtMs,"TBT — blocage du fil principal"],fcp:[1800,3000,fmtSec,"FCP — premier affichage"],ttfb:[800,1800,fmtMs,"TTFB — réponse du serveur"]};
+const cwvRating=(k,v)=>v==null?null:v<=CWV[k][0]?"good":v<=CWV[k][1]?"ni":"poor";
+const ratingLabel=r=>({good:"bon",ni:"à améliorer",poor:"lent",FAST:"bon",AVERAGE:"à améliorer",SLOW:"lent"})[r]||"—";
+const ratingTag=r=>r==null?"—":`<span class="tag ${r==="good"||r==="FAST"?"ok":r==="poor"||r==="SLOW"?"no":"mid"}">${ratingLabel(r)}</span>`;
+// Google PageSpeed, appelé depuis le navigateur : la mesure dure 10 à 40 s, trop
+// long pour une fonction Netlify. La clé (facultative) est restreinte au site.
+function summarizePageSpeed(d,url,strategy){
+  const lr=d.lighthouseResult||{}, cat=lr.categories||{}, a=lr.audits||{};
+  const score=k=>cat[k]?.score==null?null:Math.round(cat[k].score*100);
+  const num=k=>a[k]?.numericValue==null?null:a[k].numericValue;
+  const field=m=>({lcp:m.LARGEST_CONTENTFUL_PAINT_MS?.percentile??null,inp:m.INTERACTION_TO_NEXT_PAINT?.percentile??null,cls:m.CUMULATIVE_LAYOUT_SHIFT_SCORE?.percentile==null?null:m.CUMULATIVE_LAYOUT_SHIFT_SCORE.percentile/100,fcp:m.FIRST_CONTENTFUL_PAINT_MS?.percentile??null,ttfb:m.EXPERIMENTAL_TIME_TO_FIRST_BYTE?.percentile??null});
+  const opportunities=Object.values(a).filter(x=>x&&x.details?.type==="opportunity"&&x.score!=null&&x.score<0.9).map(x=>({id:x.id,title:String(x.title||""),savingsMs:Math.round(x.details.overallSavingsMs||0),savingsBytes:Number(x.details.overallSavingsBytes||0)})).filter(o=>o.title&&(o.savingsMs>=100||o.savingsBytes>=50000)).sort((p,q)=>q.savingsMs-p.savingsMs).slice(0,6);
+  return {url,strategy,available:true,fetchedAt:d.analysisUTCTimestamp||"",lighthouseVersion:lr.lighthouseVersion||"",
+    scores:{performance:score("performance"),accessibility:score("accessibility"),bestPractices:score("best-practices"),seo:score("seo")},
+    lab:{lcp:num("largest-contentful-paint"),cls:num("cumulative-layout-shift"),tbt:num("total-blocking-time"),fcp:num("first-contentful-paint"),si:num("speed-index"),ttfb:num("server-response-time")},
+    field:d.loadingExperience?.metrics&&Object.keys(d.loadingExperience.metrics).length?{...field(d.loadingExperience.metrics),overall:d.loadingExperience.overall_category||null}:null,
+    originField:d.originLoadingExperience?.metrics&&Object.keys(d.originLoadingExperience.metrics).length?{...field(d.originLoadingExperience.metrics),overall:d.originLoadingExperience.overall_category||null}:null,
+    opportunities};
+}
+async function fetchPageSpeed(url,strategy,key){
+  const q=new URLSearchParams({url,strategy,locale:"fr"});
+  for(const c of ["performance","accessibility","best-practices","seo"]) q.append("category",c);
+  if(key) q.set("key",key);
+  const ctrl=new AbortController(); const timer=setTimeout(()=>ctrl.abort(),75000);
+  try{
+    const r=await fetch("https://www.googleapis.com/pagespeedonline/v5/runPagespeed?"+q,{signal:ctrl.signal});
+    const data=await r.json().catch(()=>({}));
+    if(!r.ok) return {url,strategy,available:false,status:r.status,error:data.error?.message||("Erreur "+r.status)};
+    return summarizePageSpeed(data,url,strategy);
+  }catch(e){ return {url,strategy,available:false,error:e.name==="AbortError"?"délai dépassé (75 s)":e.message}; }
+  finally{ clearTimeout(timer); }
+}
+// GTmetrix (facultatif) : lancement puis interrogation toutes les 10 s, 3 min au plus.
+async function runGtmetrix(url){
+  try{
+    const started=await api({mode:"gtmetrix",action:"start",url});
+    if(!started.id) return {configured:!!started.configured,available:false,reason:started.reason||"gtmetrix_error",error:started.error};
+    const deadline=Date.now()+170000;
+    while(Date.now()<deadline){
+      await new Promise(r=>setTimeout(r,8000));
+      let st; try{ st=await api({mode:"gtmetrix",action:"status",id:started.id}); }catch{ continue; }
+      if(st.available) return st;
+      if(st.available===false&&(st.reason||st.state==="error")) return st;
+    }
+    return {configured:true,available:false,reason:"gtmetrix_timeout",id:started.id};
+  }catch(e){ return {configured:true,available:false,reason:e.code||"request_error",error:e.message}; }
+}
+
 function applySitemapVerdict(disc){
   delete disc.sitemapBlocked; delete disc.sitemapBlockedKind; delete disc.sitemapUnverifiable;
   if(disc.sitemapFound) return;
@@ -614,6 +669,18 @@ async function runAudit(){
     log("Découverte du site (robots.txt, sitemap, llms.txt)…");
     const disc = await api({mode:"discover", site:raw});
     const origin = disc.origin;
+    // Modules facultatifs : la configuration du serveur dit lesquels sont prêts.
+    // Tout part maintenant et se termine pendant le crawl.
+    const config=await api({mode:"config"}).catch(()=>({}));
+    disc.config=config;
+    const psiKey=config.pagespeedKey||"";
+    log("Mesure de vitesse Google PageSpeed lancée (accueil, mobile et ordinateur)…");
+    const psiRuns=[fetchPageSpeed(origin+"/","mobile",psiKey),fetchPageSpeed(origin+"/","desktop",psiKey)];
+    const gscPromise=config.searchConsole?.configured
+      ?api({mode:"gsc",site:origin}).catch(e=>({configured:true,available:false,reason:e.code||"request_error",error:e.message}))
+      :Promise.resolve({configured:false,available:false,reason:"gsc_not_configured"});
+    const gtmetrixPromise=config.gtmetrix?runGtmetrix(origin+"/"):Promise.resolve({configured:false,available:false,reason:"gtmetrix_not_configured"});
+    const remoteHistoryPromise=config.history?api({mode:"history",site:origin}).catch(()=>null):Promise.resolve(null);
     const trafficCacheKey="pap_intelligence_v5_"+new URL(origin).hostname+"_canada_fr-en";
     let cachedTraffic=null;
     try{const saved=JSON.parse(localStorage.getItem(trafficCacheKey)||"null");if(saved&&Date.now()-saved.cachedAt<604800000)cachedTraffic=saved.data;}catch{}
@@ -697,6 +764,8 @@ async function runAudit(){
     const NON_PAGE=/\.(?:jpe?g|png|webp|avif|gif|svg|ico|bmp|tiff?|heic|pdf|zip|css|js|json|xml|txt|csv|mp4|mov|webm|mp3|woff2?|docx?|xlsx?|pptx?)$/i;
     const isPage=u=>{try{return !NON_PAGE.test(new URL(u).pathname);}catch{return false;}};
     disc.pages=disc.pages.filter(isPage);
+    // Deux pages de plus que l'accueil, en mobile : la vitesse varie d'un modèle de page à l'autre.
+    for(const u of disc.pages.filter(u=>u.replace(/\/$/,"")!==origin.replace(/\/$/,"")).slice(0,2)) psiRuns.push(fetchPageSpeed(u,"mobile",psiKey));
     let skippedFiles=0;
     const queue=[...disc.pages]; const seen=new Set(queue); const pages=[];
     // Sitemap présent mais vide (ou limité à l'accueil) : on explore aussi les liens.
@@ -749,7 +818,7 @@ async function runAudit(){
     // URL. Dans ce cas, continuer créerait un faux audit très convaincant.
     pages.sort((a,b)=>(a.url||"").localeCompare(b.url||""));
     const auditBarrier=detectAuditBarrier(pages);
-    let linkResults=[];
+    let linkResults=[], externalLinkResults=[];
     if(auditBarrier){
       log("⚠ Audit interrompu : "+auditBarrier.reason+" ("+auditBarrier.count+"/"+auditBarrier.total+" pages).", "warnl");
       setBar(90);
@@ -762,6 +831,18 @@ async function runAudit(){
         const {results} = await api({mode:"verify"},{urls:linkTargets.slice(i,i+15)});
         linkResults.push(...results);
         setBar(70+20*Math.min(1,(i+15)/Math.max(1,linkTargets.length)));
+      }
+      // Liens vers d'autres sites : un lien mort vers un partenaire ou une source
+      // nuit à la crédibilité. Au plus 60, avec les pages qui les portent.
+      const externalMap=new Map();
+      for(const p of pages) for(const l of p.externalLinks||[]){ if(!externalMap.has(l)) externalMap.set(l,[]); if(externalMap.get(l).length<3&&!externalMap.get(l).includes(p.url)) externalMap.get(l).push(p.url); }
+      const externalTargets=[...externalMap.keys()].sort((a,b)=>a.localeCompare(b)).slice(0,60);
+      if(externalTargets.length){
+        log("Vérification de "+plur(externalTargets.length,"lien vers un autre site","liens vers d'autres sites")+"…");
+        for(let i=0;i<externalTargets.length;i+=15){
+          try{ const {results}=await api({mode:"verify"},{urls:externalTargets.slice(i,i+15)}); externalLinkResults.push(...results.map(r=>({...r,pages:externalMap.get(r.url)||[]}))); }
+          catch(e){ log("⚠ Vérification des liens externes interrompue : "+e.message, "warnl"); break; }
+        }
       }
     }
 
@@ -780,12 +861,29 @@ async function runAudit(){
     }else{
       log("Chargement des mots-clés, backlinks, mentions IA et estimations de trafic…");
       disc.traffic=await trafficPromise;
+      log("Attente des mesures Google PageSpeed"+(config.gtmetrix?", GTmetrix":"")+(config.searchConsole?.configured?" et Search Console":"")+"…");
+      const psiResults=await Promise.all(psiRuns.map(p=>withTimeout(p,80000,{available:false,error:"délai dépassé"})));
+      disc.pagespeed={configured:true,keyed:!!psiKey,results:psiResults.map((r,i)=>r.url?r:{...r,url:i<2?origin+"/":"",strategy:i===1?"desktop":"mobile"})};
+      const psiOk=disc.pagespeed.results.filter(r=>r.available).length;
+      log((psiOk?"✓ ":"⚠ ")+"PageSpeed : "+psiOk+"/"+disc.pagespeed.results.length+" mesure(s) obtenue(s)", psiOk?"okl":"warnl");
+      disc.searchConsole=await withTimeout(gscPromise,15000,{configured:!!config.searchConsole?.configured,available:false,reason:"gsc_timeout"});
+      if(disc.searchConsole.available) log("✓ Search Console : "+disc.searchConsole.totals.clicks.toLocaleString("fr-CA")+" clics réels sur 90 jours", "okl");
+      else if(disc.searchConsole.configured) log("ℹ Search Console : "+(disc.searchConsole.reason==="gsc_no_access"?"accès non accordé par le client":(disc.searchConsole.error||disc.searchConsole.reason)), "warnl");
+      // Un test GTmetrix dure 30 à 90 s : on l'attend jusqu'à 45 s après le crawl, pas plus.
+      disc.gtmetrix=await withTimeout(gtmetrixPromise,45000,{configured:!!config.gtmetrix,available:false,reason:"gtmetrix_timeout",error:"test encore en cours après 45 s, résultat non attendu"});
+      if(config.gtmetrix) log((disc.gtmetrix.available?"✓ GTmetrix : note "+disc.gtmetrix.grade:"⚠ GTmetrix : "+(disc.gtmetrix.error||disc.gtmetrix.reason)), disc.gtmetrix.available?"okl":"warnl");
     }
     log("Compilation du rapport…");
 
-    const model = buildModel(origin, disc, pages, linkResults, llmsLinkResults, {clientName,contactName,targetKeywords,auditBarrier});
+    const model = buildModel(origin, disc, pages, linkResults, llmsLinkResults, {clientName,contactName,targetKeywords,auditBarrier,externalLinkResults});
     let history=[];
     try{ history=JSON.parse(localStorage.getItem("pap_audits_"+new URL(origin).hostname)||"[]"); if(!Array.isArray(history)) history=[]; }catch{ history=[]; }
+    // Historique en ligne (Netlify), fusionné avec celui du navigateur : l'évolution
+    // survit à un changement d'ordinateur ou à un cache vidé.
+    const remote=await withTimeout(remoteHistoryPromise,8000,null);
+    const remoteList=remote&&remote.available&&Array.isArray(remote.history)?remote.history:null;
+    if(remoteList){ const seen=new Set(remoteList.map(x=>x.date)); history=[...remoteList,...history.filter(x=>!seen.has(x.date))].sort((a,b)=>String(b.date).localeCompare(String(a.date))); }
+    model.historyStorage=remoteList?"netlify":"local";
     // Comparer seulement deux audits fiables portant sur un périmètre semblable :
     // sinon un sitemap qui change passe pour un progrès (ou un recul) SEO.
     const samePerimeter=h=>Number.isFinite(h.pages)&&Math.abs(h.pages-model.pages.length)<=Math.max(2,Math.round(model.pages.length*0.2));
@@ -796,6 +894,7 @@ async function runAudit(){
     if(model.auditMeta.conclusive!==false&&model.auditMeta.confidence==="élevée"){
       const snapshot={date:new Date().toISOString(),global:model.global,scores:model.scores,counts:model.counts,pages:model.pages.length,scoreVersion:model.auditMeta.scoreVersion,confidence:model.auditMeta.confidence};
       localStorage.setItem("pap_audits_"+new URL(origin).hostname,JSON.stringify([snapshot,...history].slice(0,12)));
+      if(remoteList) api({mode:"history",site:origin},{snapshot}).catch(()=>{});
     }
     setBar(100);
     $("#progress").style.display="none";
@@ -1167,6 +1266,95 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
     body:"L'index du plan de site a été lu, mais certains fichiers qu'il référence n'ont pas pu être lus (la réponse de chacun est indiquée ci-dessous). Les pages qu'ils listent n'ont donc pas été auditées : ce point ne réduit pas le score, mais l'audit est marqué « provisoire ».",
     where:disc.sitemapUnread.slice(0,10).map(sitemapLine),
     steps:["Ouvrir ces fichiers dans le navigateur pour vérifier qu'ils répondent.","Relancer l'audit plus tard."],effort:"5 min",gain:"fiabilité de la mesure"});
+
+  // ---- Liens vers d'autres sites ----
+  const externalLinkResults=options.externalLinkResults||[];
+  const shortExternal=u=>{try{const x=new URL(u);return (x.hostname.replace(/^www\./,"")+x.pathname+x.search).replace(/\/$/,"");}catch{return String(u||"");}};
+  const externalBroken=externalLinkResults.filter(r=>r.status===404||r.status===410||(!r.status&&r.error==="unreachable"));
+  const externalUnverifiable=externalLinkResults.filter(r=>!externalBroken.includes(r)&&isUnverifiableStatus(r.status));
+  if(externalBroken.length) issues.push({sev:"warn",cat:"liens",title:plur(externalBroken.length,"lien vers un autre site est brisé","liens vers d'autres sites sont brisés"),
+    body:"Ces liens mènent à des pages qui n'existent plus, ou à des domaines qui n'existent plus. Pour le visiteur, c'est une impasse ; pour Google, le signe d'un site peu entretenu.",
+    where:externalBroken.slice(0,12).map(r=>"<code>"+esc(shortExternal(r.url))+"</code> — "+(r.status?"introuvable ("+esc(r.status)+")":"domaine inexistant")+(r.pages?.length?" · depuis "+r.pages.slice(0,2).map(u=>"<code>"+esc(sh(u))+"</code>").join(", "):"")),
+    steps:["Trouver la nouvelle adresse de la page visée, ou retirer le lien.","Si la source a disparu, la remplacer par une source équivalente."],effort:"5 min / lien",gain:"crédibilité"});
+  if(externalLinkResults.length&&!externalBroken.length) wins.push(["Liens vers d'autres sites valides",plur(externalLinkResults.length-externalUnverifiable.length,"lien externe vérifié","liens externes vérifiés")+(externalUnverifiable.length?" · "+externalUnverifiable.length+" non vérifiable(s), ces sites refusent les robots":"")+"."]);
+
+  // ---- Courriels du domaine (SPF, DKIM, DMARC) : pas du SEO, mais le même domaine ----
+  const em=disc.email;
+  const emailHost=(()=>{try{return new URL(origin).hostname.replace(/^www\./,"");}catch{return origin;}})();
+  if(em?.checked){
+    const sends=em.mx===null||em.mx>0; // MX inconnu : on suppose que le domaine envoie des courriels
+    if(em.spf.conclusive&&!em.spf.present&&sends) issues.push({sev:"warn",cat:"qualite",title:"Courriels sans protection SPF",
+      body:"Aucun enregistrement SPF ne dit quels serveurs ont le droit d'envoyer des courriels au nom du domaine. Résultat : des courriels légitimes finissent dans les indésirables, et n'importe qui peut écrire en se faisant passer pour l'entreprise. Ce point ne touche pas le référencement et ne réduit pas le score, mais il coûte des clients.",
+      where:["Enregistrement TXT <code>"+esc(emailHost)+"</code> — aucun <code>v=spf1</code>"],
+      steps:["Demander à l'hébergeur de courriel (Google Workspace, Microsoft 365, OVH…) l'enregistrement SPF à ajouter.","L'ajouter dans la zone DNS du domaine, chez le registraire.","Vérifier avec un outil gratuit comme MXToolbox."],effort:"20 min",gain:"délivrabilité des courriels"});
+    if(em.spf.present&&em.spf.all==="+") issues.push({sev:"crit",cat:"qualite",title:"SPF ouvert à tous (« +all ») : n'importe quel serveur peut envoyer au nom du domaine",
+      body:"L'enregistrement SPF se termine par <code>+all</code>, ce qui autorise tout le monde. C'est pire que pas de SPF : les filtres anti-pourriel y voient un domaine qui ne contrôle rien.",
+      where:["<code>"+esc(em.spf.record)+"</code>"],steps:["Remplacer <code>+all</code> par <code>~all</code> (ou <code>-all</code> une fois les serveurs légitimes listés)."],effort:"10 min",gain:"protection de la marque"});
+    if(em.spf.count>1) issues.push({sev:"warn",cat:"qualite",title:"Deux enregistrements SPF : les deux sont ignorés",
+      body:"La norme n'autorise qu'un seul enregistrement SPF par domaine. Quand il y en a deux, les boîtes de réception les rejettent tous les deux.",
+      where:["Enregistrement TXT <code>"+esc(emailHost)+"</code> — "+em.spf.count+" enregistrements <code>v=spf1</code>"],steps:["Fusionner les deux en un seul enregistrement (un seul <code>v=spf1</code>, tous les <code>include:</code> à la suite)."],effort:"15 min",gain:"délivrabilité des courriels"});
+    if(em.dmarc.conclusive&&!em.dmarc.present&&sends) issues.push({sev:"warn",cat:"qualite",title:"Courriels sans politique DMARC",
+      body:"DMARC dit aux boîtes de réception quoi faire d'un courriel qui se fait passer pour le domaine. Sans lui, Gmail et Outlook se méfient des envois, et l'usurpation du nom de l'entreprise reste possible. Ne réduit pas le score.",
+      where:["Enregistrement TXT <code>_dmarc."+esc(emailHost)+"</code> — absent"],
+      steps:["Commencer par <code>v=DMARC1; p=none; rua=mailto:…</code> pour observer pendant quelques semaines.","Passer ensuite à <code>p=quarantine</code>, puis <code>p=reject</code>."],effort:"15 min",gain:"délivrabilité + protection de la marque"});
+    else if(em.dmarc.present&&em.dmarc.policy==="none") issues.push({sev:"info",cat:"qualite",title:"DMARC en mode observation (p=none) : surveille sans protéger",
+      body:"L'enregistrement DMARC existe, mais sa politique « none » laisse passer les courriels usurpés. C'est l'étape normale de départ ; après quelques semaines de rapports propres, on resserre.",
+      where:["<code>"+esc(em.dmarc.record)+"</code>"],steps:["Passer à <code>p=quarantine</code>, puis <code>p=reject</code> quand les rapports ne montrent plus d'envoi légitime rejeté."],effort:"5 min",gain:"protection de la marque"});
+    if(em.spf.present&&em.dmarc.present&&!em.dkim.selectors.length&&sends) issues.push({sev:"info",cat:"qualite",title:"Signature DKIM non détectée sur les sélecteurs courants",
+      body:"DKIM signe chaque courriel pour prouver qu'il vient bien du domaine. Aucun des "+em.dkim.tested+" sélecteurs les plus répandus ne répond. <b>Ce n'est pas une preuve d'absence</b> : le client peut utiliser un autre nom de sélecteur. À confirmer avec lui.",
+      where:["Sélecteurs testés : "+esc(["google","default","selector1","selector2","k1","dkim","mail","s1"].join(", "))],steps:["Demander au client si DKIM est activé chez son hébergeur de courriel.","Sinon, l'activer (Google Workspace : Applications → Gmail → Authentifier le courriel)."],effort:"15 min",gain:"délivrabilité des courriels"});
+    if(em.spf.present&&em.spf.all!=="+"&&em.spf.count===1&&em.dmarc.present&&em.dmarc.policy&&em.dmarc.policy!=="none") wins.push(["Courriels protégés","SPF et DMARC (p="+em.dmarc.policy+") en place"+(em.dkim.selectors.length?" · DKIM détecté":"")+"."]);
+    if(em.mx===0&&!em.spf.present) wins.push(["Domaine sans courriel","aucun serveur de courriel (MX) : "+esc(emailHost)+" ne reçoit pas de courriel, SPF et DMARC ne s'appliquent pas."]);
+  }
+
+  // ---- Vitesse (Google PageSpeed), mesurée depuis le navigateur ----
+  const psiAll=disc.pagespeed?.results||[];
+  const psiHome=psiAll.find(r=>r.available&&r.strategy==="mobile"&&String(r.url).replace(/\/$/,"")===origin.replace(/\/$/,""));
+  if(psiHome){
+    const perf=psiHome.scores.performance;
+    const labLine="LCP "+fmtSec(psiHome.lab.lcp)+" · CLS "+fmtCls(psiHome.lab.cls)+" · TBT "+fmtMs(psiHome.lab.tbt)+" (laboratoire, accueil mobile)";
+    const fixes=psiHome.opportunities.slice(0,4).map(o=>esc(o.title)+(o.savingsMs>=100?" — ≈ "+esc(fmtSec(o.savingsMs))+" à gagner":""));
+    if(perf!=null&&perf<50) issues.push({sev:"warn",cat:"qualite",title:"Vitesse mobile faible : "+perf+"/100 selon Google PageSpeed",
+      body:"Google mesure l'accueil comme un téléphone moyen sur réseau mobile. Sous 50, l'expérience est lente et Google le sait : les Core Web Vitals comptent dans le classement. Mesure Lighthouse, qui varie de quelques points d'un passage à l'autre ; elle n'entre pas dans le score Paparmane.",
+      where:[esc(labLine)],steps:fixes.length?fixes:["Ouvrir le rapport PageSpeed de l'accueil pour la liste des corrections."],effort:"2-6 h",gain:"expérience + classement mobile"});
+    else if(perf!=null&&perf<90) issues.push({sev:"info",cat:"qualite",title:"Vitesse mobile à améliorer : "+perf+"/100 selon Google PageSpeed",
+      body:"Correct sans être rapide. Les corrections ci-dessous sont celles que Google juge les plus rentables. Mesure Lighthouse, variable de quelques points ; elle n'entre pas dans le score Paparmane.",
+      where:[esc(labLine)],steps:fixes.length?fixes:["Ouvrir le rapport PageSpeed de l'accueil pour la liste des corrections."],effort:"1-3 h",gain:"expérience + classement mobile"});
+    const field=psiHome.field||psiHome.originField;
+    if(field&&field.overall==="SLOW") issues.push({sev:"warn",cat:"qualite",title:"Core Web Vitals réels insuffisants (vrais visiteurs Chrome, 28 jours)",
+      body:"Ce ne sont pas des mesures de laboratoire : ce sont les visiteurs réels du site, tels que Google les voit. Un verdict « lent » pèse sur le classement mobile.",
+      where:[["lcp","inp","cls"].filter(k=>field[k]!=null).map(k=>esc(CWV[k][3].split(" — ")[0]+" "+CWV[k][2](field[k])+" ("+ratingLabel(cwvRating(k,field[k]))+")")).join(" · ")],
+      steps:fixes.length?fixes:["Corriger d'abord l'élément le plus lent à s'afficher (image d'en-tête, police, script bloquant)."],effort:"2-6 h",gain:"classement mobile"});
+    if(psiHome.scores.accessibility!=null&&psiHome.scores.accessibility<80) issues.push({sev:"info",cat:"qualite",title:"Accessibilité : "+psiHome.scores.accessibility+"/100 selon Google",
+      body:"Contrastes insuffisants, champs de formulaire sans libellé, ordre des titres… Les corrections profitent aussi au référencement et à tous les visiteurs.",
+      where:["Audit d'accessibilité Lighthouse, accueil mobile"],steps:["Consulter la section Accessibilité du rapport PageSpeed de l'accueil.","Corriger d'abord les contrastes et les libellés de formulaire."],effort:"1-3 h",gain:"accessibilité"});
+    if(perf!=null&&perf>=90) wins.push(["Site rapide sur mobile",perf+"/100 selon Google PageSpeed."]);
+    if(field&&field.overall==="FAST") wins.push(["Core Web Vitals réels au vert","vrais visiteurs Chrome, 28 derniers jours."]);
+  }
+
+  // ---- Google Search Console : vraies données quand l'accès est accordé ----
+  const gsc=disc.searchConsole;
+  if(gsc?.available){
+    const nearly=(gsc.queries||[]).filter(q=>q.position!=null&&q.position>=8&&q.position<=20&&q.impressions>=20).slice(0,8);
+    if(nearly.length) issues.push({sev:"info",cat:"keywords",title:plur(nearly.length,"recherche réelle à portée de la première page","recherches réelles à portée de la première page"),
+      body:"Données Search Console : le site apparaît déjà pour ces recherches, en bas de première page ou en deuxième page. Renforcer la page qui se classe (titre, contenu, liens internes) peut la faire monter sans créer de nouvelle page.",
+      where:nearly.map(q=>"<code>"+esc(q.query)+"</code> — position "+esc(Number(q.position).toFixed(1).replace(".",","))+" · "+esc(q.impressions)+" impressions · "+esc(q.clicks)+" clics"),
+      steps:["Repérer la page classée dans Search Console (Performances → Pages).","Mettre la recherche dans le titre et le H1 si elle y manque, enrichir le contenu, ajouter des liens internes vers cette page."],effort:"1-2 h / recherche",gain:"clics réels"});
+    const prev=gsc.previous;
+    if(prev&&prev.clicks>=20&&gsc.totals.clicks<prev.clicks*0.7) issues.push({sev:"warn",cat:"keywords",title:"Clics Google en baisse de "+Math.round(100-100*gsc.totals.clicks/prev.clicks)+" % sur 90 jours",
+      body:"Données réelles Search Console : "+gsc.totals.clicks.toLocaleString("fr-CA")+" clics sur les 90 derniers jours contre "+prev.clicks.toLocaleString("fr-CA")+" sur les 90 jours précédents. Une baisse de cette ampleur mérite une explication : saisonnalité, pages supprimées, mise à jour Google ou concurrent.",
+      where:["Période "+esc(gsc.period.start)+" → "+esc(gsc.period.end)+" vs 90 jours précédents"],steps:["Comparer les pages et les requêtes en baisse dans Search Console (Performances → Comparer).","Vérifier qu'aucune page importante n'a été supprimée ou mise en noindex."],effort:"1 h",gain:"diagnostic"});
+    const badMaps=(gsc.sitemaps||[]).filter(s=>s.errors>0);
+    if(badMaps.length) issues.push({sev:"warn",cat:"fondations",title:plur(badMaps.length,"plan de site soumis avec erreurs","plans de site soumis avec erreurs")+" dans Search Console",
+      body:"Google a signalé des erreurs sur ces plans de site : certaines pages annoncées ne sont pas prises en compte.",
+      where:badMaps.map(s=>"<code>"+esc(sh(s.path))+"</code> — "+esc(s.errors)+" erreur(s)"),steps:["Ouvrir Search Console → Sitemaps pour le détail des erreurs.","Corriger puis soumettre à nouveau."],effort:"30 min",gain:"indexation"});
+    wins.push(["Search Console connectée","données Google réelles sur 90 jours : "+gsc.totals.clicks.toLocaleString("fr-CA")+" clics."]);
+  } else if(gsc?.configured&&gsc.reason==="gsc_no_access"&&gsc.serviceAccountEmail){
+    issues.push({sev:"info",cat:"keywords",title:"Vraies données Google disponibles sur demande (Search Console)",
+      body:"Ce rapport s'appuie sur des estimations. En donnant un accès en lecture à Paparmane dans Google Search Console, le prochain audit affichera les vrais clics, les vraies recherches et les vraies positions des 90 derniers jours.",
+      where:["Utilisateur à ajouter en lecture : <code>"+esc(gsc.serviceAccountEmail)+"</code>"],
+      steps:["Ouvrir search.google.com/search-console et choisir la propriété du site.","Paramètres → Utilisateurs et autorisations → Ajouter un utilisateur.","Coller l'adresse ci-dessus ; l'autorisation « Restreint » (lecture) suffit."],effort:"5 min (client)",gain:"données réelles"});
+  }
 
   // ---- Qualité web et signaux techniques observables sans donnée payante ----
   const measuredResponses=pages.filter(p=>Number.isFinite(p.response?.elapsedMs)&&p.response.elapsedMs>0);
@@ -1764,7 +1952,7 @@ window.addEventListener("afterprint",()=>{
 // section au lieu de faire défiler un long document.
 const NAV_SHORT={"Problèmes critiques":"Critiques","Problèmes importants":"Importants","Opportunités":"Opportunités",
   "Priorités à meilleur rendement":"Priorités","Contrôles techniques avancés":"Technique","Analyse des mots-clés observés":"Mots-clés",
-  "Intelligence de marché DataForSEO":"Marché","Visibilité auprès des IA":"IA","Schema Studio — données structurées":"Schema",
+  "Google Search Console — données réelles":"Search Console","Intelligence de marché DataForSEO":"Marché","Visibilité auprès des IA":"IA","Schema Studio — données structurées":"Schema",
   "Détail page par page":"Pages","Photos à décrire":"Photos","Ce qui va déjà bien":"Points forts","Plan d'action recommandé":"Plan d'action"};
 // Onglets : le rapport est découpé en volets, un seul visible à l'écran.
 // À l'impression, tous les volets sont affichés (voir @media print).
@@ -1895,6 +2083,73 @@ function googleToolsHtml(m){
     <div class="tbl-wrap"><table><thead><tr><th>Outil</th><th class="c">État</th><th>Preuve</th></tr></thead><tbody>
       ${rows.map(([a,b,c])=>`<tr><td><b>${a}</b></td><td class="c">${b}</td><td>${c}</td></tr>`).join("")}
     </tbody></table></div>`;
+}
+
+// Vitesse et Core Web Vitals (Google PageSpeed, GTmetrix en option).
+function pagespeedHtml(m){
+  const ps=m.disc?.pagespeed, gt=m.disc?.gtmetrix;
+  if(!ps&&!(gt&&gt.available)) return "";
+  const results=(ps?.results||[]).filter(r=>r.available), failed=(ps?.results||[]).filter(r=>!r.available);
+  const head=`<div class="sec-h"><h3>Vitesse et Core Web Vitals</h3><div class="rule"></div></div>`;
+  if(!results.length&&!(gt&&gt.available)) return head+`<p class="sec-intro">Google PageSpeed n'a pas répondu pour ce site${failed[0]?.error?" ("+esc(failed[0].error)+")":""}. La vitesse n'a pas pu être mesurée cette fois ; cela ne modifie pas le score.</p>`;
+  const isHome=r=>String(r.url).replace(/\/$/,"")===m.origin.replace(/\/$/,"");
+  const label=r=>(isHome(r)?"Accueil":short(r.url,m.origin))+" · "+(r.strategy==="mobile"?"mobile":"ordinateur");
+  const color=p=>p>=90?"var(--good)":p>=50?"var(--warn)":"var(--crit)";
+  const cards=results.map(r=>{const p=r.scores.performance;return `<div class="ai-card"><div class="ai-card-head"><span>${esc(label(r))}</span><span class="ai-card-score">${p==null?"—":p+"/100"}</span></div>${p==null?"":`<div class="track"><div class="fill" style="width:${p}%;background:${color(p)}"></div></div>`}<p>LCP ${esc(fmtSec(r.lab.lcp))} · CLS ${esc(fmtCls(r.lab.cls))} · TBT ${esc(fmtMs(r.lab.tbt))}${r.scores.accessibility!=null?" · accessibilité "+r.scores.accessibility:""}${r.scores.seo!=null?" · SEO technique "+r.scores.seo:""}</p></div>`;}).join("");
+  const home=results.find(r=>r.strategy==="mobile"&&isHome(r))||results[0];
+  const field=home?.field||home?.originField;
+  const fieldRows=field?["lcp","inp","cls"].filter(k=>field[k]!=null).map(k=>`<tr><td>${esc(CWV[k][3])}</td><td class="c tnum">${esc(CWV[k][2](field[k]))}</td><td class="c tnum">≤ ${esc(CWV[k][2](CWV[k][0]))}</td><td class="c">${ratingTag(cwvRating(k,field[k]))}</td></tr>`).join(""):"";
+  const opps=(home?.opportunities||[]).slice(0,5);
+  return head+`<p class="sec-intro"><b>Mesure Google PageSpeed (Lighthouse)</b>, comme un téléphone moyen sur réseau mobile et comme un ordinateur. Les scores varient de quelques points d'un passage à l'autre : ils n'entrent pas dans le score Paparmane, mais les Core Web Vitals comptent dans le classement Google.</p>
+    <div class="ai-grid">${cards}</div>
+    ${field?`<p class="sec-intro"><b>Core Web Vitals réels</b> — vrais visiteurs Chrome des 28 derniers jours${home.field?"":" (ensemble du site : pas assez de visites sur l'accueil seul)"}, verdict Google : ${ratingTag(field.overall)}</p>
+    <div class="tbl-wrap"><table><thead><tr><th>Mesure</th><th class="c">75 % des visiteurs</th><th class="c">Seuil « bon »</th><th class="c">Verdict</th></tr></thead><tbody>${fieldRows}</tbody></table></div>`
+    :`<p class="sec-intro">Pas de Core Web Vitals réels : le site n'a pas assez de visiteurs Chrome pour que Google publie des données de terrain. Seules les mesures de laboratoire ci-dessus sont disponibles.</p>`}
+    ${opps.length?`<p class="sec-intro"><b>Principales corrections proposées par Google</b> (${esc(label(home))}) :</p><ul class="ps-opps">${opps.map(o=>`<li>${esc(o.title)}${o.savingsMs>=100?" — ≈ "+esc(fmtSec(o.savingsMs))+" à gagner":""}</li>`).join("")}</ul>`:""}
+    ${gt?.available?`<div class="ai-grid"><div class="ai-card"><div class="ai-card-head"><span>GTmetrix</span><span class="ai-card-score">${esc(gt.grade||"—")}</span></div><p>Performance ${gt.performance??"—"} % · Structure ${gt.structure??"—"} % · chargement complet ${esc(fmtSec(gt.fullyLoaded))} · ${gt.pageBytes!=null?(gt.pageBytes/1048576).toFixed(1).replace(".",",")+" Mo":"—"} · ${gt.pageRequests??"—"} requêtes${gt.reportUrl?` · <a href="${esc(gt.reportUrl)}" target="_blank" rel="noopener">rapport complet</a>`:""}</p></div></div>`:""}`;
+}
+
+// Courriels du domaine : SPF, DKIM, DMARC, MX lus dans le DNS.
+function emailHtml(m){
+  const e=m.disc?.email; if(!e) return "";
+  const host=(()=>{try{return new URL(m.origin).hostname.replace(/^www\./,"");}catch{return m.origin;}})();
+  const head=`<div class="sec-h"><h3>Courriels du domaine</h3><div class="rule"></div></div>`;
+  if(!e.checked) return head+`<p class="sec-intro">Les enregistrements DNS du domaine n'ont pas pu être lus cette fois : SPF, DKIM et DMARC restent non vérifiés.</p>`;
+  const yes=t=>`<span class="tag ok">${t}</span>`,no=t=>`<span class="tag no">${t}</span>`,mid=t=>`<span class="tag mid">${t}</span>`;
+  const rec=r=>r?`<code>${esc(r.length>90?r.slice(0,90)+"…":r)}</code>`:"";
+  const rows=[
+    ["Serveurs de courriel (MX)",e.mx===null?mid("Non vérifiable"):e.mx>0?yes(plur(e.mx,"serveur","serveurs")):mid("Aucun"),e.mx===0?"ce domaine ne reçoit pas de courriel":e.mx===null?"résolution DNS sans réponse":"le domaine reçoit du courriel"],
+    ["SPF",!e.spf.conclusive?mid("Non vérifiable"):e.spf.count>1?no("Deux enregistrements"):e.spf.present?(e.spf.all==="+"?no("Ouvert à tous"):yes("Présent")):no("Absent"),e.spf.present?rec(e.spf.record)+(e.spf.all?` · se termine par « ${esc(e.spf.all)}all »`:""):"aucun enregistrement <code>v=spf1</code>"],
+    ["DKIM",e.dkim.selectors.length?yes("Détecté"):mid("Non détecté"),e.dkim.selectors.length?"sélecteur(s) : "+e.dkim.selectors.map(esc).join(", "):"aucun des "+e.dkim.tested+" sélecteurs courants ne répond ; le client peut en utiliser un autre"],
+    ["DMARC",!e.dmarc.conclusive?mid("Non vérifiable"):e.dmarc.present?(e.dmarc.policy==="none"?mid("Observation (p=none)"):yes("Protégé (p="+esc(e.dmarc.policy||"?")+")")):no("Absent"),e.dmarc.present?rec(e.dmarc.record):"aucun enregistrement <code>_dmarc</code>"],
+  ];
+  return head+`<p class="sec-intro">Ce n'est pas du référencement, mais c'est le même domaine : sans SPF et DMARC, les courriels de <b>${esc(host)}</b> risquent les indésirables et n'importe qui peut écrire en son nom. Lecture directe des enregistrements DNS.</p>
+    <div class="tbl-wrap"><table><thead><tr><th>Protection</th><th class="c">État</th><th>Preuve</th></tr></thead><tbody>${rows.map(([a,b,c])=>`<tr><td><b>${a}</b></td><td class="c">${b}</td><td>${c}</td></tr>`).join("")}</tbody></table></div>`;
+}
+
+// Google Search Console : vraies données sur 90 jours, ou la marche à suivre pour les obtenir.
+function searchConsoleHtml(m){
+  const g=m.disc?.searchConsole; if(!g||!g.configured) return "";
+  const head=`<div class="sec-h"><h3>Google Search Console — données réelles</h3><div class="rule"></div></div>`;
+  if(!g.available){
+    if(g.reason==="gsc_no_access") return head+`<div class="note"><b>Les vraies données Google sont à portée de main.</b> Ce rapport s'appuie sur des estimations. En ajoutant <code>${esc(g.serviceAccountEmail||"")}</code> comme utilisateur en lecture dans Google Search Console (Paramètres → Utilisateurs et autorisations → Ajouter un utilisateur, autorisation « Restreint »), le prochain audit affichera les vrais clics, les vraies recherches et les vraies positions des 90 derniers jours.</div>`;
+    return head+`<p class="sec-intro screen-only">Search Console est configurée, mais la lecture a échoué (${esc(g.error||g.reason||"erreur")}). Note interne, non imprimée.</p>`;
+  }
+  const fmtN=v=>Number(v||0).toLocaleString("fr-CA"), pct=v=>(Number(v||0)*100).toFixed(1).replace(".",",")+" %", pos=v=>v==null?"—":Number(v).toFixed(1).replace(".",",");
+  const delta=(cur,prev,invert)=>{ if(prev==null||!Number.isFinite(Number(prev))) return ""; if(!Number(prev)) return Number(cur)?" · nouveau":""; const d=(Number(cur)-Number(prev))/Number(prev)*100; if(Math.abs(d)<1) return " · stable"; const good=invert?d<0:d>0; return ` · <span class="tag ${good?"ok":"no"}">${d>0?"+":"−"}${Math.abs(d).toFixed(0)} %</span> vs 90 jours précédents`; };
+  const t=g.totals||{}, p=g.previous||{};
+  const cards=[["Clics",fmtN(t.clicks),"visites venues de Google"+delta(t.clicks,p.clicks)],["Impressions",fmtN(t.impressions),"affichages dans les résultats"+delta(t.impressions,p.impressions)],["Taux de clic",pct(t.ctr),"clics ÷ impressions"+delta(t.ctr,p.ctr)],["Position moyenne",pos(t.position),"1 = premier résultat"+delta(t.position,p.position,true)]];
+  const devices=(g.devices||[]).filter(d=>d.clicks), devTotal=devices.reduce((s,d)=>s+d.clicks,0), devLabel={mobile:"mobile",desktop:"ordinateur",tablet:"tablette"};
+  const rowsQ=(g.queries||[]).map(q=>`<tr><td><b>${esc(q.query)}</b></td><td class="c tnum">${fmtN(q.clicks)}</td><td class="c tnum">${fmtN(q.impressions)}</td><td class="c tnum">${esc(pct(q.ctr))}</td><td class="c tnum">${esc(pos(q.position))}</td></tr>`).join("");
+  const rowsP=(g.pages||[]).map(q=>`<tr><td class="pg">${esc(short(q.url,m.origin))}</td><td class="c tnum">${fmtN(q.clicks)}</td><td class="c tnum">${fmtN(q.impressions)}</td><td class="c tnum">${esc(pct(q.ctr))}</td><td class="c tnum">${esc(pos(q.position))}</td></tr>`).join("");
+  const maps=g.sitemaps||[];
+  const table=(cols,rows)=>`<div class="tbl-wrap"><table><thead><tr>${cols.map((c,i)=>`<th${i?' class="c"':""}>${c}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div>`;
+  return head+`<p class="sec-intro"><b>Vrais clics et vraies recherches Google</b>, du ${esc(g.period.start)} au ${esc(g.period.end)} (Google publie avec deux à trois jours de retard), propriété <code>${esc(g.property)}</code>. Aucune estimation ici.</p>
+    <div class="ai-grid">${cards.map(([a,b,c])=>`<div class="ai-card"><div class="ai-card-head"><span>${a}</span><span class="ai-card-score">${esc(b)}</span></div><p>${c}</p></div>`).join("")}</div>
+    ${devTotal?`<p class="sec-intro">Répartition des clics : ${devices.map(d=>esc(devLabel[d.device]||d.device)+" "+Math.round(100*d.clicks/devTotal)+" %").join(" · ")}${(g.countries||[]).length?" · pays : "+g.countries.slice(0,3).map(c=>esc(c.country)+" "+fmtN(c.clicks)).join(", "):""}</p>`:""}
+    ${rowsQ?`<p class="sec-intro"><b>Recherches qui amènent des visiteurs</b></p>`+table(["Requête","Clics","Impressions","CTR","Position"],rowsQ):`<p class="sec-intro">Aucun clic enregistré sur la période.</p>`}
+    ${rowsP?`<p class="sec-intro"><b>Pages qui reçoivent ces clics</b></p>`+table(["Page","Clics","Impressions","CTR","Position"],rowsP):""}
+    ${maps.length?`<p class="sec-intro"><b>Plans de site soumis à Google</b></p>`+table(["Plan de site","Soumis le","Pages soumises","Erreurs","Avertissements"],maps.map(s=>`<tr><td class="pg">${esc(short(s.path,m.origin))}</td><td class="c tnum">${esc(s.lastSubmitted||"—")}</td><td class="c tnum">${fmtN(s.submitted)}</td><td class="c tnum">${s.errors?`<span class="tag no">${fmtN(s.errors)}</span>`:"0"}</td><td class="c tnum">${fmtN(s.warnings)}</td></tr>`).join("")):""}`;
 }
 
 function renderReport(m){
@@ -2032,11 +2287,17 @@ function renderReport(m){
     return [traffic.error||"Estimation temporairement indisponible","connexion à vérifier","warn"];
   })();
   const trafficClientText=traffic.reason==="no_data"?"Aucune estimation trouvée pour ce domaine":"Mesure non disponible pour cet audit";
+  const gscData=m.disc.searchConsole||{};
+  const psiMobileHome=(m.disc.pagespeed?.results||[]).find(r=>r.available&&r.strategy==="mobile"&&String(r.url).replace(/\/$/,"")===m.origin.replace(/\/$/,""));
   const internalNotes=[
     ...(!traffic.available&&traffic.reason&&traffic.reason!=="no_data"?["Trafic : "+trafficUnavailable[0]+" ("+trafficUnavailable[1]+")"]:[]),
     ...[["Mots-clés",externalKeywords],["Concurrents",competitorData],["Pages",topPagesData],["Backlinks",backlinkData],["Mentions IA",aiMentionData]]
       .filter(([,d])=>d&&d.available===false&&/payment|unauthorized|provider_error/.test(d.reason||""))
       .map(([label,d])=>label+" : "+(d.error||d.reason)),
+    ...((m.disc.pagespeed?.results||[]).filter(r=>!r.available&&r.error).slice(0,2).map(r=>"PageSpeed ("+(r.strategy||"")+") : "+r.error+(m.disc.pagespeed?.keyed?"":" — sans clé PAGESPEED_API_KEY, Google limite fortement le nombre de mesures"))),
+    ...(gscData.configured&&!gscData.available&&gscData.reason!=="gsc_no_access"?["Search Console : "+(gscData.error||gscData.reason)]:[]),
+    ...(m.disc.gtmetrix?.configured&&m.disc.gtmetrix.available===false?["GTmetrix : "+(m.disc.gtmetrix.error||m.disc.gtmetrix.reason)]:[]),
+    ...(m.disc.config&&!m.disc.config.pagespeedKey?["PageSpeed : aucune clé PAGESPEED_API_KEY configurée sur Netlify (mesures limitées par Google)"]:[]),
   ];
   const internalNotesHtml=internalNotes.length?`<div class="note screen-only"><b>Note interne — non imprimée.</b> ${[...new Set(internalNotes)].map(esc).join(" · ")}</div>`:"";
   const scoreProofHtml=proof=>proof?`<details class="ov-why"><summary>${esc(proof.title)}</summary>
@@ -2055,6 +2316,8 @@ function renderReport(m){
     ["Mots-clés stratégiques",m.targetMap.length?targetCovered+"/"+m.targetMap.length:externalKeywords.available?fmt(externalKeywords.totalCount):"—",m.targetMap.length?(m.targetMap.length-targetCovered)+" sans cible claire":externalKeywords.available?rankedKeywords.length+" meilleures positions et occasions chargées":providerFailure(externalKeywords),m.targetMap.length?"fourni par le client":externalKeywords.available?"DataForSEO · Canada":"non mesuré",m.targetMap.length&&targetCovered===m.targetMap.length?"good":m.targetMap.length?"warn":externalKeywords.available?(rankedKeywords.length?"good":"warn"):""],
     ["Concurrents organiques",competitorData.available?realCompetitors.length:"—",competitorData.available?(realCompetitors.length?(realCompetitors[0].domain+" · "+fmt(realCompetitors[0].intersections)+" mots-clés communs"):"aucun concurrent significatif — chevauchements accidentels seulement"):providerFailure(competitorData),competitorData.available?"DataForSEO · Canada":"non mesuré",competitorData.available?(marketCompetitors.length?"good":"warn"):""],
     ["Pages qui attirent",topPagesData.available?marketTopPages.length:"—",topPagesData.available?(marketTopPages.length?(sh(marketTopPages[0].url)+" · "+fmt(marketTopPages[0].organicTraffic)+" visites estimées"):"aucune page classée détectée"):providerFailure(topPagesData),topPagesData.available?"DataForSEO · mise à jour hebdomadaire":"non mesuré",topPagesData.available?(marketTopPages.length?"good":"warn"):""],
+    ...(gscData.available?[["Clics Google réels",Number(gscData.totals.clicks||0).toLocaleString("fr-CA"),Number(gscData.totals.impressions||0).toLocaleString("fr-CA")+" impressions · position moyenne "+(gscData.totals.position==null?"—":Number(gscData.totals.position).toFixed(1).replace(".",","))+" · 90 jours","Search Console · réel",gscData.previous&&gscData.previous.clicks&&gscData.totals.clicks<gscData.previous.clicks*0.7?"warn":"good"]]:[]),
+    ...(psiMobileHome?[["Vitesse mobile",psiMobileHome.scores.performance==null?"—":psiMobileHome.scores.performance+"/100","Google PageSpeed · LCP "+fmtSec(psiMobileHome.lab.lcp)+((psiMobileHome.field||psiMobileHome.originField)?" · visiteurs réels : "+ratingLabel((psiMobileHome.field||psiMobileHome.originField).overall):" · pas de données de terrain"),"mesure Google · hors score",psiMobileHome.scores.performance==null?"warn":psiMobileHome.scores.performance>=90?"good":psiMobileHome.scores.performance>=50?"warn":"bad"]]:[]),
     ["Données structurées",m.scores.schema+"/100",schemaCovered+" page(s) balisée(s) · "+m.schemaAudit.expectedMissing.length+" suggestion(s)","Schema Studio",scoreClass(m.scores.schema),schemaProof],
     ["Préparation IA",m.scores.ia+"/100",aiSearchBlocked+" robot(s) de recherche bloqué(s) · llms.txt "+(aiLlmsExists?"présent":"absent"),"score technique expliqué",scoreClass(m.scores.ia),iaProof],
     ["Liens",m.scores.liens+"/100",m.linksChecked+" vérifiés · "+brokenLinkCount+" brisé(s) · "+orphanCount+" orpheline(s)","score technique expliqué",scoreClass(m.scores.liens),linkProof],
@@ -2266,11 +2529,13 @@ function renderReport(m){
       <p>${esc(detail)}</p></div>`).join("")}</div>
 
     ${googleToolsHtml(m)}
+    ${pagespeedHtml(m)}
+    ${emailHtml(m)}
 
     <div class="cats">${catRows}</div>
 
     ${m.previous?`<div class="sec-h"><h3>Évolution depuis le dernier audit</h3><div class="rule"></div></div>
-    <p class="sec-intro">Comparaison avec l'analyse du ${new Date(m.previous.date).toLocaleDateString("fr-CA")}. <span class="screen-only">L'historique des 12 derniers audits est conservé uniquement dans ce navigateur.</span></p>
+    <p class="sec-intro">Comparaison avec l'analyse du ${new Date(m.previous.date).toLocaleDateString("fr-CA")}. <span class="screen-only">${m.historyStorage==="netlify"?"L'historique des 24 derniers audits est conservé en ligne et partagé entre tes appareils.":"L'historique des 12 derniers audits est conservé uniquement dans ce navigateur."}</span></p>
     <div class="kw-cloud">${Object.entries(m.scores).map(([key,value])=>{const old=m.previous.scores?.[key];const d=typeof old==="number"?value-old:null;return `<span class="kw"><b>${esc(catLabels[key]||key)}</b><small>${d===null?"nouveau":(d>0?"+":"")+d+" points"}</small></span>`}).join("")}</div>`:""}
 
     <div class="sec-h"><h3>Priorités à meilleur rendement</h3><div class="rule"></div></div>
@@ -2299,7 +2564,10 @@ function renderReport(m){
       ${m.targetMap.map(x=>`<tr><td><b>${esc(x.keyword)}</b></td><td class="pg">${x.best?esc(sh(x.best.url)):"—"}</td><td class="c"><span class="tag ${x.score>=60?"ok":x.covered?"mid":"no"}">${Math.min(100,x.score)}%</span></td><td>${x.score>=60?"Conserver et renforcer":x.covered?"Clarifier la cible":"Créer ou refondre une page"}</td></tr>`).join("")}
     </tbody></table></div>`:""}
 
+    ${searchConsoleHtml(m)}
+
     ${traffic.available||externalKeywords.available||competitorData.available||topPagesData.available||backlinkData.available||aiMentionData.available?`
+
     <div class="sec-h"><h3>Intelligence de marché DataForSEO</h3><div class="rule"></div></div>
     <p class="sec-intro">Mesures externes comparables à un outil de marché : positions Google ${marketPhraseFor(m)} (Semrush additionne aussi les langues), concurrents dans les mêmes résultats, profil de liens et mentions observées dans la base IA. <span class="screen-only">Les résultats sont conservés sept jours pour maîtriser les frais de collecte.</span></p>
 
@@ -2398,7 +2666,7 @@ function renderReport(m){
 
     <div class="note"><b>Méthodologie — score v${esc(m.auditMeta.scoreVersion)}, confiance ${esc(m.auditMeta.confidence)}.</b> Rapport produit par le moteur d'analyse Paparmane :
       ${m.pages.length} pages crawlées, ${m.pages.reduce((a,p)=>a+(p.images||[]).length,0)} images inspectées,
-      ${m.linksChecked} liens internes vérifiés, robots.txt, indexabilité META/HTTP, canoniques, hiérarchie H1–H6, ALT strict et sémantique, ressources HTML, iFrames, favicon, hreflang, données structurées et llms.txt analysés. Les URL et les liens sont triés avant échantillonnage pour rendre deux audits comparables; les erreurs réseau sont relancées une fois. Le plan de site est cherché à /sitemap.xml, aux adresses déclarées dans robots.txt, puis à sitemap_index.xml, wp-sitemap.xml et sitemaps.xml; une adresse restée sans réponse claire est redemandée une seconde fois. Une absence de réponse, une erreur du serveur, un refus ou une page anti-robot sont rapportés « non vérifiable », jamais comptés comme une absence : seule une réponse « introuvable » à chaque adresse conclut à l'absence. Le temps de réponse est un indicateur ponctuel et ne modifie pas le score. Les volumes Google, estimations de trafic, pages les plus visibles, concurrents organiques, backlinks et mentions IA affichés comme tels proviennent de DataForSEO; Paparmane ne fabrique jamais ces chiffres et les données externes ne modifient pas le score technique.</div>
+      ${m.linksChecked} liens internes vérifiés, robots.txt, indexabilité META/HTTP, canoniques, hiérarchie H1–H6, ALT strict et sémantique, ressources HTML, iFrames, favicon, hreflang, données structurées et llms.txt analysés. Les URL et les liens sont triés avant échantillonnage pour rendre deux audits comparables; les erreurs réseau sont relancées une fois. Le plan de site est cherché à /sitemap.xml, aux adresses déclarées dans robots.txt, puis à sitemap_index.xml, wp-sitemap.xml et sitemaps.xml; une adresse restée sans réponse claire est redemandée une seconde fois. Une absence de réponse, une erreur du serveur, un refus ou une page anti-robot sont rapportés « non vérifiable », jamais comptés comme une absence : seule une réponse « introuvable » à chaque adresse conclut à l'absence. Vitesse : Google PageSpeed (Lighthouse) sur l'accueil, mobile et ordinateur, et deux autres pages, avec les Core Web Vitals des vrais visiteurs Chrome quand Google en publie ; cette mesure n'entre pas dans le score. Courriels : SPF, DKIM et DMARC lus dans le DNS. Search Console : données Google réelles sur 90 jours quand le client en accorde l'accès. Le temps de réponse est un indicateur ponctuel et ne modifie pas le score. Les volumes Google, estimations de trafic, pages les plus visibles, concurrents organiques, backlinks et mentions IA affichés comme tels proviennent de DataForSEO; Paparmane ne fabrique jamais ces chiffres et les données externes ne modifient pas le score technique.</div>
 
     <div class="toolbar">
       <button class="btn ghost" onclick="window.print()">Imprimer / PDF client</button>

@@ -6,7 +6,8 @@
 //   ?mode=verify (POST urls[])→ vérifie des liens (statut + redirections)
 // ============================================================
 
-import { lookup, resolveTxt } from "node:dns/promises";
+import { lookup, resolveTxt, resolveMx } from "node:dns/promises";
+import { createSign } from "node:crypto";
 import { isIP } from "node:net";
 import { gunzipSync } from "node:zlib";
 
@@ -769,6 +770,18 @@ function analyzePage(url, html, finalUrl, response = {}) {
         && !/\/cdn-cgi\//i.test(h))
   )].slice(0, 400);
 
+  // Liens vers d'autres sites, vérifiés ensuite par le client : un lien mort
+  // vers un partenaire ou une source nuit à la crédibilité. Les réseaux sociaux
+  // sont exclus (ils refusent les robots, donc invérifiables).
+  const externalLinks = [...new Set(
+    rawHrefs
+      .map(h => { try { return new URL(h, finalUrl).href.split("#")[0]; } catch { return null; } })
+      .filter(h => h && /^https?:\/\//i.test(h) && !sameSiteLoose(h, origin)
+        && !/(?:facebook|instagram|linkedin|tiktok|youtube|twitter|x|pinterest|threads)\.(?:com|net|ca)\//i.test(h)
+        && !/\/cdn-cgi\//i.test(h)
+        && !/\.(?:jpe?g|png|gif|svg|webp|avif|css|js|woff2?|ico)(?:\?|$)/i.test(h))
+  )].slice(0, 40);
+
   const bodyText = decode(strip(usefulContentHtml(html)));
   const keywords = extractKeywords(bodyText);
   const focusKeyword = inferFocusKeyword(title, h1, finalUrl, keywords);
@@ -827,6 +840,7 @@ function analyzePage(url, html, finalUrl, response = {}) {
       cacheControl: response.headers?.cacheControl || "",
     },
     links,
+    externalLinks,
   };
 }
 
@@ -1005,6 +1019,15 @@ async function discover(site) {
       new Promise(resolve => setTimeout(() => resolve(null), 3000)),
     ]);
   })();
+  // Courriels du domaine (SPF, DMARC, DKIM, MX), en parallèle aussi.
+  const DKIM_SELECTORS = ["google", "default", "selector1", "selector2", "k1", "dkim", "mail", "s1"];
+  const emailDnsPromise = (() => {
+    const host = new URL(typedOrigin).hostname.replace(/^www\./i, "");
+    return Promise.race([
+      Promise.allSettled([resolveTxt("_dmarc." + host), resolveMx(host), ...DKIM_SELECTORS.map(sel => resolveTxt(sel + "._domainkey." + host))]),
+      new Promise(resolve => setTimeout(() => resolve(null), 3000)),
+    ]);
+  })();
   let probe404 = typedOrigin + "/paparmane-audit-" + hashText(typedOrigin) + "-page-inexistante/";
   const SITEMAP_RESERVE = 3000; // budget gardé pour la seconde vague de sitemaps
   const step = () => Math.max(1500, Math.min(FETCH_TIMEOUT, remaining(deadline) - SITEMAP_RESERVE));
@@ -1179,10 +1202,16 @@ async function discover(site) {
   // 3. Validation Google Search Console par enregistrement DNS TXT (méthode
   // « domaine »). Les validations par balise sont lues page par page ; celles
   // par fichier HTML ou via Analytics ne sont pas observables de l'extérieur.
+  // Une réponse « pas d'enregistrement » (ENODATA/ENOTFOUND) prouve l'absence ;
+  // un délai ou une erreur de résolveur ne prouve rien.
+  const dnsConclusive = r => !!r && (r.status === "fulfilled" || /ENODATA|ENOTFOUND/.test(r.reason?.code || ""));
+  const dnsRecords = r => r?.status === "fulfilled" ? r.value.map(parts => parts.join("")) : [];
+  let hostTxtRecords = null; // null = non vérifiable
   try {
     const txt = await dnsTxtPromise;
     if (txt) {
       const records = txt.filter(r => r.status === "fulfilled").flatMap(r => r.value.map(parts => parts.join("")));
+      if (dnsConclusive(txt[0])) hostTxtRecords = dnsRecords(txt[0]);
       out.dns = {
         checked: txt.some(r => r.status === "fulfilled") || txt.every(r => /ENODATA|ENOTFOUND/.test(r.reason?.code || "")),
         googleSiteVerification: records.some(r => /^google-site-verification=/i.test(r)),
@@ -1190,6 +1219,39 @@ async function discover(site) {
       };
     } else out.dns = { checked: false };
   } catch { out.dns = { checked: false }; }
+
+  // 3b. Courriels du domaine. Sans SPF ni DMARC, les courriels du client
+  // tombent dans les indésirables et n'importe qui peut écrire en son nom.
+  try {
+    const em = await emailDnsPromise;
+    const [dmarcRes, mxRes, ...dkimRes] = em || [];
+    const spfRecords = (hostTxtRecords || []).filter(r => /^v=spf1\b/i.test(r.trim()));
+    const dmarcRecords = dnsRecords(dmarcRes).filter(r => /^v=DMARC1\b/i.test(r.trim()));
+    const dmarc = dmarcRecords[0] || "";
+    out.email = {
+      checked: !!em && hostTxtRecords !== null,
+      mx: mxRes?.status === "fulfilled" ? mxRes.value.length : (dnsConclusive(mxRes) ? 0 : null),
+      spf: {
+        conclusive: hostTxtRecords !== null,
+        present: spfRecords.length > 0,
+        count: spfRecords.length,
+        record: (spfRecords[0] || "").slice(0, 300),
+        all: spfRecords[0]?.match(/(?:^|\s)([-~+?])all\b/)?.[1] || null,
+      },
+      dmarc: {
+        conclusive: dnsConclusive(dmarcRes),
+        present: dmarcRecords.length > 0,
+        record: dmarc.slice(0, 300),
+        policy: dmarc.match(/\bp=(none|quarantine|reject)\b/i)?.[1]?.toLowerCase() || null,
+        percent: dmarc.match(/\bpct=(\d{1,3})\b/i)?.[1] ? Number(dmarc.match(/\bpct=(\d{1,3})\b/i)[1]) : (dmarcRecords.length ? 100 : null),
+        reports: /\brua=/i.test(dmarc),
+      },
+      dkim: {
+        selectors: DKIM_SELECTORS.filter((sel, i) => dkimRes[i]?.status === "fulfilled" && dkimRes[i].value.some(parts => /v=DKIM1|\bp=[A-Za-z0-9+/]/.test(parts.join("")))),
+        tested: DKIM_SELECTORS.length,
+      },
+    };
+  } catch { out.email = { checked: false }; }
 
   // 4. llms.txt
   const isReal = lm.ok && lm.status === 200 && !/<html|<!doctype/i.test(lm.body.slice(0, 300)) && lm.body.trim().length > 40;
@@ -1216,9 +1278,10 @@ async function verify(urls) {
     while (next < list.length) {
       const index = next++;
       const u = list[index];
-      if (!isSafeUrl(u) || remaining(deadline) < 600) { results[index] = { url: u, status: 0, finalUrl: u, redirected: false }; continue; }
+      if (!isSafeUrl(u) || remaining(deadline) < 600) { results[index] = { url: u, status: 0, finalUrl: u, redirected: false, error: isSafeUrl(u) ? "timeout" : "invalid" }; continue; }
       const r = await grab(u, { asText: false, timeout: Math.min(6000, remaining(deadline)) });
-      results[index] = { url: u, status: r.status, finalUrl: r.finalUrl, redirected: r.redirected || r.finalUrl.replace(/\/$/, "") !== u.replace(/\/$/, "") };
+      // Un domaine inexistant est un lien mort prouvé, pas un délai : l'erreur est transmise.
+      results[index] = { url: u, status: r.status, finalUrl: r.finalUrl, redirected: r.redirected || r.finalUrl.replace(/\/$/, "") !== u.replace(/\/$/, ""), ...(r.status ? {} : { error: r.timedOut ? "timeout" : /non publique ou introuvable/i.test(r.error || "") ? "unreachable" : "error" }) };
     }
   };
   await Promise.all(Array.from({ length: 5 }, worker));
@@ -1771,6 +1834,198 @@ async function keywordGapIntelligence(site, competitor, location = "Canada", lan
   };
 }
 
+// ---------- GOOGLE SEARCH CONSOLE (compte de service, lecture seule) ----------
+// Le client ajoute l'adresse du compte de service comme utilisateur de sa
+// propriété Search Console ; l'outil lit alors ses vraies données Google.
+function gscCredentials() {
+  const raw = process.env.GSC_SERVICE_ACCOUNT_JSON;
+  if (raw) {
+    try { const j = JSON.parse(raw); if (j.client_email && j.private_key) return { email: j.client_email, key: j.private_key }; } catch { /* format invalide : essayer les variables séparées */ }
+  }
+  const email = process.env.GSC_CLIENT_EMAIL, key = (process.env.GSC_PRIVATE_KEY || "").replace(/\\n/g, "\n");
+  return email && key ? { email, key } : null;
+}
+const base64url = value => Buffer.from(value).toString("base64").replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
+let gscTokenCache = null;
+async function gscAccessToken(creds) {
+  if (gscTokenCache && gscTokenCache.exp > Date.now() + 60000) return gscTokenCache.token;
+  const now = Math.floor(Date.now() / 1000);
+  const header = base64url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
+  const claims = base64url(JSON.stringify({ iss: creds.email, scope: "https://www.googleapis.com/auth/webmasters.readonly", aud: "https://oauth2.googleapis.com/token", iat: now, exp: now + 3600 }));
+  const signer = createSign("RSA-SHA256");
+  signer.update(header + "." + claims);
+  const assertion = header + "." + claims + "." + signer.sign(creds.key, "base64url");
+  const res = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion }),
+    signal: AbortSignal.timeout(6000),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.access_token) {
+    const error = new Error(data.error_description || data.error || "Jeton Google refusé");
+    error.reason = "gsc_auth";
+    throw error;
+  }
+  gscTokenCache = { token: data.access_token, exp: Date.now() + (Number(data.expires_in) || 3600) * 1000 };
+  return gscTokenCache.token;
+}
+async function gscFetch(token, path, body) {
+  const res = await fetch("https://www.googleapis.com/webmasters/v3" + path, {
+    method: body ? "POST" : "GET",
+    headers: { Authorization: "Bearer " + token, ...(body ? { "Content-Type": "application/json" } : {}) },
+    body: body ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(6500),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) { const error = new Error(data.error?.message || ("Erreur " + res.status)); error.status = res.status; throw error; }
+  return data;
+}
+const isoDay = date => date.toISOString().slice(0, 10);
+async function searchConsoleIntelligence(site) {
+  const creds = gscCredentials();
+  if (!creds) return { configured: false, available: false, reason: "gsc_not_configured" };
+  const host = new URL(site).hostname.replace(/^www\./i, "").toLowerCase();
+  let token;
+  try { token = await gscAccessToken(creds); }
+  catch (error) { return { configured: true, available: false, reason: "gsc_auth", error: error.message, serviceAccountEmail: creds.email }; }
+  let sites;
+  try { sites = (await gscFetch(token, "/sites")).siteEntry || []; }
+  catch (error) { return { configured: true, available: false, reason: "gsc_error", error: error.message, serviceAccountEmail: creds.email }; }
+  const usable = sites.filter(entry => entry.permissionLevel && entry.permissionLevel !== "siteUnverifiedUser");
+  const candidates = ["sc-domain:" + host, `https://${host}/`, `https://www.${host}/`, `http://${host}/`, `http://www.${host}/`];
+  const property = candidates.map(c => usable.find(entry => String(entry.siteUrl).toLowerCase() === c)).find(Boolean);
+  if (!property) return { configured: true, available: false, reason: "gsc_no_access", serviceAccountEmail: creds.email, properties: usable.length };
+
+  // Google publie avec deux à trois jours de retard : fenêtre de 90 jours
+  // close trois jours avant aujourd'hui, comparée aux 90 jours précédents.
+  const end = new Date(); end.setUTCDate(end.getUTCDate() - 3);
+  const start = new Date(end); start.setUTCDate(start.getUTCDate() - 89);
+  const prevEnd = new Date(start); prevEnd.setUTCDate(prevEnd.getUTCDate() - 1);
+  const prevStart = new Date(prevEnd); prevStart.setUTCDate(prevStart.getUTCDate() - 89);
+  const encoded = encodeURIComponent(property.siteUrl);
+  const query = (dimensions, rowLimit, from = start, to = end) => gscFetch(token, `/sites/${encoded}/searchAnalytics/query`, { startDate: isoDay(from), endDate: isoDay(to), dimensions, rowLimit, type: "web", dataState: "final" });
+  const [totals, previous, queries, pages, devices, countries, sitemaps] = await Promise.allSettled([
+    query([], 1), query([], 1, prevStart, prevEnd), query(["query"], 25), query(["page"], 15), query(["device"], 3), query(["country"], 5),
+    gscFetch(token, `/sites/${encoded}/sitemaps`),
+  ]);
+  const row = r => r.status === "fulfilled" ? (r.value.rows?.[0] || {}) : null;
+  const rows = r => r.status === "fulfilled" ? (r.value.rows || []) : [];
+  const metrics = x => x ? { clicks: Math.round(x.clicks || 0), impressions: Math.round(x.impressions || 0), ctr: Number(x.ctr || 0), position: x.position == null ? null : Number(x.position) } : null;
+  if (totals.status !== "fulfilled") return { configured: true, available: false, reason: "gsc_error", error: totals.reason?.message || "Lecture impossible", serviceAccountEmail: creds.email, property: property.siteUrl };
+  return {
+    configured: true,
+    available: true,
+    source: "Google Search Console",
+    property: property.siteUrl,
+    permission: property.permissionLevel,
+    period: { start: isoDay(start), end: isoDay(end), days: 90 },
+    totals: metrics(row(totals)) || { clicks: 0, impressions: 0, ctr: 0, position: null },
+    previous: metrics(row(previous)),
+    queries: rows(queries).map(r => ({ query: String(r.keys?.[0] || ""), ...metrics(r) })).filter(r => r.query),
+    pages: rows(pages).map(r => ({ url: String(r.keys?.[0] || ""), ...metrics(r) })).filter(r => r.url),
+    devices: rows(devices).map(r => ({ device: String(r.keys?.[0] || "").toLowerCase(), ...metrics(r) })),
+    countries: rows(countries).map(r => ({ country: String(r.keys?.[0] || "").toUpperCase(), ...metrics(r) })),
+    sitemaps: sitemaps.status === "fulfilled" ? (sitemaps.value.sitemap || []).map(entry => ({
+      path: String(entry.path || ""),
+      lastSubmitted: String(entry.lastSubmitted || "").slice(0, 10),
+      lastDownloaded: String(entry.lastDownloaded || "").slice(0, 10),
+      isPending: !!entry.isPending,
+      errors: Number(entry.errors || 0),
+      warnings: Number(entry.warnings || 0),
+      submitted: (entry.contents || []).reduce((sum, c) => sum + Number(c.submitted || 0), 0),
+      indexed: (entry.contents || []).reduce((sum, c) => sum + Number(c.indexed || 0), 0),
+    })) : null,
+  };
+}
+
+// ---------- GTMETRIX (facultatif : clé API GTMETRIX_API_KEY) ----------
+// Un test dure 30 à 90 s : le client le lance puis interroge l'état.
+async function gtmetrixRequest(path, { method = "GET", body } = {}) {
+  const key = process.env.GTMETRIX_API_KEY;
+  const res = await fetch("https://gtmetrix.com/api/2.0" + path, {
+    method,
+    headers: { Authorization: "Basic " + btoa(key + ":"), ...(body ? { "Content-Type": "application/vnd.api+json" } : {}) },
+    body: body ? JSON.stringify(body) : undefined,
+    redirect: "follow",
+    signal: AbortSignal.timeout(8000),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok && res.status !== 202) {
+    const error = new Error(data.errors?.[0]?.detail || data.errors?.[0]?.title || ("Erreur GTmetrix " + res.status));
+    error.status = res.status;
+    throw error;
+  }
+  return { status: res.status, data, creditsLeft: res.headers.get("x-credits-left") };
+}
+async function gtmetrix(action, { url, id }) {
+  if (!process.env.GTMETRIX_API_KEY) return { configured: false, available: false, reason: "gtmetrix_not_configured" };
+  try {
+    if (action === "start") {
+      const { data, creditsLeft } = await gtmetrixRequest("/tests", { method: "POST", body: { data: { type: "test", attributes: { url, report: "lighthouse" } } } });
+      return { configured: true, state: data.data?.attributes?.state || "queued", id: String(data.data?.id || ""), creditsLeft };
+    }
+    if (!/^[A-Za-z0-9_-]{4,64}$/.test(String(id || ""))) return { configured: true, available: false, reason: "invalid_id" };
+    const { data, creditsLeft } = await gtmetrixRequest("/tests/" + id);
+    const node = data.data || {};
+    if (node.type === "report") {
+      const a = node.attributes || {};
+      return {
+        configured: true, available: true, state: "completed", id, creditsLeft,
+        grade: a.gtmetrix_grade || null,
+        performance: a.performance_score ?? null,
+        structure: a.structure_score ?? null,
+        lcp: a.largest_contentful_paint ?? null,
+        tbt: a.total_blocking_time ?? null,
+        cls: a.cumulative_layout_shift ?? null,
+        fcp: a.first_contentful_paint ?? null,
+        ttfb: a.time_to_first_byte ?? null,
+        speedIndex: a.speed_index ?? null,
+        fullyLoaded: a.fully_loaded_time ?? null,
+        pageBytes: a.page_bytes ?? null,
+        pageRequests: a.page_requests ?? null,
+        reportUrl: String(data.links?.report_url || "").startsWith("https://gtmetrix.com/") ? data.links.report_url : "",
+        location: a.location ?? null,
+        browser: a.browser ?? null,
+      };
+    }
+    const a = node.attributes || {};
+    if (a.state === "error") return { configured: true, available: false, state: "error", id, error: a.error || "Test GTmetrix en erreur" };
+    return { configured: true, state: a.state || "queued", id, creditsLeft };
+  } catch (error) {
+    return { configured: true, available: false, reason: error.status === 401 || error.status === 403 ? "gtmetrix_unauthorized" : error.status === 402 ? "gtmetrix_no_credits" : "gtmetrix_error", error: error.message };
+  }
+}
+
+// ---------- HISTORIQUE (Netlify Blobs) ----------
+// L'historique vivait dans le navigateur : un autre ordinateur ou un cache
+// vidé faisait disparaître l'évolution. Il est maintenant conservé en ligne.
+async function historyStore() {
+  const { getStore } = await import("@netlify/blobs");
+  return getStore({ name: "audits", consistency: "strong" });
+}
+const historyKey = site => new URL(site).hostname.replace(/^www\./i, "").toLowerCase();
+function validSnapshot(x) {
+  return x && typeof x === "object" && typeof x.date === "string" && !Number.isNaN(Date.parse(x.date))
+    && Number.isFinite(x.global) && x.scores && typeof x.scores === "object" && Number.isFinite(x.pages)
+    && typeof x.scoreVersion === "string" && typeof x.confidence === "string";
+}
+async function readHistory(site) {
+  const store = await historyStore();
+  const list = await store.get(historyKey(site), { type: "json" });
+  return Array.isArray(list) ? list : [];
+}
+async function appendHistory(site, snapshot) {
+  if (!validSnapshot(snapshot)) throw Object.assign(new Error("Instantané invalide."), { status: 400 });
+  const store = await historyStore();
+  const key = historyKey(site);
+  const existing = await store.get(key, { type: "json" });
+  const list = [snapshot, ...(Array.isArray(existing) ? existing : []).filter(h => h?.date !== snapshot.date)]
+    .sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 24);
+  await store.setJSON(key, list);
+  return list;
+}
+
 // ---------- Point d'entrée ----------
 export default async (req) => {
   const cors = {
@@ -1851,6 +2106,52 @@ export default async (req) => {
       if (!/^https?:\/\//i.test(site)) site = "https://" + site;
       if (!isSafeUrl(site)) return json({ error: "Adresse invalide." }, 400);
       return json(await keywordGapIntelligence(site, q.get("competitor") || "", q.get("location") || "Canada", q.get("language") || "fr"));
+    }
+
+    // Modules protégés par le code d'accès (comme trafic et gap).
+    const guarded = ["config", "gsc", "gtmetrix", "history"].includes(mode);
+    if (guarded) {
+      if (!accessKey) return json({ configured: false, available: false, reason: "server_protection_missing", error: "La protection privée n'est pas configurée sur le serveur." }, 503);
+      if (req.headers.get("x-paparmane-key") !== accessKey) return json({ configured: false, available: false, reason: "access_key_invalid", error: "Le code d'accès courant ne permet pas d'utiliser ce module." }, 401);
+    }
+    if (mode === "config") {
+      // Ce que le navigateur a le droit de savoir : quels modules sont prêts.
+      // La clé PageSpeed est publique par nature (restreinte au site dans Google Cloud).
+      let history = false;
+      try { await historyStore(); history = true; } catch { history = false; }
+      const gsc = gscCredentials();
+      return json({
+        pagespeedKey: process.env.PAGESPEED_API_KEY || "",
+        gtmetrix: !!process.env.GTMETRIX_API_KEY,
+        searchConsole: { configured: !!gsc, email: gsc?.email || "" },
+        history,
+      });
+    }
+    if (mode === "gsc") {
+      let site = (q.get("site") || "").trim();
+      if (!/^https?:\/\//i.test(site)) site = "https://" + site;
+      if (!isSafeUrl(site)) return json({ error: "Adresse invalide." }, 400);
+      return json(await searchConsoleIntelligence(site));
+    }
+    if (mode === "gtmetrix") {
+      const url = q.get("url") || "";
+      if (q.get("action") === "start" && !isSafeUrl(url)) return json({ error: "Adresse invalide." }, 400);
+      return json(await gtmetrix(q.get("action") === "start" ? "start" : "status", { url, id: q.get("id") || "" }));
+    }
+    if (mode === "history") {
+      let site = (q.get("site") || "").trim();
+      if (!/^https?:\/\//i.test(site)) site = "https://" + site;
+      if (!isSafeUrl(site)) return json({ error: "Adresse invalide." }, 400);
+      try {
+        if (req.method === "POST") {
+          const body = await req.json().catch(() => ({}));
+          return json({ available: true, history: await appendHistory(site, body.snapshot) });
+        }
+        return json({ available: true, history: await readHistory(site) });
+      } catch (error) {
+        if (error?.status === 400) return json({ error: error.message }, 400);
+        return json({ available: false, reason: "history_unavailable", error: error?.message || "Historique indisponible." });
+      }
     }
 
     if (mode === "page") {

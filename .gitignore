@@ -7,3 +7,6 @@ npm-debug.log*
 
 # macOS
 .DS_Store
+
+# dépendances des fonctions Netlify
+node_modules/
