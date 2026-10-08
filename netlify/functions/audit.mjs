@@ -10,6 +10,7 @@ import { lookup, resolveTxt, resolveMx } from "node:dns/promises";
 import { createSign } from "node:crypto";
 import { isIP } from "node:net";
 import { gunzipSync } from "node:zlib";
+import { mergeRanked, qualifyOrganicEstimate } from "../lib/market-estimates.mjs";
 
 const UA = "Mozilla/5.0 (compatible; PaparmaneSEO/1.0; +https://paparmane.netlify.app)";
 const FETCH_TIMEOUT = 8000;
@@ -1366,8 +1367,11 @@ async function perLanguage(languages, path, bodyFor, authorization, merge, timeo
   const covered = languages.filter((_, i) => settled[i].status === "fulfilled");
   const cost = settled.reduce((sum, s) => sum + Number((s.status === "fulfilled" ? s.value.providerCostUsd : s.reason?.providerCostUsd) || 0), 0);
   if (!ok.length) { const error = settled[0].reason; if (error) error.providerCostUsd = cost; throw error; }
-  const results = ok.map(v => v.result).filter(Boolean);
-  return { result: results.length ? (results.length === 1 ? results[0] : merge(results)) : null, providerCostUsd: cost, languages: covered };
+  // « parts » : le résultat brut de chaque langue, pour montrer d'où vient le
+  // total (une langue sans résultat n'y figure pas).
+  const parts = covered.map((language, i) => ({ language, result: ok[i].result })).filter(part => part.result);
+  const results = parts.map(part => part.result);
+  return { result: results.length ? (results.length === 1 ? results[0] : merge(results, parts.map(part => part.language))) : null, providerCostUsd: cost, languages: covered, parts };
 }
 
 const num = v => Number(v) || 0;
@@ -1383,16 +1387,7 @@ const mergeTraffic = results => {
     paid: sumMetrics(items.map(i => i.metrics?.paid || i.paid)),
   } }] };
 };
-const mergeRanked = results => {
-  const byKeyword = new Map();
-  for (const r of results) for (const item of r.items || []) {
-    const key = (item.keyword_data?.keyword || item.keyword || "").toLowerCase();
-    const prev = byKeyword.get(key);
-    if (!prev || num(item.ranked_serp_element?.serp_item?.etv) > num(prev.ranked_serp_element?.serp_item?.etv)) byKeyword.set(key, item);
-  }
-  const items = [...byKeyword.values()].sort((a, b) => num(b.keyword_data?.keyword_info?.search_volume) - num(a.keyword_data?.keyword_info?.search_volume));
-  return { total_count: results.reduce((s, r) => s + num(r.total_count), 0), items };
-};
+// mergeRanked vit dans ../lib/market-estimates.mjs (testé hors réseau).
 const mergeCompetitors = results => {
   const byDomain = new Map();
   for (const r of results) for (const item of r.items || []) {
@@ -1447,7 +1442,9 @@ async function externalIntelligence(site, location = "Canada", language = "fr") 
       target, location_name: location, language_code: lang,
       item_types: ["organic", "featured_snippet", "local_pack"],
       ignore_synonyms: true,
-      limit: 20,
+      // 100 lus (environ 0,008 $ US de plus par langue) pour repérer les
+      // variantes et les doublons qui gonflent le total ; 20 affichés.
+      limit: 100,
       order_by: ["keyword_data.keyword_info.search_volume,desc"],
     }), authorization, mergeRanked),
     dataForSeoPost("/v3/backlinks/summary/live", {
@@ -1533,8 +1530,13 @@ async function externalIntelligence(site, location = "Canada", language = "fr") 
     const item = traffic.result.items?.[0] || traffic.result;
     const organic = item.metrics?.organic || item.organic || {};
     const paid = item.metrics?.paid || item.paid || {};
+    const byLanguage = (traffic.parts || []).map(part => {
+      const o = (part.result.items?.[0] || part.result).metrics?.organic || {};
+      return { language: part.language, organic: Math.round(o.etv ?? 0), organicKeywords: o.count ?? null };
+    });
     traffic = {
       available: true,
+      byLanguage,
       organic: Math.round(organic.etv ?? organic.estimated_traffic_volume ?? item.organic_etv ?? 0),
       paid: Math.round(paid.etv ?? paid.estimated_traffic_volume ?? item.paid_etv ?? 0),
       organicKeywords: organic.count ?? item.organic_count ?? null,
@@ -1546,25 +1548,31 @@ async function externalIntelligence(site, location = "Canada", language = "fr") 
     traffic = { available: false, reason: "no_data", error: "Aucune estimation disponible pour ce domaine.", providerCostUsd: traffic.providerCostUsd };
   }
 
+  let organicEstimate = null;
   if (strategicKeywords.result) {
     const items = Array.isArray(strategicKeywords.result.items) ? strategicKeywords.result.items : [];
+    const languageDuplicates = strategicKeywords.result.languageDuplicates || [];
+    const allKeywords = items.map(entry => {
+      const keyword = entry.keyword_data || {};
+      const info = keyword.keyword_info || {};
+      const serp = entry.ranked_serp_element?.serp_item || {};
+      return {
+        keyword: keyword.keyword || entry.keyword || "",
+        searchVolume: Math.round(info.search_volume ?? 0),
+        cpc: info.cpc ?? null,
+        competition: info.competition ?? null,
+        rank: serp.rank_group ?? serp.rank_absolute ?? null,
+        url: serp.url || serp.relative_url || "",
+        estimatedVisits: Math.round(serp.etv ?? 0),
+      };
+    }).filter(item => item.keyword);
+    // L'estimation brute additionne des volumes nationaux : on en retire ce
+    // qui est démontrablement compté en trop (voir market-estimates.mjs).
+    if (traffic.available) organicEstimate = qualifyOrganicEstimate({ organic: traffic.organic, keywords: allKeywords, languageDuplicates });
     strategicKeywords = {
       available: true,
       totalCount: strategicKeywords.result.total_count ?? items.length,
-      items: items.map(entry => {
-        const keyword = entry.keyword_data || {};
-        const info = keyword.keyword_info || {};
-        const serp = entry.ranked_serp_element?.serp_item || {};
-        return {
-          keyword: keyword.keyword || entry.keyword || "",
-          searchVolume: Math.round(info.search_volume ?? 0),
-          cpc: info.cpc ?? null,
-          competition: info.competition ?? null,
-          rank: serp.rank_group ?? serp.rank_absolute ?? null,
-          url: serp.url || serp.relative_url || "",
-          estimatedVisits: Math.round(serp.etv ?? 0),
-        };
-      }).filter(item => item.keyword).slice(0, 20),
+      items: allKeywords.slice(0, 20),
       providerCostUsd: strategicKeywords.providerCostUsd,
     };
   } else if (strategicKeywords.available !== false) {
@@ -1734,6 +1742,10 @@ async function externalIntelligence(site, location = "Canada", language = "fr") 
     language: coveredLanguages.join(","),
     languages: coveredLanguages,
     organic: traffic.organic ?? 0,
+    // Estimation ajustée et liste de ce qui a été retiré, avec la raison.
+    // « organic » reste le total brut pour les comparaisons entre domaines.
+    organicEstimate,
+    organicByLanguage: traffic.byLanguage || [],
     paid: traffic.paid ?? 0,
     organicKeywords: traffic.organicKeywords ?? null,
     paidKeywords: traffic.paidKeywords ?? null,
