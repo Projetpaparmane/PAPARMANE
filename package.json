@@ -1,0 +1,8 @@
+{
+  "name": "paparmane-site",
+  "private": true,
+  "description": "Site Paparmane et outil d'audit SEO (fonctions Netlify). Aucune étape de build : le dossier racine est publié tel quel.",
+  "dependencies": {
+    "@netlify/blobs": "^8.2.0"
+  }
+}
