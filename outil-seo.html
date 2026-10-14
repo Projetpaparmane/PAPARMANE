@@ -175,6 +175,9 @@
   .pane-next{display:flex;justify-content:flex-end;margin-top:26px}
   .sec-h{scroll-margin-top:64px}
   .ps-opps{margin:0 0 14px 18px;font-size:14px;color:var(--ink-soft)} .ps-opps li{margin:4px 0}
+  .exec-summary{font-size:15.5px;line-height:1.65;color:var(--ink);margin:0 0 6px} .exec-summary p{margin:0 0 12px}
+  .exec-summary[contenteditable]:focus{outline:2px solid var(--accent-soft);outline-offset:6px;border-radius:6px}
+  label.check{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--ink-soft);margin-top:10px;cursor:pointer} label.check input{margin-top:3px}
   details.tbl-toggle>summary{cursor:pointer;display:inline-block;margin:6px 0 10px;font-size:13.5px;font-weight:650;color:var(--accent);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:7px 14px;list-style:none}
   details.tbl-toggle>summary::-webkit-details-marker{display:none}
   details.tbl-toggle[open]>summary{display:none}
@@ -379,6 +382,7 @@
         <div class="field"><label for="targetKeywords">Mots-clés visés</label><textarea id="targetKeywords" rows="3" placeholder="service principal&#10;service + ville&#10;question fréquente"></textarea></div>
       </div>
     </details>
+    <label class="check"><input type="checkbox" id="quickMode"> <span><b>Audit rapide</b> : accueil seulement, pour qualifier un prospect en une minute. Score indicatif, non conservé dans l'historique.</span></label>
     <div class="hint">Audit public de prospection — jusqu'à 1 000 pages · aucun accès au site ni à Search Console · le site analysé voit passer « PaparmaneSEO » dans ses journaux.</div>
   </section>
 
@@ -481,6 +485,19 @@ async function fetchPageSpeed(url,strategy,key){
     return summarizePageSpeed(data,url,strategy);
   }catch(e){ return {url,strategy,available:false,error:e.name==="AbortError"?"délai dépassé (75 s)":e.message}; }
   finally{ clearTimeout(timer); }
+}
+// Clé stable d'un constat d'un audit à l'autre : les nombres et les pluriels
+// changent (« 3 pages sans H1 » devient « 1 page sans H1 »), pas le problème.
+const issueKey=t=>String(t||"").toLowerCase().replace(/\d+([.,]\d+)?/g,"#").replace(/\b([a-zà-ÿ]+?)s\b/g,"$1").replace(/\s+/g," ").trim();
+// Suivi mensuel d'un client (veille) : bascule depuis le rapport.
+async function toggleWatch(btn){
+  const on=btn.dataset.on==="1"; btn.disabled=true;
+  try{
+    const r=await api({mode:"watch",site:btn.dataset.site},{clientName:btn.dataset.client||"",enabled:!on});
+    if(r.available){ btn.dataset.on=r.watched?"1":"0"; btn.textContent=r.watched?"✓ Suivi mensuel actif — arrêter":"Suivre ce client chaque mois"; }
+    else alert("Veille indisponible : "+(r.error||r.reason));
+  }catch(e){ alert("Veille indisponible : "+e.message); }
+  finally{ btn.disabled=false; }
 }
 // GTmetrix (facultatif) : lancement puis interrogation toutes les 10 s, 3 min au plus.
 async function runGtmetrix(url){
@@ -666,6 +683,8 @@ async function runAudit(){
     const clientName=$("#clientName")?.value.trim()||"";
     const contactName=$("#contactName")?.value.trim()||"";
     const targetKeywords=[...new Set(($("#targetKeywords")?.value||"").split(/[\n,;]/).map(x=>x.trim()).filter(Boolean))].slice(0,50);
+    // Audit rapide : accueil seulement, sans liens ni sous-sitemaps, pour qualifier un prospect.
+    const quick=!!$("#quickMode")?.checked;
     log("Découverte du site (robots.txt, sitemap, llms.txt)…");
     const disc = await api({mode:"discover", site:raw});
     const origin = disc.origin;
@@ -679,7 +698,8 @@ async function runAudit(){
     const gscPromise=config.searchConsole?.configured
       ?api({mode:"gsc",site:origin}).catch(e=>({configured:true,available:false,reason:e.code||"request_error",error:e.message}))
       :Promise.resolve({configured:false,available:false,reason:"gsc_not_configured"});
-    const gtmetrixPromise=config.gtmetrix?runGtmetrix(origin+"/"):Promise.resolve({configured:false,available:false,reason:"gtmetrix_not_configured"});
+    const gtmetrixPromise=config.gtmetrix&&!quick?runGtmetrix(origin+"/"):Promise.resolve({configured:!!config.gtmetrix,available:false,reason:quick?"gtmetrix_skipped_quick":"gtmetrix_not_configured"});
+    const watchPromise=config.watch?api({mode:"watch",site:origin}).catch(()=>null):Promise.resolve(null);
     const remoteHistoryPromise=config.history?api({mode:"history",site:origin}).catch(()=>null):Promise.resolve(null);
     const trafficCacheKey="pap_intelligence_v5_"+new URL(origin).hostname+"_canada_fr-en";
     let cachedTraffic=null;
@@ -716,6 +736,7 @@ async function runAudit(){
       }
       applySitemapVerdict(disc);
     }
+    if(quick){ disc.sitemapQueue=[]; disc.pages=[origin+"/"]; log("Audit rapide : accueil seulement."); }
     // Un index de sitemap peut référencer plusieurs sous-sitemaps. On les lit
     // séparément pour éviter les délais d'expiration des fonctions Netlify.
     if(disc.sitemapFound && disc.sitemapQueue?.length){
@@ -765,12 +786,12 @@ async function runAudit(){
     const isPage=u=>{try{return !NON_PAGE.test(new URL(u).pathname);}catch{return false;}};
     disc.pages=disc.pages.filter(isPage);
     // Deux pages de plus que l'accueil, en mobile : la vitesse varie d'un modèle de page à l'autre.
-    for(const u of disc.pages.filter(u=>u.replace(/\/$/,"")!==origin.replace(/\/$/,"")).slice(0,2)) psiRuns.push(fetchPageSpeed(u,"mobile",psiKey));
+    if(!quick) for(const u of disc.pages.filter(u=>u.replace(/\/$/,"")!==origin.replace(/\/$/,"")).slice(0,2)) psiRuns.push(fetchPageSpeed(u,"mobile",psiKey));
     let skippedFiles=0;
     const queue=[...disc.pages]; const seen=new Set(queue); const pages=[];
     // Sitemap présent mais vide (ou limité à l'accueil) : on explore aussi les liens.
-    const followLinks=!disc.sitemapFound||disc.pages.length<=1;
-    const CAP = MAX_AUDIT_PAGES;
+    const followLinks=!quick&&(!disc.sitemapFound||disc.pages.length<=1);
+    const CAP = quick?1:MAX_AUDIT_PAGES;
     let done=0;
     async function worker(){
       while(queue.length && pages.length<CAP){
@@ -825,7 +846,7 @@ async function runAudit(){
     }else{
       const crawled = new Set(pages.map(p=>(p.finalUrl||p.url).replace(/\/$/,"")));
       const linkTargets = [...new Set(pages.flatMap(p=>p.links||[]))]
-        .filter(l=>!crawled.has(l.replace(/\/$/,""))).sort((a,b)=>a.localeCompare(b)).slice(0,45);
+        .filter(l=>!crawled.has(l.replace(/\/$/,""))).sort((a,b)=>a.localeCompare(b)).slice(0,quick?0:45);
       log("Vérification de "+linkTargets.length+" liens internes…");
       for(let i=0;i<linkTargets.length;i+=15){
         const {results} = await api({mode:"verify"},{urls:linkTargets.slice(i,i+15)});
@@ -836,7 +857,7 @@ async function runAudit(){
       // nuit à la crédibilité. Au plus 60, avec les pages qui les portent.
       const externalMap=new Map();
       for(const p of pages) for(const l of p.externalLinks||[]){ if(!externalMap.has(l)) externalMap.set(l,[]); if(externalMap.get(l).length<3&&!externalMap.get(l).includes(p.url)) externalMap.get(l).push(p.url); }
-      const externalTargets=[...externalMap.keys()].sort((a,b)=>a.localeCompare(b)).slice(0,60);
+      const externalTargets=[...externalMap.keys()].sort((a,b)=>a.localeCompare(b)).slice(0,quick?0:60);
       if(externalTargets.length){
         log("Vérification de "+plur(externalTargets.length,"lien vers un autre site","liens vers d'autres sites")+"…");
         for(let i=0;i<externalTargets.length;i+=15){
@@ -871,11 +892,25 @@ async function runAudit(){
       else if(disc.searchConsole.configured) log("ℹ Search Console : "+(disc.searchConsole.reason==="gsc_no_access"?"accès non accordé par le client":(disc.searchConsole.error||disc.searchConsole.reason)), "warnl");
       // Un test GTmetrix dure 30 à 90 s : on l'attend jusqu'à 45 s après le crawl, pas plus.
       disc.gtmetrix=await withTimeout(gtmetrixPromise,45000,{configured:!!config.gtmetrix,available:false,reason:"gtmetrix_timeout",error:"test encore en cours après 45 s, résultat non attendu"});
-      if(config.gtmetrix) log((disc.gtmetrix.available?"✓ GTmetrix : note "+disc.gtmetrix.grade:"⚠ GTmetrix : "+(disc.gtmetrix.error||disc.gtmetrix.reason)), disc.gtmetrix.available?"okl":"warnl");
+      if(config.gtmetrix&&!quick) log((disc.gtmetrix.available?"✓ GTmetrix : note "+disc.gtmetrix.grade:"⚠ GTmetrix : "+(disc.gtmetrix.error||disc.gtmetrix.reason)), disc.gtmetrix.available?"okl":"warnl");
+      // Fiche Google Business Profile : recherchée par nom et ville, retenue
+      // seulement si son site web est celui audité.
+      if(config.places){
+        const home=pages.find(p=>!p.dead&&String(p.finalUrl||p.url).replace(/\/$/,"")===origin.replace(/\/$/,""))||pages.find(p=>!p.dead);
+        const bizName=clientName||home?.nap?.schema?.name||(home?.title||"").split(/[|–—]| - /)[0].trim();
+        const addr=home?.nap?.schema?.address||home?.nap?.addressSnippets?.[0]||"";
+        const parts=addr.split(",").map(x=>x.trim()).filter(x=>x&&!/^[A-Z]\d[A-Z]\s?\d[A-Z]\d$/.test(x)&&!/^(?:QC|ON|NB|BC|AB|MB|SK|NS|PE|NL|YT|NT|NU|Québec|Quebec|Ontario|Canada)$/i.test(x));
+        const locality=(parts[parts.length-1]||"").replace(/[A-Z]\d[A-Z]\s?\d[A-Z]\d/,"").trim().split(" ").slice(-3).join(" ");
+        if(bizName){
+          disc.places=await withTimeout(api({mode:"places",q:(bizName+" "+locality).trim(),domain:new URL(origin).hostname.replace(/^www\./,"")}).catch(e=>({configured:true,available:false,reason:e.code||"request_error",error:e.message})),9000,{configured:true,available:false,reason:"places_timeout"});
+          if(disc.places?.available) log(disc.places.match?"✓ Fiche Google reliée au site : "+disc.places.match.name:"ℹ Aucune fiche Google dont le site web est celui-ci", disc.places.match?"okl":"warnl");
+        }
+      }
     }
     log("Compilation du rapport…");
 
-    const model = buildModel(origin, disc, pages, linkResults, llmsLinkResults, {clientName,contactName,targetKeywords,auditBarrier,externalLinkResults});
+    const model = buildModel(origin, disc, pages, linkResults, llmsLinkResults, {clientName,contactName,targetKeywords,auditBarrier,externalLinkResults,quick});
+    model.watch=await withTimeout(watchPromise,5000,null);
     let history=[];
     try{ history=JSON.parse(localStorage.getItem("pap_audits_"+new URL(origin).hostname)||"[]"); if(!Array.isArray(history)) history=[]; }catch{ history=[]; }
     // Historique en ligne (Netlify), fusionné avec celui du navigateur : l'évolution
@@ -890,9 +925,23 @@ async function runAudit(){
     model.previous=model.auditMeta.conclusive===false||model.auditMeta.confidence!=="élevée"?null:(history.find(h=>h.scoreVersion===model.auditMeta.scoreVersion&&h.confidence==="élevée"&&samePerimeter(h))||null);
     renderReport(model);
     if(model.auditMeta.conclusive!==false) buildReportNav();
+    // Résumé rédigé par Claude à partir des mêmes faits ; le résumé par règles
+    // reste affiché si la clé manque ou si la réponse tarde.
+    if(config.summary&&model.auditMeta.conclusive!==false){
+      log("Rédaction du résumé par Claude…");
+      const written=await withTimeout(api({mode:"summary"},{facts:summaryFacts(model)}).catch(e=>({available:false,reason:e.code||"request_error",error:e.message})),12000,{available:false,reason:"summary_timeout"});
+      if(written.available&&written.text){
+        model.summary={text:written.text,source:"Claude"};
+        const box=document.getElementById("execSummary"); if(box) box.innerHTML=summaryHtml(written.text);
+        const src=document.getElementById("execSummarySource"); if(src) src.textContent="Rédigé par Claude à partir des résultats, à relire avant l'envoi. Le texte est modifiable directement ici avant l'impression.";
+        log("✓ Résumé rédigé", "okl");
+      } else log("ℹ Résumé automatique conservé ("+(written.error||written.reason)+")", "warnl");
+    }
     $(".launcher")?.classList.add("done");
     if(model.auditMeta.conclusive!==false&&model.auditMeta.confidence==="élevée"){
-      const snapshot={date:new Date().toISOString(),global:model.global,scores:model.scores,counts:model.counts,pages:model.pages.length,scoreVersion:model.auditMeta.scoreVersion,confidence:model.auditMeta.confidence};
+      const snapshot={date:new Date().toISOString(),global:model.global,scores:model.scores,counts:model.counts,pages:model.pages.length,scoreVersion:model.auditMeta.scoreVersion,confidence:model.auditMeta.confidence,
+        // Constats du moment, pour le tableau avant / après du prochain audit.
+        issues:model.issues.slice(0,150).map(i=>({k:issueKey(i.title),t:i.title,s:i.sev}))};
       localStorage.setItem("pap_audits_"+new URL(origin).hostname,JSON.stringify([snapshot,...history].slice(0,12)));
       if(remoteList) api({mode:"history",site:origin},{snapshot}).catch(()=>{});
     }
@@ -1356,6 +1405,61 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
       steps:["Ouvrir search.google.com/search-console et choisir la propriété du site.","Paramètres → Utilisateurs et autorisations → Ajouter un utilisateur.","Coller l'adresse ci-dessus ; l'autorisation « Restreint » (lecture) suffit."],effort:"5 min (client)",gain:"données réelles"});
   }
 
+  // ---- Pages quasi identiques (empreinte de similarité calculée par le serveur) ----
+  const hamming=(a,b)=>{let d=0;for(let i=0;i<a.length;i++){let x=parseInt(a[i],16)^parseInt(b[i],16);while(x){d+=x&1;x>>=1;}}return d;};
+  const fpPages=pages.filter(p=>typeof p.textFingerprint==="string"&&p.textFingerprint.length===16&&(p.words||0)>=80&&!p.indexability?.noindex);
+  const dupPairs=[];
+  for(let i=0;i<fpPages.length&&dupPairs.length<40;i++) for(let j=i+1;j<fpPages.length&&dupPairs.length<40;j++) if(hamming(fpPages[i].textFingerprint,fpPages[j].textFingerprint)<=5) dupPairs.push([fpPages[i],fpPages[j]]);
+  if(dupPairs.length) issues.push({sev:"warn",cat:"qualite",title:plur(dupPairs.length,"paire de pages au contenu quasi identique","paires de pages au contenu quasi identique"),
+    body:"Ces pages disent la même chose à quelques mots près. Google n'en garde qu'une et choisit laquelle à votre place ; les deux se partagent les liens et l'autorité au lieu de les cumuler.",
+    where:dupPairs.slice(0,10).map(([a,b])=>"<code>"+esc(sh(a.url))+"</code> ≈ <code>"+esc(sh(b.url))+"</code>"),
+    steps:["Fusionner les deux pages, ou rediriger la moins utile vers l'autre.","Si les deux doivent exister (deux villes, deux services proches), les différencier vraiment : texte, titre, exemples.","Sinon, poser une balise canonique vers la page principale."],effort:"30 min / paire",gain:"indexation"});
+
+  // ---- Fiche locale : cohérence nom / adresse / téléphone, fiche Google ----
+  const napPages=pages.filter(p=>p.nap);
+  const phoneCounts=new Map();
+  for(const p of napPages) for(const ph of p.nap.phones||[]) phoneCounts.set(ph,(phoneCounts.get(ph)||0)+1);
+  const sitePhones=[...phoneCounts.entries()].sort((a,b)=>b[1]-a[1]).map(([ph])=>ph);
+  const schemaNap=napPages.map(p=>p.nap.schema).find(Boolean)||null;
+  const postalCodes=[...new Set(napPages.flatMap(p=>p.nap.postalCodes||[]))];
+  const addressSnippet=napPages.flatMap(p=>p.nap.addressSnippets||[])[0]||"";
+  const places=disc.places||null;
+  const normPhone=v=>{const d=String(v||"").replace(/\D/g,"");return d.length===11&&d[0]==="1"?d.slice(1):d.length===10?d:"";};
+  const fmtPhone=d=>d&&/^\d{10}$/.test(d)?d.slice(0,3)+" "+d.slice(3,6)+"-"+d.slice(6):(d||"");
+  const isLocalType=!!(schemaNap&&(schemaNap.types||[]).some(t=>/LocalBusiness|Store|Restaurant|Dentist|Physician|Hotel|Lodging|Winery|Brewery|Cafe|Bakery|Salon|Clinic|Gym|Shop|Campground|Spa|Attorney|Accounting|AutoRepair|RealEstate|HomeAndConstruction|MedicalBusiness|FoodEstablishment|ProfessionalService/i.test(t)));
+  const local={sitePhones,schema:schemaNap,postalCodes,addressSnippet,places,isLocalType};
+  if(napPages.length){
+    if(sitePhones.length>2) issues.push({sev:"info",cat:"qualite",title:sitePhones.length+" numéros de téléphone différents sur le site",
+      body:"Un seul numéro principal, répété à l'identique partout (site, balisage, fiche Google), aide Google à relier le site à l'entreprise. Plusieurs numéros, c'est acceptable s'ils ont chacun un rôle clair (succursale, télécopieur).",
+      where:sitePhones.slice(0,6).map(p=>"<code>"+esc(fmtPhone(p))+"</code> — "+plur(phoneCounts.get(p),"page","pages")),steps:["Choisir le numéro principal et l'afficher à l'identique dans l'en-tête ou le pied de page de toutes les pages.","Réserver les autres numéros à des pages précises, avec leur rôle écrit."],effort:"20 min",gain:"référencement local"});
+    if(schemaNap?.telephone&&sitePhones.length&&!sitePhones.includes(schemaNap.telephone)) issues.push({sev:"warn",cat:"schema",title:"Le téléphone du balisage Schema.org ne correspond pas à celui affiché sur le site",
+      body:"Google lit les deux. Quand ils diffèrent, il ne sait plus lequel est le bon et fait moins confiance aux coordonnées de l'entreprise.",
+      where:["Balisage : <code>"+esc(schemaNap.telephoneRaw||fmtPhone(schemaNap.telephone))+"</code>","Site : "+sitePhones.slice(0,3).map(p=>"<code>"+esc(fmtPhone(p))+"</code>").join(", ")],steps:["Corriger le numéro dans l'extension SEO ou le thème (données structurées) pour qu'il soit identique à celui affiché."],effort:"10 min",gain:"référencement local"});
+    if(schemaNap&&isLocalType&&!schemaNap.address) issues.push({sev:"info",cat:"schema",title:"Adresse absente du balisage d'entreprise locale",
+      body:"Le balisage "+esc((schemaNap.types||[])[0]||"LocalBusiness")+" ne contient pas d'adresse postale. C'est pourtant ce qui permet à Google d'associer le site à une ville et à la fiche d'entreprise.",
+      where:["Entité <code>"+esc(schemaNap.name||(schemaNap.types||[])[0]||"")+"</code> — champ <code>address</code> manquant"],steps:["Ajouter un objet <code>PostalAddress</code> (rue, ville, province, code postal) à l'entité, identique à l'adresse affichée sur le site."],effort:"15 min",gain:"référencement local"});
+    if(!schemaNap&&(postalCodes.length||sitePhones.length)) issues.push({sev:"info",cat:"schema",title:"Coordonnées visibles sur le site, mais non balisées pour Google",
+      body:"Le site affiche un téléphone ou une adresse, mais aucun balisage Organization ou LocalBusiness ne les déclare. Google les devine ; un balisage les lui confirme.",
+      where:[sitePhones.length?"Téléphone : <code>"+esc(fmtPhone(sitePhones[0]))+"</code>":"",addressSnippet?"Adresse : <code>"+esc(addressSnippet)+"</code>":""].filter(Boolean),steps:["Ajouter un bloc JSON-LD Organization ou LocalBusiness avec <code>name</code>, <code>telephone</code>, <code>address</code> et <code>url</code>, identiques au site."],effort:"20 min",gain:"référencement local"});
+  }
+  if(places?.available){
+    const host=origin.replace(/^https?:\/\//,"");
+    if(!places.match) issues.push({sev:"warn",cat:"qualite",title:"Aucune fiche Google Business Profile reliée au site",
+      body:"Aucune fiche d'entreprise Google trouvée dont le site web est <b>"+esc(host)+"</b>."+(places.candidates?.length?" Des fiches au nom semblable existent, sans lien vers ce site : à vérifier et, s'il s'agit bien de l'entreprise, à relier.":" La fiche Google est souvent le premier résultat local : sans elle, l'entreprise est absente de la carte.")+" Ce point ne réduit pas le score.",
+      where:places.candidates?.length?places.candidates.map(c=>"<code>"+esc(c.name)+"</code> — "+esc(c.address||"")+(c.website?" · site : "+esc(c.website):" · sans site web")):["Recherche Google : <code>"+esc(places.query||"")+"</code>"],
+      steps:["Vérifier sur google.com/business si une fiche existe déjà ; sinon la créer et la faire valider.","Y inscrire exactement le même site web, le même téléphone et la même adresse que sur le site."],effort:"30 min (client)",gain:"visibilité locale"});
+    else{
+      const m=places.match; const fichePhone=normPhone(m.phone);
+      wins.push(["Fiche Google reliée au site",esc(m.name)+(m.rating!=null?" — note "+m.rating+" ("+plur(m.reviews,"avis","avis")+")":"")+"."]);
+      if(fichePhone&&sitePhones.length&&!sitePhones.includes(fichePhone)) issues.push({sev:"warn",cat:"qualite",title:"Le téléphone de la fiche Google diffère de celui du site",
+        body:"La fiche Google affiche un numéro que le site n'affiche nulle part. Les clients hésitent, et Google aussi.",where:["Fiche : <code>"+esc(m.phone)+"</code>","Site : "+sitePhones.slice(0,3).map(p=>"<code>"+esc(fmtPhone(p))+"</code>").join(", ")],steps:["Mettre le même numéro sur la fiche et sur le site."],effort:"5 min",gain:"référencement local"});
+      if(m.status&&m.status!=="OPERATIONAL") issues.push({sev:"crit",cat:"qualite",title:"La fiche Google indique que l'entreprise est fermée",
+        body:"Statut Google : <code>"+esc(m.status)+"</code>. Tant que la fiche dit « fermé », Google le répète à chaque client qui cherche l'entreprise.",where:[esc(m.name)+" — "+esc(m.address)],steps:["Se connecter à la fiche et corriger le statut d'ouverture."],effort:"5 min",gain:"critique"});
+      else if(m.reviews<5) issues.push({sev:"info",cat:"qualite",title:"Fiche Google avec "+plur(m.reviews,"avis","avis")+" seulement",
+        body:"Les avis pèsent dans le classement local et dans la décision des clients. Quelques avis récents suffisent pour décoller.",where:[esc(m.name)+(m.rating!=null?" — note "+esc(m.rating):"")],steps:["Demander un avis aux clients satisfaits, avec le lien direct de la fiche.","Répondre à chaque avis, bon ou mauvais."],effort:"10 min / semaine",gain:"visibilité locale"});
+    }
+  }
+
   // ---- Qualité web et signaux techniques observables sans donnée payante ----
   const measuredResponses=pages.filter(p=>Number.isFinite(p.response?.elapsedMs)&&p.response.elapsedMs>0);
   const avgResponseMs=measuredResponses.length?Math.round(measuredResponses.reduce((sum,p)=>sum+p.response.elapsedMs,0)/measuredResponses.length):null;
@@ -1801,7 +1905,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   const quickWins=issues.filter(i=>/\b(?:3|5|10|15|20|30) min|~(?:3|5|10|15|20|30) min/i.test(i.effort||"")).length;
   const proofCount=issues.reduce((sum,i)=>sum+(i.where?.length||0),0);
   const opportunityScore=Math.max(0,Math.min(100,Math.round((100-global)*1.05+counts.crit*4+counts.warn*1.5)));
-  const auditMeta={scoreVersion:"2.7",requested:pagesAll.length,successful:pages.length,transient:transientPages.length,confidence:transientPages.length||disc.sitemapBlocked||disc.sitemapUnverifiable||disc.sitemapUnread?.length||disc.robots?.unverifiable?"provisoire":"élevée",conclusive:true};
+  const auditMeta={scoreVersion:"2.7",requested:pagesAll.length,successful:pages.length,transient:transientPages.length,confidence:options.quick?"aperçu":(transientPages.length||disc.sitemapBlocked||disc.sitemapUnverifiable||disc.sitemapUnread?.length||disc.robots?.unverifiable?"provisoire":"élevée"),mode:options.quick?"rapide":"complet",conclusive:true};
   const avgResources=pages.length?Math.round(pages.reduce((sum,p)=>sum+(p.resources?.total||0),0)/pages.length):0;
   const homepageStrictImages=(homepage?.images||[]).filter(im=>im.cls!=="tech");
   const homepageStrictFlagged=homepageStrictImages.filter(im=>im.alt===null||im.alt==="");
@@ -1814,7 +1918,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
     strictAltMissing,strictAltPages:strictAltPages.length,contentAltMissing:contentBad,decorativeAltEmpty:Math.max(0,strictAltMissing-contentBad),homepageStrictMissing,homepageStrictTotal:homepageStrictImages.length,homepageContentAltMissing,homepageDecorativeAltEmpty,images:webImages.length,dimensionCoverage:webImages.length?Math.round(100*(1-imagesMissingDimensions.length/webImages.length)):100,
     modernCoverage:formatKnown.length?Math.round(100*modernImages.length/formatKnown.length):null,lazyCoverage:webImages.length?Math.round(100*lazyImages.length/webImages.length):null,
     avgResponseMs,slowPages:slowPages.length,compressedPages:compressedPages.length,avgResources,heavyPages:resourceHeavyPages.length,
-    orphanPages:orphanPages.length,googleTools,iframeTotal,iframeMissing:iframeMissingTotal,faviconReady,analyticsTools,hreflangLinks,inlineStyleCount,obsoletePages:obsoletePages.length,
+    orphanPages:orphanPages.length,googleTools,local,iframeTotal,iframeMissing:iframeMissingTotal,faviconReady,analyticsTools,hreflangLinks,inlineStyleCount,obsoletePages:obsoletePages.length,
   };
   return {origin, disc, pages, keywordPages, deadPages, issues, wins, scores, scoreEvidence, global, imgPages, uniqFiles, isWP, aiReadiness, searchAgents, siteKeywords, cannibalization, targetMap, clientName:options.clientName||"",contactName:options.contactName||"",publicContacts,pagesNeedingWork,quickWins,proofCount,opportunityScore,schemaAudit:{inventory:schemaInventory,expectedMissing,entityNames,entityIds,identityReady},advancedAudit,auditMeta,
           counts,
@@ -2152,6 +2256,60 @@ function searchConsoleHtml(m){
     ${maps.length?`<p class="sec-intro"><b>Plans de site soumis à Google</b></p>`+table(["Plan de site","Soumis le","Pages soumises","Erreurs","Avertissements"],maps.map(s=>`<tr><td class="pg">${esc(short(s.path,m.origin))}</td><td class="c tnum">${esc(s.lastSubmitted||"—")}</td><td class="c tnum">${fmtN(s.submitted)}</td><td class="c tnum">${s.errors?`<span class="tag no">${fmtN(s.errors)}</span>`:"0"}</td><td class="c tnum">${fmtN(s.warnings)}</td></tr>`).join("")):""}`;
 }
 
+// Résumé exécutif par règles : toujours disponible, réécrit par Claude si la clé est présente.
+const plainText=s=>String(s||"").replace(/<[^>]+>/g,"").replace(/\s+/g," ").trim();
+const SEV_ORDER={crit:0,warn:1,info:2};
+function draftSummary(m){
+  const host=m.origin.replace(/^https?:\/\//,"");
+  const top=[...m.issues].sort((a,b)=>SEV_ORDER[a.sev]-SEV_ORDER[b.sev]).slice(0,3);
+  const strengths=m.wins.slice(0,3).map(w=>plainText(w[0]).toLowerCase());
+  const gsc=m.disc.searchConsole, psi=(m.disc.pagespeed?.results||[]).find(r=>r.available&&r.strategy==="mobile");
+  const verdict=m.global>=85?"une base solide":m.global>=70?"une base correcte, avec des points précis à régler":m.global>=50?"des fondations à consolider":"des problèmes importants à corriger avant d'espérer progresser dans Google";
+  const p1=`Le site ${host} obtient ${m.global} sur 100 à notre audit${m.auditMeta?.mode==="rapide"?" rapide (accueil seulement)":""}, ce qui traduit ${verdict}. ${m.pages.length>1?"Nous avons analysé "+m.pages.length+" pages. ":""}${strengths.length?"Ce qui va déjà bien : "+strengths.join(", ")+". ":""}${gsc?.available?"Google vous a envoyé "+Number(gsc.totals.clicks||0).toLocaleString("fr-CA")+" visiteurs au cours des 90 derniers jours, selon les données réelles de la Search Console. ":""}${psi&&psi.scores.performance!=null?"Sur mobile, Google mesure une vitesse de "+psi.scores.performance+" sur 100.":""}`;
+  const p2=top.length?`Ce qui freine votre visibilité : ${top.map(i=>plainText(i.title).replace(/\.$/,"")).join(" ; ")}. ${(plainText(top[0].body).split(/(?<=\.)\s/)[0]||"")}`:"Aucun problème important n'a été relevé : il s'agit surtout d'entretenir le site et de l'alimenter en contenu utile.";
+  const p3=top.length?`Par quoi commencer, dans l'ordre : ${top.map((i,k)=>(k+1)+") "+plainText(i.title).replace(/\.$/,"").toLowerCase()+(i.effort?" (environ "+plainText(i.effort)+")":"")).join(" ; ")}. Ce sont les corrections qui rapportent le plus pour l'effort demandé.`:"Nous recommandons de publier régulièrement du contenu utile à vos clients et de refaire cet audit dans trois mois.";
+  return [p1,p2,p3].map(x=>x.replace(/\s+/g," ").trim()).join("\n\n");
+}
+const summaryHtml=text=>String(text||"").split(/\n\s*\n/).map(p=>p.trim()).filter(Boolean).map(p=>"<p>"+esc(p)+"</p>").join("");
+// Faits transmis à Claude : rien d'autre que ce que le rapport affiche déjà.
+function summaryFacts(m){
+  const gsc=m.disc.searchConsole, psi=(m.disc.pagespeed?.results||[]).find(r=>r.available&&r.strategy==="mobile"), em=m.disc.email;
+  return {site:m.origin,client:m.clientName||"",mode:m.auditMeta?.mode||"complet",score:m.global,scores:m.scores,pages:m.pages.length,counts:m.counts,
+    pointsForts:m.wins.slice(0,6).map(w=>plainText(w[0])+(w[1]?" — "+plainText(w[1]):"")),
+    problemes:[...m.issues].sort((a,b)=>SEV_ORDER[a.sev]-SEV_ORDER[b.sev]).slice(0,8).map(i=>({gravite:i.sev==="crit"?"critique":i.sev==="warn"?"important":"opportunité",titre:plainText(i.title),impact:plainText(i.body).slice(0,220),effort:plainText(i.effort||""),gain:plainText(i.gain||"")})),
+    googleReel:gsc?.available?{clics90j:gsc.totals.clicks,impressions:gsc.totals.impressions,positionMoyenne:gsc.totals.position,clics90jPrecedents:gsc.previous?.clicks??null}:null,
+    vitesseMobile:psi?{score:psi.scores.performance,lcpMs:psi.lab.lcp,verdictVisiteursReels:(psi.field||psi.originField)?.overall||null}:null,
+    courriels:em?.checked?{spf:em.spf.present,dmarc:em.dmarc.present?em.dmarc.policy:false}:null};
+}
+// Fiche locale : nom, adresse, téléphone, sur le site, dans le balisage et sur Google.
+function localHtml(m){
+  const l=m.advancedAudit?.local; if(!l||(!l.sitePhones.length&&!l.schema&&!l.postalCodes.length&&!l.places)) return "";
+  const yes=t=>`<span class="tag ok">${t}</span>`,mid=t=>`<span class="tag mid">${t}</span>`;
+  const fmtPhone=d=>d&&/^\d{10}$/.test(d)?d.slice(0,3)+" "+d.slice(3,6)+"-"+d.slice(6):(d||"");
+  const normPhone=v=>{const d=String(v||"").replace(/\D/g,"");return d.length===11&&d[0]==="1"?d.slice(1):d;};
+  const rows=[["Site (pages analysées)",l.sitePhones.length?l.sitePhones.slice(0,3).map(p=>esc(fmtPhone(p))).join(", "):"aucun numéro détecté",l.addressSnippet?esc(l.addressSnippet):(l.postalCodes.length?"code postal "+esc(l.postalCodes.join(", ")):"aucune adresse détectée")],
+    ["Balisage Schema.org",l.schema?(l.schema.telephone?esc(fmtPhone(l.schema.telephone)):(l.schema.telephoneRaw?esc(l.schema.telephoneRaw):"—")):"aucun balisage avec coordonnées",l.schema?(l.schema.address?esc(l.schema.address):"—"):"—"]];
+  const p=l.places;
+  if(p?.available) rows.push(["Fiche Google Business Profile",p.match?esc(p.match.phone||"—"):"—",p.match?esc(p.match.address||"—")+(p.match.rating!=null?" · note "+esc(p.match.rating)+" ("+esc(p.match.reviews)+" avis)":"")+(p.match.mapsUrl?` · <a href="${esc(p.match.mapsUrl)}" target="_blank" rel="noopener">voir la fiche</a>`:""):"aucune fiche dont le site web est "+esc(m.origin.replace(/^https?:\/\//,""))+(p.candidates?.length?" (fiches au nom semblable : "+p.candidates.map(c=>esc(c.name)).join(", ")+")":"")]);
+  else if(p) rows.push(["Fiche Google Business Profile","—","non vérifiée ("+esc(p.error||p.reason)+")"]);
+  const mismatch=l.sitePhones.length>2||(l.schema?.telephone&&l.sitePhones.length&&!l.sitePhones.includes(l.schema.telephone))||(p?.match?.phone&&l.sitePhones.length&&!l.sitePhones.includes(normPhone(p.match.phone)));
+  return `<div class="sec-h"><h3>Fiche locale : nom, adresse, téléphone</h3><div class="rule"></div></div>
+    <p class="sec-intro">Google relie le site à la fiche d'entreprise quand le nom, l'adresse et le téléphone sont identiques partout. État : ${mismatch?mid("À harmoniser"):yes("Cohérentes")}${p?"":" · fiche Google non vérifiée (clé Places absente)"}</p>
+    <div class="tbl-wrap"><table><thead><tr><th>Source</th><th>Téléphone</th><th>Adresse</th></tr></thead><tbody>${rows.map(([a,b,c])=>`<tr><td><b>${a}</b></td><td>${b}</td><td>${c}</td></tr>`).join("")}</tbody></table></div>`;
+}
+// Avant / après : constats réglés, nouveaux, persistants, d'après l'instantané précédent.
+function evolutionIssuesHtml(m){
+  const prev=m.previous?.issues; if(!Array.isArray(prev)) return "";
+  const now=new Map(m.issues.map(i=>[issueKey(i.title),i]));
+  const prevKeys=new Set(prev.map(x=>x.k));
+  const resolved=prev.filter(x=>!now.has(x.k)), added=[...now.entries()].filter(([k])=>!prevKeys.has(k)).map(([,i])=>i), kept=[...now.keys()].filter(k=>prevKeys.has(k)).length;
+  const chip=(t,c)=>`<span class="tag ${c}">${esc(t)}</span>`;
+  return `<p class="sec-intro"><b>Avant / après</b> — ${plur(resolved.length,"problème réglé","problèmes réglés")}, ${plur(added.length,"nouveau","nouveaux")}, ${plur(kept,"toujours présent","toujours présents")}.</p>
+    ${resolved.length?`<p class="sec-intro">Réglés depuis le dernier audit : ${resolved.slice(0,12).map(x=>chip(x.t,"ok")).join(" ")}</p>`:""}
+    ${added.length?`<p class="sec-intro">Nouveaux : ${added.slice(0,12).map(i=>chip(i.title,i.sev==="crit"?"no":"mid")).join(" ")}</p>`:""}`;
+}
+const watchButtonHtml=m=>m.disc?.config?.watch&&m.auditMeta?.mode!=="rapide"?`<button class="btn ghost screen-only" id="watchBtn" data-site="${esc(m.origin)}" data-client="${esc(m.clientName||"")}" data-on="${m.watch?.watched?1:0}" onclick="toggleWatch(this)">${m.watch?.watched?"✓ Suivi mensuel actif — arrêter":"Suivre ce client chaque mois"}</button>`:"";
+
 function renderReport(m){
   // L'en-tête imprimé porte le nom du client, pas la mention « usage interne ».
   // Mis à jour avant tout rendu : sinon un audit non concluant garde le nom du
@@ -2298,6 +2456,9 @@ function renderReport(m){
     ...(gscData.configured&&!gscData.available&&gscData.reason!=="gsc_no_access"?["Search Console : "+(gscData.error||gscData.reason)]:[]),
     ...(m.disc.gtmetrix?.configured&&m.disc.gtmetrix.available===false?["GTmetrix : "+(m.disc.gtmetrix.error||m.disc.gtmetrix.reason)]:[]),
     ...(m.disc.config&&!m.disc.config.pagespeedKey?["PageSpeed : aucune clé PAGESPEED_API_KEY configurée sur Netlify (mesures limitées par Google)"]:[]),
+    ...(m.disc.places&&m.disc.places.available===false&&m.disc.places.reason!=="places_not_configured"?["Fiche Google : "+(m.disc.places.error||m.disc.places.reason)]:[]),
+    ...(m.disc.config&&!m.disc.config.summary?["Résumé : aucune clé ANTHROPIC_API_KEY sur Netlify — résumé automatique par règles"]:[]),
+    ...(m.disc.config&&!m.disc.config.places?["Fiche Google : aucune clé GOOGLE_PLACES_API_KEY sur Netlify — fiche non vérifiée"]:[]),
   ];
   const internalNotesHtml=internalNotes.length?`<div class="note screen-only"><b>Note interne — non imprimée.</b> ${[...new Set(internalNotes)].map(esc).join(" · ")}</div>`:"";
   const scoreProofHtml=proof=>proof?`<details class="ov-why"><summary>${esc(proof.title)}</summary>
@@ -2516,6 +2677,11 @@ function renderReport(m){
     </div>
 
     ${internalNotesHtml}
+    ${m.auditMeta?.mode==="rapide"?`<div class="note"><b>Audit rapide : accueil seulement.</b> Score indicatif pour qualifier un prospect. L'audit complet analyse toutes les pages, vérifie les liens et mesure la vitesse de plusieurs pages.</div>`:""}
+    <div class="sec-h"><h3>En résumé</h3><div class="rule"></div></div>
+    <div class="exec-summary" id="execSummary" contenteditable="true" spellcheck="true">${summaryHtml(m.summary?.text||draftSummary(m))}</div>
+    <p class="hint screen-only" id="execSummarySource">${m.summary?.source==="Claude"?"Rédigé par Claude à partir des résultats, à relire avant l'envoi.":"Résumé automatique à partir des résultats."} Le texte est modifiable directement ici avant l'impression.</p>
+
     <section class="overview" aria-labelledby="overview-title">
       <div class="overview-head"><h3 id="overview-title">Vue d'ensemble</h3><span>Chaque score inférieur à 100 est expliqué, preuves à l'appui</span></div>
       <div class="overview-grid">${overviewCards.map(([label,value,detail,state,cls,proof])=>`<div class="ov"><div class="ov-label">${esc(label)}</div><div class="ov-value ${cls}">${esc(value)}</div><div class="ov-detail">${esc(detail)}</div>${scoreProofHtml(proof)}<span class="ov-state">${esc(state)}</span></div>`).join("")}</div>
@@ -2531,12 +2697,13 @@ function renderReport(m){
     ${googleToolsHtml(m)}
     ${pagespeedHtml(m)}
     ${emailHtml(m)}
+    ${localHtml(m)}
 
     <div class="cats">${catRows}</div>
 
     ${m.previous?`<div class="sec-h"><h3>Évolution depuis le dernier audit</h3><div class="rule"></div></div>
     <p class="sec-intro">Comparaison avec l'analyse du ${new Date(m.previous.date).toLocaleDateString("fr-CA")}. <span class="screen-only">${m.historyStorage==="netlify"?"L'historique des 24 derniers audits est conservé en ligne et partagé entre tes appareils.":"L'historique des 12 derniers audits est conservé uniquement dans ce navigateur."}</span></p>
-    <div class="kw-cloud">${Object.entries(m.scores).map(([key,value])=>{const old=m.previous.scores?.[key];const d=typeof old==="number"?value-old:null;return `<span class="kw"><b>${esc(catLabels[key]||key)}</b><small>${d===null?"nouveau":(d>0?"+":"")+d+" points"}</small></span>`}).join("")}</div>`:""}
+    <div class="kw-cloud">${Object.entries(m.scores).map(([key,value])=>{const old=m.previous.scores?.[key];const d=typeof old==="number"?value-old:null;return `<span class="kw"><b>${esc(catLabels[key]||key)}</b><small>${d===null?"nouveau":(d>0?"+":"")+d+" points"}</small></span>`}).join("")}</div>${evolutionIssuesHtml(m)}`:""}
 
     <div class="sec-h"><h3>Priorités à meilleur rendement</h3><div class="rule"></div></div>
     <p class="sec-intro">Les interventions qui combinent le plus fort impact potentiel avec l'effort estimé le plus raisonnable.</p>
@@ -2666,9 +2833,10 @@ function renderReport(m){
 
     <div class="note"><b>Méthodologie — score v${esc(m.auditMeta.scoreVersion)}, confiance ${esc(m.auditMeta.confidence)}.</b> Rapport produit par le moteur d'analyse Paparmane :
       ${m.pages.length} pages crawlées, ${m.pages.reduce((a,p)=>a+(p.images||[]).length,0)} images inspectées,
-      ${m.linksChecked} liens internes vérifiés, robots.txt, indexabilité META/HTTP, canoniques, hiérarchie H1–H6, ALT strict et sémantique, ressources HTML, iFrames, favicon, hreflang, données structurées et llms.txt analysés. Les URL et les liens sont triés avant échantillonnage pour rendre deux audits comparables; les erreurs réseau sont relancées une fois. Le plan de site est cherché à /sitemap.xml, aux adresses déclarées dans robots.txt, puis à sitemap_index.xml, wp-sitemap.xml et sitemaps.xml; une adresse restée sans réponse claire est redemandée une seconde fois. Une absence de réponse, une erreur du serveur, un refus ou une page anti-robot sont rapportés « non vérifiable », jamais comptés comme une absence : seule une réponse « introuvable » à chaque adresse conclut à l'absence. Vitesse : Google PageSpeed (Lighthouse) sur l'accueil, mobile et ordinateur, et deux autres pages, avec les Core Web Vitals des vrais visiteurs Chrome quand Google en publie ; cette mesure n'entre pas dans le score. Courriels : SPF, DKIM et DMARC lus dans le DNS. Search Console : données Google réelles sur 90 jours quand le client en accorde l'accès. Le temps de réponse est un indicateur ponctuel et ne modifie pas le score. Les volumes Google, estimations de trafic, pages les plus visibles, concurrents organiques, backlinks et mentions IA affichés comme tels proviennent de DataForSEO; Paparmane ne fabrique jamais ces chiffres et les données externes ne modifient pas le score technique.</div>
+      ${m.linksChecked} liens internes vérifiés, robots.txt, indexabilité META/HTTP, canoniques, hiérarchie H1–H6, ALT strict et sémantique, ressources HTML, iFrames, favicon, hreflang, données structurées et llms.txt analysés. Les URL et les liens sont triés avant échantillonnage pour rendre deux audits comparables; les erreurs réseau sont relancées une fois. Le plan de site est cherché à /sitemap.xml, aux adresses déclarées dans robots.txt, puis à sitemap_index.xml, wp-sitemap.xml et sitemaps.xml; une adresse restée sans réponse claire est redemandée une seconde fois. Une absence de réponse, une erreur du serveur, un refus ou une page anti-robot sont rapportés « non vérifiable », jamais comptés comme une absence : seule une réponse « introuvable » à chaque adresse conclut à l'absence. Vitesse : Google PageSpeed (Lighthouse) sur l'accueil, mobile et ordinateur, et deux autres pages, avec les Core Web Vitals des vrais visiteurs Chrome quand Google en publie ; cette mesure n'entre pas dans le score. Courriels : SPF, DKIM et DMARC lus dans le DNS. Search Console : données Google réelles sur 90 jours quand le client en accorde l'accès. Pages quasi identiques détectées par empreinte de similarité du texte. Coordonnées comparées entre le site, le balisage Schema.org et la fiche Google Business Profile (retenue seulement si son site web est celui audité). Le résumé d'ouverture est rédigé à partir des résultats${m.summary?.source==="Claude"?" par Claude, puis relu par Paparmane":""}. Le temps de réponse est un indicateur ponctuel et ne modifie pas le score. Les volumes Google, estimations de trafic, pages les plus visibles, concurrents organiques, backlinks et mentions IA affichés comme tels proviennent de DataForSEO; Paparmane ne fabrique jamais ces chiffres et les données externes ne modifient pas le score technique.</div>
 
     <div class="toolbar">
+      ${watchButtonHtml(m)}
       <button class="btn ghost" onclick="window.print()">Imprimer / PDF client</button>
       <button class="btn" onclick="window.scrollTo({top:0,behavior:'smooth'})">Nouvel audit</button>
     </div>`;

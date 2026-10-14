@@ -230,6 +230,25 @@ const plain = (s) => String(s || "")
   .replace(/\s+/g, " ")
   .trim();
 
+// Empreinte de similarité (simhash 64 bits sur des groupes de trois mots) :
+// deux pages quasi identiques ont des empreintes qui ne diffèrent que de
+// quelques bits, même si quelques mots changent.
+function simhash64(text) {
+  const words = String(text).toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/).filter(w => w.length > 1);
+  if (words.length < 3) return "";
+  const v = new Array(64).fill(0);
+  for (let i = 0; i + 2 < words.length; i++) {
+    const sh = words[i] + " " + words[i + 1] + " " + words[i + 2];
+    let h1 = 2166136261, h2 = 2166136261;
+    for (let j = 0; j < sh.length; j++) { h1 ^= sh.charCodeAt(j); h1 = Math.imul(h1, 16777619); }
+    for (let j = sh.length - 1; j >= 0; j--) { h2 ^= sh.charCodeAt(j) + 7; h2 = Math.imul(h2, 16777619); }
+    for (let b = 0; b < 32; b++) { v[b] += (h1 >>> b) & 1 ? 1 : -1; v[32 + b] += (h2 >>> b) & 1 ? 1 : -1; }
+  }
+  let out = "";
+  for (let b = 0; b < 64; b += 4) { let n = 0; for (let k = 0; k < 4; k++) n |= (v[b + k] > 0 ? 1 : 0) << k; out += n.toString(16); }
+  return out;
+}
+
 function hashText(value) {
   let hash = 2166136261;
   for (let i = 0; i < value.length; i++) {
@@ -390,6 +409,16 @@ function isBusinessType(type) {
   return schemaLineage(type).some(t => t === "LocalBusiness" || t === "Organization");
 }
 
+// Adresse Schema.org (objet PostalAddress ou texte) ramenée à une ligne.
+function formatPostalAddress(address) {
+  if (!address) return null;
+  if (typeof address === "string") return address.replace(/\s+/g, " ").trim().slice(0, 160) || null;
+  if (Array.isArray(address)) return formatPostalAddress(address[0]);
+  if (typeof address !== "object") return null;
+  const line = [address.streetAddress, address.addressLocality, address.addressRegion, address.postalCode].filter(v => typeof v === "string" && v.trim()).join(", ");
+  return line.slice(0, 160) || null;
+}
+
 function inspectStructuredData(blocks) {
   const types = new Set(), nestedTypes = new Set(), problems = [], entities = [];
   let validBlocks = 0, invalidBlocks = 0;
@@ -421,7 +450,8 @@ function inspectStructuredData(blocks) {
     const rawTypes = (Array.isArray(node["@type"]) ? node["@type"] : node["@type"] ? [node["@type"]] : [])
       .filter(type => typeof type === "string")
       .map(type => type.replace(/^(?:https?:\/\/)?schema\.org\//i, ""));
-    if (rawTypes.length && primary) entities.push({ types: rawTypes, id: node["@id"] || null, name: node.name || node.headline || null, url: node.url || null });
+    if (rawTypes.length && primary) entities.push({ types: rawTypes, id: node["@id"] || null, name: node.name || node.headline || null, url: node.url || null,
+      telephone: typeof node.telephone === "string" ? node.telephone : null, address: formatPostalAddress(node.address) });
     rawTypes.forEach(type => {
       // Les nœuds secondaires (adresse, coordonnées, action de recherche…)
       // ne sont pas listés comme « types présents » : ils noyaient le rapport.
@@ -783,6 +813,25 @@ function analyzePage(url, html, finalUrl, response = {}) {
   )].slice(0, 40);
 
   const bodyText = decode(strip(usefulContentHtml(html)));
+  // Coordonnées visibles (téléphone, code postal, adresse) et balisées : en
+  // référencement local, Google relie le site à la fiche d'entreprise par
+  // leur cohérence. Les numéros sont ramenés à dix chiffres.
+  // Scripts et styles retirés : un bloc JSON-LD contient des codes postaux.
+  const fullText = decode(strip(html.replace(/<script\b[\s\S]*?<\/script>/gi, " ").replace(/<style\b[\s\S]*?<\/style>/gi, " ")));
+  const normalizePhone = value => { const d = String(value || "").replace(/\D/g, ""); return d.length === 11 && d[0] === "1" ? d.slice(1) : d.length === 10 ? d : null; };
+  const textPhones = [...fullText.matchAll(/(?:\+?1[\s.-]?)?\(?([2-9]\d{2})\)?[\s.-]?(\d{3})[\s.-]?(\d{4})\b/g)].map(m => m[1] + m[2] + m[3]);
+  const postalCodes = [...new Set([...fullText.matchAll(/\b([A-Z]\d[A-Z])\s?(\d[A-Z]\d)\b/g)].map(m => m[1] + " " + m[2]))].slice(0, 4);
+  const addressSnippets = postalCodes.map(code => {
+    const i = Math.max(fullText.indexOf(code), fullText.indexOf(code.replace(" ", "")));
+    return i >= 0 ? fullText.slice(Math.max(0, i - 90), i + 7).replace(/\s+/g, " ").trim() : "";
+  }).filter(Boolean);
+  const schemaContact = (schema.entities || []).find(e => e.telephone || e.address) || null;
+  const nap = {
+    phones: [...new Set([...phones.map(normalizePhone), ...textPhones].filter(Boolean))].slice(0, 6),
+    postalCodes,
+    addressSnippets,
+    schema: schemaContact ? { name: schemaContact.name || null, types: schemaContact.types || [], telephone: normalizePhone(schemaContact.telephone), telephoneRaw: schemaContact.telephone || null, address: schemaContact.address || null } : null,
+  };
   const keywords = extractKeywords(bodyText);
   const focusKeyword = inferFocusKeyword(title, h1, finalUrl, keywords);
   const focusTokens = topicTokens(focusKeyword);
@@ -841,6 +890,8 @@ function analyzePage(url, html, finalUrl, response = {}) {
     },
     links,
     externalLinks,
+    textFingerprint: simhash64(bodyText),
+    nap,
   };
 }
 
@@ -1882,7 +1933,7 @@ async function gscFetch(token, path, body) {
   return data;
 }
 const isoDay = date => date.toISOString().slice(0, 10);
-async function searchConsoleIntelligence(site) {
+async function searchConsoleIntelligence(site, { days = 90, lite = false } = {}) {
   const creds = gscCredentials();
   if (!creds) return { configured: false, available: false, reason: "gsc_not_configured" };
   const host = new URL(site).hostname.replace(/^www\./i, "").toLowerCase();
@@ -1900,17 +1951,17 @@ async function searchConsoleIntelligence(site) {
   // Google publie avec deux à trois jours de retard : fenêtre de 90 jours
   // close trois jours avant aujourd'hui, comparée aux 90 jours précédents.
   const end = new Date(); end.setUTCDate(end.getUTCDate() - 3);
-  const start = new Date(end); start.setUTCDate(start.getUTCDate() - 89);
+  const span = Math.max(7, Math.min(480, Number(days) || 90));
+  const start = new Date(end); start.setUTCDate(start.getUTCDate() - (span - 1));
   const prevEnd = new Date(start); prevEnd.setUTCDate(prevEnd.getUTCDate() - 1);
-  const prevStart = new Date(prevEnd); prevStart.setUTCDate(prevStart.getUTCDate() - 89);
+  const prevStart = new Date(prevEnd); prevStart.setUTCDate(prevStart.getUTCDate() - (span - 1));
   const encoded = encodeURIComponent(property.siteUrl);
   const query = (dimensions, rowLimit, from = start, to = end) => gscFetch(token, `/sites/${encoded}/searchAnalytics/query`, { startDate: isoDay(from), endDate: isoDay(to), dimensions, rowLimit, type: "web", dataState: "final" });
-  const [totals, previous, queries, pages, devices, countries, sitemaps] = await Promise.allSettled([
-    query([], 1), query([], 1, prevStart, prevEnd), query(["query"], 25), query(["page"], 15), query(["device"], 3), query(["country"], 5),
-    gscFetch(token, `/sites/${encoded}/sitemaps`),
-  ]);
-  const row = r => r.status === "fulfilled" ? (r.value.rows?.[0] || {}) : null;
-  const rows = r => r.status === "fulfilled" ? (r.value.rows || []) : [];
+  const [totals, previous, queries, pages, devices, countries, sitemaps] = await Promise.allSettled(lite
+    ? [query([], 1), query([], 1, prevStart, prevEnd), query(["query"], 10)]
+    : [query([], 1), query([], 1, prevStart, prevEnd), query(["query"], 25), query(["page"], 15), query(["device"], 3), query(["country"], 5), gscFetch(token, `/sites/${encoded}/sitemaps`)]);
+  const row = r => r?.status === "fulfilled" ? (r.value.rows?.[0] || {}) : null;
+  const rows = r => r?.status === "fulfilled" ? (r.value.rows || []) : [];
   const metrics = x => x ? { clicks: Math.round(x.clicks || 0), impressions: Math.round(x.impressions || 0), ctr: Number(x.ctr || 0), position: x.position == null ? null : Number(x.position) } : null;
   if (totals.status !== "fulfilled") return { configured: true, available: false, reason: "gsc_error", error: totals.reason?.message || "Lecture impossible", serviceAccountEmail: creds.email, property: property.siteUrl };
   return {
@@ -1919,14 +1970,14 @@ async function searchConsoleIntelligence(site) {
     source: "Google Search Console",
     property: property.siteUrl,
     permission: property.permissionLevel,
-    period: { start: isoDay(start), end: isoDay(end), days: 90 },
+    period: { start: isoDay(start), end: isoDay(end), days: span },
     totals: metrics(row(totals)) || { clicks: 0, impressions: 0, ctr: 0, position: null },
     previous: metrics(row(previous)),
     queries: rows(queries).map(r => ({ query: String(r.keys?.[0] || ""), ...metrics(r) })).filter(r => r.query),
     pages: rows(pages).map(r => ({ url: String(r.keys?.[0] || ""), ...metrics(r) })).filter(r => r.url),
     devices: rows(devices).map(r => ({ device: String(r.keys?.[0] || "").toLowerCase(), ...metrics(r) })),
     countries: rows(countries).map(r => ({ country: String(r.keys?.[0] || "").toUpperCase(), ...metrics(r) })),
-    sitemaps: sitemaps.status === "fulfilled" ? (sitemaps.value.sitemap || []).map(entry => ({
+    sitemaps: sitemaps?.status === "fulfilled" ? (sitemaps.value.sitemap || []).map(entry => ({
       path: String(entry.path || ""),
       lastSubmitted: String(entry.lastSubmitted || "").slice(0, 10),
       lastDownloaded: String(entry.lastDownloaded || "").slice(0, 10),
@@ -1995,6 +2046,183 @@ async function gtmetrix(action, { url, id }) {
   } catch (error) {
     return { configured: true, available: false, reason: error.status === 401 || error.status === 403 ? "gtmetrix_unauthorized" : error.status === 402 ? "gtmetrix_no_credits" : "gtmetrix_error", error: error.message };
   }
+}
+
+// ---------- FICHE GOOGLE (Places API, facultatif : GOOGLE_PLACES_API_KEY) ----------
+// On ne retient une fiche que si son site web est celui audité : un simple
+// nom semblable ne prouve rien.
+async function placesLookup(query, domain) {
+  const key = process.env.GOOGLE_PLACES_API_KEY;
+  if (!key) return { configured: false, available: false, reason: "places_not_configured" };
+  const host = value => { try { return new URL(value).hostname.replace(/^www\./i, "").toLowerCase(); } catch { return ""; } };
+  try {
+    const res = await fetch("https://places.googleapis.com/v1/places:searchText", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Goog-Api-Key": key, "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.websiteUri,places.rating,places.userRatingCount,places.googleMapsUri,places.businessStatus" },
+      body: JSON.stringify({ textQuery: String(query).slice(0, 120), languageCode: "fr-CA", regionCode: "CA", maxResultCount: 5 }),
+      signal: AbortSignal.timeout(6000),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { configured: true, available: false, reason: "places_error", error: data.error?.message || ("Erreur " + res.status) };
+    const places = (data.places || []).map(p => ({
+      id: String(p.id || ""), name: String(p.displayName?.text || ""), address: String(p.formattedAddress || ""), phone: String(p.nationalPhoneNumber || ""),
+      website: String(p.websiteUri || ""), rating: p.rating ?? null, reviews: Number(p.userRatingCount || 0),
+      mapsUrl: /^https:\/\/(?:maps|www)\.google\.com\//i.test(p.googleMapsUri || "") ? p.googleMapsUri : "", status: String(p.businessStatus || ""),
+    }));
+    const match = places.find(p => host(p.website) === String(domain).toLowerCase()) || null;
+    return { configured: true, available: true, query: String(query).slice(0, 120), match, candidates: places.slice(0, 3).map(p => ({ name: p.name, address: p.address, website: p.website })) };
+  } catch (error) { return { configured: true, available: false, reason: "places_error", error: error.message }; }
+}
+
+// ---------- RÉSUMÉ RÉDIGÉ (Claude, facultatif : ANTHROPIC_API_KEY) ----------
+// Le navigateur prépare un résumé par règles ; si la clé est présente, Claude
+// le réécrit à partir des mêmes faits, jamais d'autres. Paparmane relit avant
+// d'envoyer. La fonction Netlify a dix secondes : on s'arrête à neuf.
+const SUMMARY_SYSTEM = `Tu rédiges pour Paparmane, studio créatif québécois, le résumé qui ouvre un rapport d'audit SEO remis à un client (souvent une PME). Tu reçois des faits en JSON : score, points forts, problèmes classés par gravité, actions prioritaires, parfois des données Google réelles ou une mesure de vitesse.
+Écris exactement trois paragraphes en français du Québec, simple et direct, en vouvoyant le client. Pas de titre, pas de liste, pas de gras, pas de formule d'ouverture ni de signature.
+Paragraphe 1 : où en est le site aujourd'hui (le score, ce qui va déjà bien).
+Paragraphe 2 : ce qui le freine, les deux ou trois problèmes les plus importants, en expliquant concrètement ce que ça change pour ses clients ou pour Google.
+Paragraphe 3 : par quoi commencer, trois actions dans l'ordre, avec l'ordre de grandeur de l'effort.
+Utilise uniquement les faits fournis : n'invente ni chiffre, ni cause, ni résultat attendu. Si un fait manque, n'en parle pas. Entre 90 et 150 mots par paragraphe. Sépare les paragraphes par une ligne vide.`;
+async function writeSummary(facts) {
+  if (!process.env.ANTHROPIC_API_KEY) return { configured: false, available: false, reason: "summary_not_configured" };
+  const payload = JSON.stringify(facts || {});
+  if (payload.length > 16000) return { configured: true, available: false, reason: "summary_too_long" };
+  try {
+    const { default: Anthropic } = await import("@anthropic-ai/sdk");
+    const client = new Anthropic({ timeout: 9000, maxRetries: 0 });
+    const response = await client.beta.messages.create({
+      model: "claude-opus-5-5",
+      max_tokens: 1500,
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default",
+      output_config: { effort: "low" },
+      system: SUMMARY_SYSTEM,
+      messages: [{ role: "user", content: payload }],
+    });
+    if (response.stop_reason === "refusal") return { configured: true, available: false, reason: "summary_refused" };
+    const text = response.content.filter(block => block.type === "text").map(block => block.text).join("\n").trim();
+    if (!text) return { configured: true, available: false, reason: "summary_empty" };
+    return { configured: true, available: true, text, model: response.model, truncated: response.stop_reason === "max_tokens" };
+  } catch (error) {
+    const reason = error?.status === 401 ? "summary_unauthorized" : error?.status === 429 ? "summary_rate_limited" : /timeout|timed out|aborted/i.test(error?.message || "") ? "summary_timeout" : "summary_error";
+    return { configured: true, available: false, reason, error: error?.message || String(error) };
+  }
+}
+
+// ---------- VEILLE MENSUELLE (Netlify Blobs + Resend) ----------
+// Chaque client suivi est revérifié tous les 28 jours : accueil, plan de site,
+// clics Google réels (si l'accès est accordé), comparés à la fois précédente ;
+// un courriel résume ce qui a bougé. La fonction planifiée tourne chaque jour
+// et traite les sites dus dans son budget de temps.
+async function veilleStore() {
+  const { getStore } = await import("@netlify/blobs");
+  return getStore({ name: "veille", consistency: "strong" });
+}
+async function readWatchList(store) {
+  const list = await store.get("sites", { type: "json" });
+  return Array.isArray(list) ? list : [];
+}
+async function updateWatch(site, { clientName = "", enabled = true } = {}) {
+  const store = await veilleStore();
+  const list = await readWatchList(store);
+  const key = historyKey(site);
+  const existing = list.find(entry => entry.key === key);
+  if (!enabled) {
+    const next = list.filter(entry => entry.key !== key);
+    await store.setJSON("sites", next);
+    return next;
+  }
+  if (existing) { existing.clientName = String(clientName || existing.clientName || "").slice(0, 120); existing.enabled = true; }
+  else list.push({ key, site: new URL(site).origin, clientName: String(clientName || "").slice(0, 120), enabled: true, addedAt: new Date().toISOString(), lastRun: null, last: null, previous: null });
+  await store.setJSON("sites", list);
+  return list;
+}
+async function veilleCheck(entry, timeout) {
+  const origin = new URL(entry.site).origin;
+  const t = Math.max(2000, Math.min(4500, timeout));
+  const [home, sm, smi, gsc] = await Promise.all([
+    grab(origin + "/", { asText: false, timeout: t }),
+    readSitemap(origin + "/sitemap.xml", origin, { timeout: t }),
+    readSitemap(origin + "/sitemap_index.xml", origin, { timeout: t }),
+    gscCredentials() ? searchConsoleIntelligence(origin, { days: 28, lite: true }).catch(error => ({ configured: true, available: false, error: error.message })) : Promise.resolve({ configured: false, available: false }),
+  ]);
+  let lastAudit = null;
+  try { lastAudit = (await readHistory(origin))[0] || null; } catch { lastAudit = null; }
+  const found = sm.found ? sm : smi.found ? smi : null;
+  return {
+    at: new Date().toISOString(),
+    homeStatus: home.status || 0,
+    homeMs: home.elapsedMs || null,
+    sitemap: found ? (found === sm ? "sitemap.xml" : "sitemap_index.xml") : (SITEMAP_ABSENT_OUTCOMES.has(sm.outcome) && SITEMAP_ABSENT_OUTCOMES.has(smi.outcome) ? "absent" : "non vérifiable"),
+    sitemapEntries: found ? found.pages.length + found.sitemaps.length : null,
+    gsc: gsc.available ? { clicks: gsc.totals.clicks, impressions: gsc.totals.impressions, position: gsc.totals.position, prevClicks: gsc.previous?.clicks ?? null, prevImpressions: gsc.previous?.impressions ?? null, topQueries: gsc.queries.slice(0, 5).map(q => ({ query: q.query, clicks: q.clicks })) } : { available: false, reason: gsc.reason || "gsc_unavailable" },
+    lastAudit: lastAudit ? { date: lastAudit.date, global: lastAudit.global } : null,
+  };
+}
+function veilleAlerts(r, prev) {
+  const alerts = [];
+  if (!r.homeStatus || r.homeStatus >= 400) alerts.push("L'accueil ne répond pas correctement (statut " + (r.homeStatus || "aucune réponse") + ").");
+  if (r.sitemap === "absent" && prev && prev.sitemap !== "absent") alerts.push("Le plan de site a disparu (" + prev.sitemap + " avant).");
+  if (prev?.sitemapEntries && r.sitemapEntries != null && r.sitemapEntries < prev.sitemapEntries * 0.7) alerts.push("Le plan de site a perdu des entrées : " + r.sitemapEntries + " contre " + prev.sitemapEntries + ".");
+  if (r.gsc?.available !== false && r.gsc?.prevClicks >= 20 && r.gsc.clicks < r.gsc.prevClicks * 0.7) alerts.push("Clics Google en baisse de " + Math.round(100 - 100 * r.gsc.clicks / r.gsc.prevClicks) + " % sur 28 jours (" + r.gsc.clicks + " contre " + r.gsc.prevClicks + ").");
+  if (r.gsc?.available !== false && prev?.gsc?.clicks >= 20 && r.gsc.clicks < prev.gsc.clicks * 0.7) alerts.push("Clics Google en baisse de " + Math.round(100 - 100 * r.gsc.clicks / prev.gsc.clicks) + " % depuis la veille précédente.");
+  return alerts;
+}
+const escHtml = value => String(value ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+async function sendVeilleEmail(entry, r, prev) {
+  const key = process.env.RESEND_API_KEY, to = process.env.VEILLE_EMAIL;
+  if (!key || !to) throw new Error("RESEND_API_KEY ou VEILLE_EMAIL manquant");
+  const host = new URL(entry.site).hostname.replace(/^www\./i, "");
+  const alerts = veilleAlerts(r, prev);
+  const good = r.gsc?.available !== false && r.gsc?.prevClicks >= 20 && r.gsc.clicks > r.gsc.prevClicks * 1.2 ? ["Clics Google en hausse de " + Math.round(100 * r.gsc.clicks / r.gsc.prevClicks - 100) + " % sur 28 jours."] : [];
+  const subject = "Veille SEO — " + (entry.clientName || host) + " : " + (alerts.length ? alerts.length + " point(s) à regarder" : "rien d'anormal");
+  const li = items => items.map(x => "<li>" + escHtml(x) + "</li>").join("");
+  const html = `<div style="font-family:Inter,Arial,sans-serif;max-width:620px;color:#1c1b19">
+    <p style="font-size:12px;color:#8a867f;margin:0 0 6px">Veille mensuelle Paparmane</p>
+    <h2 style="margin:0 0 14px">${escHtml(entry.clientName || host)} <span style="font-weight:400;color:#8a867f">· ${escHtml(host)}</span></h2>
+    ${alerts.length ? "<p><b>À regarder</b></p><ul>" + li(alerts) + "</ul>" : "<p>Rien d'anormal ce mois-ci.</p>"}
+    ${good.length ? "<p><b>Bonne nouvelle</b></p><ul>" + li(good) + "</ul>" : ""}
+    <p><b>État</b></p><ul>
+      <li>Accueil : statut ${escHtml(r.homeStatus || "aucune réponse")}${r.homeMs ? " en " + escHtml(r.homeMs) + " ms" : ""}</li>
+      <li>Plan de site : ${escHtml(r.sitemap)}${r.sitemapEntries != null ? " (" + escHtml(r.sitemapEntries) + " entrées)" : ""}</li>
+      ${r.gsc?.available === false ? "<li>Search Console : " + escHtml(r.gsc.reason === "gsc_no_access" ? "accès non accordé par le client" : r.gsc.reason === "gsc_not_configured" ? "non configurée" : "indisponible") + "</li>"
+        : "<li>Clics Google, 28 jours : " + escHtml(r.gsc.clicks) + (r.gsc.prevClicks != null ? " (28 jours précédents : " + escHtml(r.gsc.prevClicks) + ")" : "") + " · " + escHtml(r.gsc.impressions) + " impressions · position moyenne " + escHtml(r.gsc.position == null ? "—" : Number(r.gsc.position).toFixed(1)) + "</li>"
+        + (r.gsc.topQueries?.length ? "<li>Recherches qui amènent le plus de clics : " + r.gsc.topQueries.map(q => escHtml(q.query) + " (" + escHtml(q.clicks) + ")").join(", ") + "</li>" : "")}
+      ${r.lastAudit ? "<li>Dernier audit complet : " + escHtml(String(r.lastAudit.date).slice(0, 10)) + ", score " + escHtml(r.lastAudit.global) + "/100</li>" : "<li>Aucun audit complet enregistré en ligne pour ce site.</li>"}
+    </ul>
+    <p style="font-size:12px;color:#8a867f">La vitesse n'est pas mesurée par la veille. Pour un bilan complet, relancer l'audit dans l'outil : ${escHtml(process.env.URL || "https://paparmane.netlify.app")}/outil-seo.html</p>
+  </div>`;
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" },
+    body: JSON.stringify({ from: process.env.VEILLE_FROM || "Paparmane veille <onboarding@resend.dev>", to: [to], subject, html }),
+    signal: AbortSignal.timeout(5000),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.message || data.error?.message || ("Resend " + res.status));
+  return { id: data.id || null, subject, alerts };
+}
+async function runVeille({ force = false, budgetMs = 8000, only = "" } = {}) {
+  const started = Date.now();
+  const store = await veilleStore();
+  const list = await readWatchList(store);
+  const due = list.filter(entry => entry.enabled !== false && (!only || entry.key === only) && (force || !entry.lastRun || Date.now() - Date.parse(entry.lastRun) > 28 * 86400000))
+    .sort((a, b) => String(a.lastRun || "").localeCompare(String(b.lastRun || "")));
+  const checked = [];
+  for (const entry of due) {
+    const left = budgetMs - (Date.now() - started);
+    if (left < 3500) break;
+    const result = await veilleCheck(entry, left - 1500);
+    entry.previous = entry.last || null;
+    entry.last = result;
+    entry.lastRun = result.at;
+    try { entry.lastEmail = await sendVeilleEmail(entry, result, entry.previous); delete entry.lastEmailError; }
+    catch (error) { entry.lastEmailError = error.message; }
+    checked.push({ site: entry.site, clientName: entry.clientName, alerts: veilleAlerts(result, entry.previous), email: entry.lastEmail?.id ? "envoyé" : (entry.lastEmailError || "non envoyé"), result });
+  }
+  if (checked.length) await store.setJSON("sites", list);
+  return { checked, remaining: due.length - checked.length, watched: list.length };
 }
 
 // ---------- HISTORIQUE (Netlify Blobs) ----------
@@ -2109,7 +2337,7 @@ export default async (req) => {
     }
 
     // Modules protégés par le code d'accès (comme trafic et gap).
-    const guarded = ["config", "gsc", "gtmetrix", "history"].includes(mode);
+    const guarded = ["config", "gsc", "gtmetrix", "history", "places", "summary", "watch", "veille"].includes(mode);
     if (guarded) {
       if (!accessKey) return json({ configured: false, available: false, reason: "server_protection_missing", error: "La protection privée n'est pas configurée sur le serveur." }, 503);
       if (req.headers.get("x-paparmane-key") !== accessKey) return json({ configured: false, available: false, reason: "access_key_invalid", error: "Le code d'accès courant ne permet pas d'utiliser ce module." }, 401);
@@ -2125,7 +2353,36 @@ export default async (req) => {
         gtmetrix: !!process.env.GTMETRIX_API_KEY,
         searchConsole: { configured: !!gsc, email: gsc?.email || "" },
         history,
+        places: !!process.env.GOOGLE_PLACES_API_KEY,
+        summary: !!process.env.ANTHROPIC_API_KEY,
+        watch: history && !!process.env.RESEND_API_KEY && !!process.env.VEILLE_EMAIL,
+        watchEmail: process.env.VEILLE_EMAIL || "",
       });
+    }
+    if (mode === "places") {
+      const domain = String(q.get("domain") || "").toLowerCase().replace(/^www\./, "");
+      if (!/^[a-z0-9.-]+\.[a-z]{2,}$/.test(domain)) return json({ error: "Domaine invalide." }, 400);
+      return json(await placesLookup(q.get("q") || domain, domain));
+    }
+    if (mode === "summary" && req.method === "POST") {
+      const body = await req.json().catch(() => ({}));
+      return json(await writeSummary(body.facts && typeof body.facts === "object" ? body.facts : {}));
+    }
+    if (mode === "watch") {
+      let site = (q.get("site") || "").trim();
+      if (!/^https?:\/\//i.test(site)) site = "https://" + site;
+      if (!isSafeUrl(site)) return json({ error: "Adresse invalide." }, 400);
+      try {
+        const list = req.method === "POST"
+          ? await updateWatch(site, await req.json().catch(() => ({})))
+          : await readWatchList(await veilleStore());
+        const entry = list.find(item => item.key === historyKey(site)) || null;
+        return json({ available: true, watched: !!entry, entry, count: list.length });
+      } catch (error) { return json({ available: false, reason: "watch_unavailable", error: error?.message || "Veille indisponible." }); }
+    }
+    if (mode === "veille") {
+      try { return json(await runVeille({ force: q.get("force") === "1", only: q.get("site") ? historyKey(/^https?:/i.test(q.get("site")) ? q.get("site") : "https://" + q.get("site")) : "" })); }
+      catch (error) { return json({ available: false, reason: "veille_unavailable", error: error?.message || "Veille indisponible." }); }
     }
     if (mode === "gsc") {
       let site = (q.get("site") || "").trim();
@@ -2181,3 +2438,4 @@ export default async (req) => {
 };
 
 export const config = { path: "/api/audit" };
+export { runVeille };
