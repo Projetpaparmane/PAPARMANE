@@ -269,7 +269,12 @@
   .note{margin-top:22px;background:var(--accent-soft);border-radius:11px;padding:15px 18px;font-size:13.5px}
   .note b{color:var(--accent-hi)}
   .foot{margin-top:48px;padding-top:22px;border-top:2px solid var(--ink);display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;align-items:center;font-size:12px;color:var(--ink-faint)}
-  .toolbar{display:flex;gap:10px;justify-content:flex-end;margin:26px 0 0}
+  .toolbar{display:flex;gap:10px;justify-content:flex-end;margin:26px 0 0;flex-wrap:wrap}
+  .ov-group{display:flex;align-items:baseline;gap:10px;margin:18px 0 8px;padding-top:12px;border-top:1px dashed var(--line)}
+  .ov-group:first-of-type{border-top:none;padding-top:0;margin-top:8px}
+  .ov-group h4{margin:0;font-size:13px;text-transform:uppercase;letter-spacing:.12em;color:var(--accent)}
+  .ov-group span{font-size:12px;color:var(--ink-faint)}
+  .exec-only{display:none}
 
   /* Porte d'entrée */
   #gate{position:fixed;inset:0;background:var(--bg);display:grid;place-items:center;z-index:50}
@@ -303,6 +308,10 @@
     .rpane>.sec-h:first-child{margin-top:46px}
     .print-only{display:block!important}
     .cover{display:flex!important;break-after:page;page-break-after:always}
+    /* Version décideur : seuls les volets marqués sont imprimés. */
+    .print-exec .rpane:not([data-exec]){display:none!important}
+    .print-exec .exec-only{display:block!important}
+    .print-exec .iss .more,.print-exec .pgroup,.print-exec .tbl-toggle{display:none!important}
   }
   .print-only{display:none}
   .cover{display:none}
@@ -977,6 +986,15 @@ async function runAudit(){
 }
 
 // --- Construction du modèle : scores + problèmes ---
+// Ville d'une adresse « 12 rue X, Sherbrooke, QC J1H 1A1, Canada » ou
+// « 12 rue X, Sherbrooke (Québec) J1H 1A1 ». Rien d'inventé : vide si incertain.
+function cityFromAddress(addr){
+  const a=String(addr||"").replace(/\s+/g," ").trim(); if(!a) return "";
+  let m=a.match(/,\s*([A-Za-zÀ-ÿ'’. -]{2,40}?)\s*,\s*(?:QC|Québec|Quebec|ON|Ontario|NB|NS|MB|SK|AB|BC|PE|NL)\b/i);
+  if(m) return m[1].trim();
+  m=a.match(/,\s*([A-Za-zÀ-ÿ'’. -]{2,40}?)\s*\((?:Québec|Quebec|Ontario)\)/i);
+  return m?m[1].trim():"";
+}
 function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, options={}){
   // Statut 0, 429 ou 503 = délai, réseau ou limite de débit : pas une page morte prouvée.
   for(const p of pagesAll) if(p.dead&&isUnverifiableStatus(p.status)) p.transient=true;
@@ -988,7 +1006,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
       origin,disc,pages,deadPages,barrier:auditBarrier,
       clientName:options.clientName||"",contactName:options.contactName||"",
       linksChecked:0,previous:null,global:null,scores:null,counts:null,
-      auditMeta:{scoreVersion:"2.7",requested:pagesAll.length,successful:pages.length,transient:deadPages.filter(p=>p.transient).length,confidence:"non concluante",conclusive:false},
+      auditMeta:{scoreVersion:"2.8",requested:pagesAll.length,successful:pages.length,transient:deadPages.filter(p=>p.transient).length,confidence:"non concluante",conclusive:false},
     };
   }
   const n = Math.max(1,pages.length);
@@ -1039,29 +1057,38 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   const champTitre = isWP ? "champ <b>Titre SEO</b> du bloc Yoast/RankMath, sous l'éditeur de la page" : "balise <code>&lt;title&gt;</code> dans le <code>&lt;head&gt;</code> de la page";
   const champDesc  = isWP ? "champ <b>Méta description</b> du bloc Yoast/RankMath" : "balise <code>&lt;meta name=\"description\"&gt;</code> dans le <code>&lt;head&gt;</code>";
 
+  // Exemple d'ALT personnalisé : nom du client et ville quand on les connaît.
+  const _clientForAlt=String(options.clientName||"").trim();
+  const _cityForAlt=cityFromAddress(disc.places?.match?.address)||cityFromAddress(pagesAll.flatMap(p=>p.nap?.addressSnippets||[])[0])||"";
+  const altExample=_clientForAlt&&_cityForAlt?"« L'équipe de "+esc(_clientForAlt)+" devant ses locaux à "+esc(_cityForAlt)+" »":_clientForAlt?"« L'équipe de "+esc(_clientForAlt)+" au travail »":_cityForAlt?"« Vitrine du commerce, rue principale à "+esc(_cityForAlt)+" »":"« Technicienne au travail dans l'atelier »";
+
   // ---- Doublons titres / descriptions ----
   const groupBy=(key)=>{ const m={}; for(const p of pages){ const v=p[key]; if(!v)continue; (m[v]??=[]).push(p);} return Object.values(m).filter(g=>g.length>1); };
   const dupT = groupBy("title"), dupD = groupBy("desc");
-  for(const g of dupT){
-    issues.push({sev:"crit",cat:"balises",title:g.length+" pages partagent exactement le même titre SEO",
-      body:"Google voit des pages « jumelles » et les met en concurrence entre elles : une seule sera bien classée, souvent la mauvaise. Chaque page doit annoncer son propre sujet.",
-      where:["Titre dupliqué : «&nbsp;"+esc(g[0].title)+"&nbsp;»",...g.map(p=>"<a href='"+esc(p.url)+"' target='_blank'>"+esc(sh(p.url))+"</a>")],
-      steps:["Ouvrir chaque page listée ci-dessus.","Dans le "+champTitre+", écrire un titre <b>unique</b> qui nomme le contenu précis de la page.","Garder 30 à 60 caractères, mot-clé principal au début."],
+  // Un seul constat par type de doublon : « 2 groupes de pages partagent un
+  // même titre », chaque groupe listé, plutôt que deux constats identiques.
+  const dupGroupsWhere=(groups,label,key)=>groups.flatMap((g,ix)=>[(groups.length>1?"Groupe "+(ix+1)+" — ":"")+label+" : «&nbsp;"+esc(String(g[0][key]).slice(0,120))+"&nbsp;»",...g.map(p=>"<a href='"+esc(p.url)+"' target='_blank'>"+esc(sh(p.url))+"</a>")]);
+  const dupPagesCount=groups=>groups.reduce((n,g)=>n+g.length,0);
+  if(dupT.length){
+    issues.push({sev:"crit",cat:"balises",title:dupT.length===1?dupT[0].length+" pages partagent exactement le même titre SEO":dupT.length+" groupes de pages partagent un même titre SEO ("+dupPagesCount(dupT)+" pages)",
+      body:"Google voit des pages « jumelles » et les met en concurrence entre elles : une seule sera bien classée, souvent la mauvaise. Chaque page doit annoncer son propre sujet."+(dupT.length>1?" Les groupes ci-dessous sont distincts : un titre différent par groupe.":""),
+      where:dupGroupsWhere(dupT,"Titre dupliqué","title"),
+      steps:["Ouvrir chaque page listée ci-dessus.","Dans le "+champTitre+", écrire un titre <b>unique</b> qui nomme le contenu précis de la page.","Viser 30 à 60 caractères, mot-clé principal au début."],
       effort:"10 min / page", gain:"élevé"});
   }
-  for(const g of dupD){
-    issues.push({sev:"crit",cat:"balises",title:g.length+" pages partagent la même méta description",
-      body:"Même problème que les titres dupliqués : Google ne sait plus quelle page montrer, et les visiteurs voient un résumé qui ne correspond pas toujours à la page.",
-      where:[...g.map(p=>"<a href='"+esc(p.url)+"' target='_blank'>"+esc(sh(p.url))+"</a>")],
+  if(dupD.length){
+    issues.push({sev:"warn",cat:"balises",title:dupD.length===1?dupD[0].length+" pages partagent la même méta description":dupD.length+" groupes de pages partagent une même méta description ("+dupPagesCount(dupD)+" pages)",
+      body:"Les visiteurs voient le même résumé sous des liens différents, et Google remplace alors souvent la description par un extrait de son choix. Ce n'est pas une pénalité de classement, mais une occasion manquée de convaincre.",
+      where:dupGroupsWhere(dupD,"Description dupliquée","desc"),
       steps:["Ouvrir chaque page listée.","Dans le "+champDesc+", rédiger un texte <b>unique</b> de 120 à 155 caractères.","Décrire ce que CETTE page offre, terminer par une invitation (« Réservez », « Découvrez »…)."],
-      effort:"10 min / page", gain:"élevé"});
+      effort:"10 min / page", gain:"moyen"});
   }
 
   // ---- H1 ----
   const h1Zero = pages.filter(p=>p.h1Count===0);
   const h1Multi = pages.filter(p=>p.h1Count>1);
-  if(h1Multi.length) issues.push({sev:"crit",cat:"structure",title:h1Multi.length+" page(s) ont plusieurs titres principaux (H1)",
-    body:"Le H1 est le titre de couverture d'une page : il doit être unique. Plusieurs H1 (souvent des blocs copiés-collés) brouillent le sujet de la page pour Google.",
+  if(h1Multi.length) issues.push({sev:"warn",cat:"structure",title:h1Multi.length+" page(s) ont plusieurs titres principaux (H1)",
+    body:"Le H1 est le titre de couverture d'une page. Google sait lire une page qui en a plusieurs, ce n'est donc pas un blocage ; mais plusieurs H1 (souvent des blocs copiés-collés) rendent le sujet de la page ambigu, pour Google comme pour les lecteurs d'écran. Correction simple quand on passe dans la page.",
     where:h1Multi.map(p=>"<a href='"+esc(p.url)+"' target='_blank'>"+esc(sh(p.url))+"</a> — <b>"+p.h1Count+" H1</b> : «&nbsp;"+esc((p.h1[0]||"").slice(0,60))+"&nbsp;»…"),
     steps:["Ouvrir la page dans l'éditeur.","Garder <b>le premier titre en H1</b> (le sujet de la page).","Passer tous les autres en <b>H2</b> (barre d'outils du bloc titre).","Idéalement, donner à chaque H2 un texte distinct (nom de la section)."],
     effort:"~5 min / page", gain:"élevé"});
@@ -1104,11 +1131,11 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
     body:"Ce contrôle applique la lecture la plus stricte : toute image visuelle sans texte ALT, y compris <code>alt=\"\"</code>, est affichée; les pixels de suivi techniques sont exclus. Paparmane ajoute ensuite le contexte : un ALT vide est correct pour une image purement décorative, tandis qu'une vraie photo de contenu doit être décrite. Seules les vraies photos manquantes réduisent le score SEO.",
     where:strictAltPages.slice(0,20).map(x=>"<a href='"+esc(x.page.url)+"' target='_blank'>"+esc(sh(x.page.url))+"</a> — <b>"+x.flagged.length+"/"+x.total+" signalée(s)</b> · "+x.content+" contenu · "+x.deco+" décorative(s) · "+x.tech+" technique(s) · "+x.flagged.slice(0,8).map(im=>"<code>"+esc(im.file)+"</code>").join(", ")+(x.flagged.length>8?"…":"")),
     steps:["Ouvrir chaque page et repérer les fichiers signalés.","Pour une photo qui apporte de l'information, écrire un ALT court qui décrit ce qu'on voit.","Pour une décoration, conserver <code>alt=\"\"</code>; pour un pixel de suivi, ne pas inventer de description.","Vérifier ensuite la ligne « photos de contenu » : c'est elle qui indique les corrections réellement nécessaires."],effort:"2 min / vraie photo",gain:"SEO Images + accessibilité"});
-  if(contentBad>0) issues.push({sev: contentBad>=15?"crit":"warn", cat:"images", title:uniqFiles.size+" photo(s) invisibles pour Google Images",
-    body:"Google lit la <b>description texte</b> d'une image (le « texte alternatif »), pas l'image elle-même. Sans elle, ces photos n'apparaîtront jamais dans Google Images. Note : notre robot a trié — les images techniques ("+techCount+") et décoratives ("+decoCount+") sont exclues, il ne reste que les vraies photos de contenu.",
+  if(contentBad>0) issues.push({sev: contentBad>=40?"crit":"warn", cat:"images", title:uniqFiles.size+" photo(s) sans description pour Google Images",
+    body:"Google s'appuie d'abord sur la <b>description texte</b> d'une image (le « texte alternatif »), puis sur le texte qui l'entoure et sur sa propre analyse visuelle. Sans ALT, ces photos ont très peu de chances d'apparaître dans Google Images et restent muettes pour les lecteurs d'écran. Note : notre robot a trié — les images techniques ("+techCount+") et décoratives ("+decoCount+") sont exclues, il ne reste que les vraies photos de contenu.",
     where:imgPages.slice(0,10).map(g=>"<a href='"+esc(g.url)+"' target='_blank'>"+esc(sh(g.url))+"</a> — <b>"+g.files.length+" photo(s)</b>"),
-    steps: isWP?["Aller dans <b>WordPress → Médias → Bibliothèque</b>.","Chercher chaque fichier (liste complète en bas du rapport).","Remplir <b>Texte alternatif</b> : décrire ce qu'on voit, en une phrase naturelle, avec le lieu si pertinent.","Éviter « photo » ou « IMG_1234 » : écrire par ex. « Atelier de céramique avec tour de potier, à Sherbrooke »."]
-    :["Ouvrir le code HTML de chaque page listée.","Sur chaque balise <code>&lt;img&gt;</code> concernée, ajouter <code>alt=\"…\"</code>.","Décrire ce que montre l'image, en une phrase naturelle."],
+    steps: isWP?["Aller dans <b>WordPress → Médias → Bibliothèque</b>.","Chercher chaque fichier (liste complète en bas du rapport).","Remplir <b>Texte alternatif</b> : décrire ce qu'on voit, en une phrase naturelle, avec le lieu si pertinent.","Éviter « photo » ou « IMG_1234 » : écrire par ex. "+altExample+"."]
+    :["Ouvrir le code HTML de chaque page listée.","Sur chaque balise <code>&lt;img&gt;</code> concernée, ajouter <code>alt=\"…\"</code>.","Décrire ce que montre l'image, en une phrase naturelle, par ex. "+altExample+"."],
     effort:"~2 min / photo", gain:"élevé (Google Images + accessibilité)"});
 
   const webImages=pages.flatMap(p=>(p.images||[]).filter(im=>im.cls!=="tech").map(im=>({page:p,...im})));
@@ -1134,9 +1161,9 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
       effort:"~5 min / page", gain:"moyen-élevé"});
   }
   const tLong = pages.filter(p=>p.titleLen>60), tShort=pages.filter(p=>p.title&&p.titleLen<25);
-  if(tLong.length) issues.push({sev:"warn",cat:"balises",title:tLong.length+" titre(s) seront coupés dans Google",
-    body:"Google tronque les titres au-delà d'environ 60 caractères — la fin (souvent un mot-clé ou la région) disparaît derrière « … ».",
-    where:tLong.map(p=>"<code>"+esc(sh(p.url))+"</code> — <b>"+p.titleLen+"</b> caractères (viser ≤ 60)"),
+  if(tLong.length) issues.push({sev:"warn",cat:"balises",title:tLong.length+" titre(s) risquent d'être coupés dans Google",
+    body:"Google affiche en général 50 à 60 caractères selon la largeur de l'écran ; au-delà, la fin (souvent un mot-clé ou la région) est remplacée par « … ». C'est une cible d'affichage, pas une pénalité : on raccourcit pour que le message complet soit lu.",
+    where:tLong.map(p=>"<code>"+esc(sh(p.url))+"</code> — <b>"+p.titleLen+"</b> caractères (cible d'affichage : ≈ 60)"),
     steps:["Dans le "+champTitre+", raccourcir de quelques mots.","Garder l'information distinctive au début.","Ne pas sacrifier le mot-clé géographique : le déplacer plutôt vers le début si besoin."],
     effort:"~3 min / page", gain:"moyen"});
   if(tShort.length) issues.push({sev:"info",cat:"balises",title:tShort.length+" titre(s) très courts — de l'espace inutilisé",
@@ -1145,9 +1172,9 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
     steps:["Compléter le titre avec le service + la région (ex. « — plomberie résidentielle à Sherbrooke »)."],
     effort:"~3 min / page", gain:"faible"});
   const dLong = pages.filter(p=>p.descLen>165);
-  if(dLong.length) issues.push({sev:"warn",cat:"balises",title:dLong.length+" description(s) dépassent la limite d'affichage",
-    body:"Au-delà d'environ 160 caractères, Google coupe la description : une partie du message n'est jamais lue.",
-    where:dLong.map(p=>"<code>"+esc(sh(p.url))+"</code> — <b>"+p.descLen+"</b> caractères (viser ≤ 160)"),
+  if(dLong.length) issues.push({sev:"info",cat:"balises",title:dLong.length+" description(s) plus longues que l'affichage habituel",
+    body:"Google affiche environ 150 à 160 caractères sur ordinateur, moins sur mobile, et il lui arrive de réécrire l'extrait lui-même. Une description plus longue n'est pas pénalisée : la fin n'est simplement pas lue. Cible éditoriale, à traiter après les vrais problèmes.",
+    where:dLong.map(p=>"<code>"+esc(sh(p.url))+"</code> — <b>"+p.descLen+"</b> caractères (cible d'affichage : ≈ 155)"),
     steps:["Dans le "+champDesc+", couper la phrase la moins essentielle.","Mettre l'argument le plus fort en premier.","Terminer par une invitation courte."],
     effort:"~3 min / page", gain:"moyen"});
 
@@ -1383,14 +1410,14 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
     const perf=psiHome.scores.performance;
     const labLine="LCP "+fmtSec(psiHome.lab.lcp)+" · CLS "+fmtCls(psiHome.lab.cls)+" · TBT "+fmtMs(psiHome.lab.tbt)+" (laboratoire, accueil mobile)";
     const fixes=psiHome.opportunities.slice(0,4).map(o=>esc(o.title)+(o.savingsMs>=100?" — ≈ "+esc(fmtSec(o.savingsMs))+" à gagner":""));
-    if(perf!=null&&perf<50) issues.push({sev:"warn",cat:"qualite",title:"Vitesse mobile faible : "+perf+"/100 selon Google PageSpeed",
-      body:"Google mesure l'accueil comme un téléphone moyen sur réseau mobile. Sous 50, l'expérience est lente et Google le sait : les Core Web Vitals comptent dans le classement. Mesure Lighthouse, qui varie de quelques points d'un passage à l'autre ; elle n'entre pas dans le score Paparmane.",
-      where:[esc(labLine)],steps:fixes.length?fixes:["Ouvrir le rapport PageSpeed de l'accueil pour la liste des corrections."],effort:"2-6 h",gain:"expérience + classement mobile"});
+    if(perf!=null&&perf<50) issues.push({sev:"crit",cat:"qualite",boost:4,title:"Vitesse mobile faible : "+perf+"/100 selon Google PageSpeed"+(psiHome.lab.lcp>=4000?" — contenu principal après "+fmtSec(psiHome.lab.lcp):""),
+      body:"Google mesure l'accueil comme un téléphone moyen sur réseau mobile. Sous 50, les visiteurs attendent, beaucoup repartent avant d'avoir vu la page, et l'expérience de page compte dans le classement mobile. C'est généralement le chantier le plus rentable du rapport, avant les métadonnées et les textes alternatifs. Mesure Lighthouse, qui varie de quelques points d'un passage à l'autre ; elle n'entre pas dans le score Paparmane.",
+      where:[esc(labLine)],steps:fixes.length?fixes:["Ouvrir le rapport PageSpeed de l'accueil pour la liste des corrections."],effort:"2-6 h",gain:"visiteurs retenus + classement mobile"});
     else if(perf!=null&&perf<90) issues.push({sev:"info",cat:"qualite",title:"Vitesse mobile à améliorer : "+perf+"/100 selon Google PageSpeed",
       body:"Correct sans être rapide. Les corrections ci-dessous sont celles que Google juge les plus rentables. Mesure Lighthouse, variable de quelques points ; elle n'entre pas dans le score Paparmane.",
       where:[esc(labLine)],steps:fixes.length?fixes:["Ouvrir le rapport PageSpeed de l'accueil pour la liste des corrections."],effort:"1-3 h",gain:"expérience + classement mobile"});
     const field=psiHome.field||psiHome.originField;
-    if(field&&field.overall==="SLOW") issues.push({sev:"warn",cat:"qualite",title:"Core Web Vitals réels insuffisants (vrais visiteurs Chrome, 28 jours)",
+    if(field&&field.overall==="SLOW") issues.push({sev:"crit",cat:"qualite",boost:4,title:"Core Web Vitals réels insuffisants (vrais visiteurs Chrome, 28 jours)",
       body:"Ce ne sont pas des mesures de laboratoire : ce sont les visiteurs réels du site, tels que Google les voit. Un verdict « lent » pèse sur le classement mobile.",
       where:[["lcp","inp","cls"].filter(k=>field[k]!=null).map(k=>esc(CWV[k][3].split(" — ")[0]+" "+CWV[k][2](field[k])+" ("+ratingLabel(cwvRating(k,field[k]))+")")).join(" · ")],
       steps:fixes.length?fixes:["Corriger d'abord l'élément le plus lent à s'afficher (image d'en-tête, police, script bloquant)."],effort:"2-6 h",gain:"classement mobile"});
@@ -1738,6 +1765,8 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   // d'entreprise. On garde l'ancienne liste en repli pour les audits archivés.
   const identityReady = pages.some(p=>
     (p.schema?.businessTypes||[]).length>0 || p.schemaTypes.some(t=>businessTypes.has(t)));
+  // Coordonnées (téléphone et adresse) présentes dans le balisage de l'entreprise.
+  const schemaCoordsReady = !!(schemaNap&&schemaNap.telephone&&schemaNap.address);
   // Type le plus précis trouvé sur le site — sert à féliciter le client.
   const preciseIdentity = [...new Set(pages.flatMap(p=>p.schema?.preciseBusinessTypes||[]))];
   const gptStrat = blocked.some(b=>b.agent==="GPTBot") && disc.aiBots.some(b=>b.agent==="OAI-SearchBot"&&b.state==="allowed");
@@ -1869,10 +1898,13 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
     images: contentTotal? Math.round(100*(1-contentBad/contentTotal)) : 100,
     social: Math.round(100*ratio(noOg.length,n)),
     keywords: Math.max(0,Math.round(100-weakAlignment.length/Math.max(1,n)*55-Math.min(35,cannibalization.length*7))),
+    // Validité et couverture, plus l'identité et ses coordonnées : un balisage
+    // valide mais sans téléphone ni adresse n'obtient plus 100.
     schema: Math.max(0,Math.min(100,Math.round(100*(
       .3*ratio(pagesNoSchema.length,n)+
-      .5*ratio(pagesSchemaInvalid.length,n)+
-      .2*(identityReady?1:0)
+      .45*ratio(pagesSchemaInvalid.length,n)+
+      .15*(identityReady?1:0)+
+      .10*(schemaCoordsReady?1:0)
     )))),
     ia: Math.max(0,Math.min(100,Math.round(100-aiPenalty))),
     liens: Math.max(0,Math.min(100,Math.round(100*ratio(linkPenaltyUnits,linkPopulation)))),
@@ -1925,7 +1957,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   const quickWins=issues.filter(i=>/\b(?:3|5|10|15|20|30) min|~(?:3|5|10|15|20|30) min/i.test(i.effort||"")).length;
   const proofCount=issues.reduce((sum,i)=>sum+(i.where?.length||0),0);
   const opportunityScore=Math.max(0,Math.min(100,Math.round((100-global)*1.05+counts.crit*4+counts.warn*1.5)));
-  const auditMeta={scoreVersion:"2.7",requested:pagesAll.length,successful:pages.length,transient:transientPages.length,confidence:options.quick?"aperçu":(transientPages.length||disc.sitemapBlocked||disc.sitemapUnverifiable||disc.sitemapUnread?.length||disc.robots?.unverifiable?"provisoire":"élevée"),mode:options.quick?"rapide":"complet",conclusive:true};
+  const auditMeta={scoreVersion:"2.8",requested:pagesAll.length,successful:pages.length,transient:transientPages.length,confidence:options.quick?"aperçu":(transientPages.length||disc.sitemapBlocked||disc.sitemapUnverifiable||disc.sitemapUnread?.length||disc.robots?.unverifiable?"provisoire":"élevée"),mode:options.quick?"rapide":"complet",conclusive:true};
   const avgResources=pages.length?Math.round(pages.reduce((sum,p)=>sum+(p.resources?.total||0),0)/pages.length):0;
   const homepageStrictImages=(homepage?.images||[]).filter(im=>im.cls!=="tech");
   const homepageStrictFlagged=homepageStrictImages.filter(im=>im.alt===null||im.alt==="");
@@ -1940,7 +1972,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
     avgResponseMs,slowPages:slowPages.length,compressedPages:compressedPages.length,avgResources,heavyPages:resourceHeavyPages.length,
     orphanPages:orphanPages.length,googleTools,local,iframeTotal,iframeMissing:iframeMissingTotal,faviconReady,analyticsTools,hreflangLinks,inlineStyleCount,obsoletePages:obsoletePages.length,
   };
-  return {origin, disc, pages, keywordPages, deadPages, issues, wins, scores, scoreEvidence, global, imgPages, uniqFiles, isWP, aiReadiness, searchAgents, siteKeywords, cannibalization, targetMap, clientName:options.clientName||"",contactName:options.contactName||"",publicContacts,pagesNeedingWork,quickWins,proofCount,opportunityScore,schemaAudit:{inventory:schemaInventory,expectedMissing,entityNames,entityIds,identityReady},advancedAudit,auditMeta,
+  return {origin, disc, pages, keywordPages, deadPages, issues, wins, scores, scoreEvidence, global, imgPages, uniqFiles, isWP, aiReadiness, searchAgents, siteKeywords, cannibalization, targetMap, clientName:options.clientName||"",contactName:options.contactName||"",publicContacts,pagesNeedingWork,quickWins,proofCount,opportunityScore,schemaAudit:{inventory:schemaInventory,expectedMissing,entityNames,entityIds,identityReady,coordsReady:schemaCoordsReady},advancedAudit,auditMeta,
           counts,
           linksChecked: linkResults.length};
 }
@@ -2050,7 +2082,7 @@ function renderCover(m){
           <div class="cover-fact"><div class="v">${m.pages.length}</div><div class="l">Pages analysées</div></div>
           <div class="cover-fact"><div class="v">${m.counts.crit}</div><div class="l">Critiques</div></div>
           <div class="cover-fact"><div class="v">${m.counts.warn}</div><div class="l">Importants</div></div>
-          <div class="cover-fact"><div class="v">${m.opportunityScore}</div><div class="l">Potentiel inexploité</div></div>
+          <div class="cover-fact"><div class="v">${m.opportunityScore}</div><div class="l">Marge de progression</div></div>
         </div>
       </div>
       <div class="cover-bot">
@@ -2078,6 +2110,19 @@ const NAV_SHORT={"Problèmes critiques":"Critiques","Problèmes importants":"Imp
   "Priorités à meilleur rendement":"Priorités","Contrôles techniques avancés":"Technique","Analyse des mots-clés observés":"Mots-clés",
   "Google Search Console — données réelles":"Search Console","Intelligence de marché DataForSEO":"Marché","Visibilité auprès des IA":"IA","Schema Studio — données structurées":"Schema",
   "Détail page par page":"Pages","Photos à décrire":"Photos","Ce qui va déjà bien":"Points forts","Plan d'action recommandé":"Plan d'action"};
+// Volets conservés dans la version décideur (10 à 15 pages) : le reste forme
+// l'annexe technique, imprimée avec le PDF complet.
+const EXEC_PANES=new Set(["Résumé","Priorités","Critiques","Points forts","Plan d'action"]);
+// Impression courte : on marque le document, le CSS d'impression masque les
+// volets d'annexe, puis tout est remis en place.
+function printExec(){
+  const base=document.title;
+  document.body.classList.add("print-exec");
+  document.title=base.replace(/\s*—\s*version décideur$/,"")+" — version décideur";
+  const done=()=>{document.body.classList.remove("print-exec");document.title=base;window.removeEventListener("afterprint",done);};
+  window.addEventListener("afterprint",done);
+  window.print();
+}
 // Onglets : le rapport est découpé en volets, un seul visible à l'écran.
 // À l'impression, tous les volets sont affichés (voir @media print).
 function buildReportNav(){
@@ -2100,7 +2145,8 @@ function buildReportNav(){
   panes[0].els=panes[0].els.filter(el=>!head.includes(el));
   panes.forEach((p,i)=>{
     const box=document.createElement("div");
-    box.className="rpane"+(i?"":" on"); box.dataset.pane=i;
+    box.className="rpane"+(i?"":" on"); box.dataset.pane=i; box.dataset.label=p.label;
+    if(EXEC_PANES.has(p.label)) box.dataset.exec="1";
     p.els[0].before(box); p.els.forEach(el=>box.appendChild(el));
     if(i<panes.length-1) box.insertAdjacentHTML("beforeend",`<div class="pane-next screen-only"><button class="btn ghost" data-go="${i+1}">${esc(panes[i+1].label)} →</button></div>`);
   });
@@ -2279,6 +2325,13 @@ function searchConsoleHtml(m){
 // Résumé exécutif par règles : toujours disponible, réécrit par Claude si la clé est présente.
 const plainText=s=>String(s||"").replace(/<[^>]+>/g,"").replace(/\s+/g," ").trim();
 const SEV_ORDER={crit:0,warn:1,info:2};
+// Trois lectures distinctes de la vue d'ensemble : ce que le site fait bien ou
+// mal (mesuré ici), ce que Google et les visiteurs voient vraiment (données
+// réelles), et ce qu'il reste à aller chercher (estimations de marché).
+const OVERVIEW_GROUPS=[["c","Conformité technique","mesuré par Paparmane sur les pages du site"],["v","Visibilité réelle","données réelles de Google, de PageSpeed et du profil de liens"],["p","Potentiel","estimations de marché DataForSEO et marge de progression"]];
+const OVERVIEW_GROUP_OF={"Santé SEO":"c","Pages analysées":"c","Problèmes prioritaires":"c","Validité du balisage":"c","Accès aux robots IA":"c","Liens":"c","Indexabilité":"c","ALT vides — accueil":"c","Évolution":"c",
+  "Clics Google réels":"v","Vitesse mobile":"v","Backlinks":"v","Mentions IA réelles":"v",
+  "Mots-clés organiques":"p","Sujets observés":"p","Mots-clés stratégiques":"p","Concurrents organiques":"p","Pages qui attirent":"p","Trafic organique":"p","Trafic payant":"p"};
 function draftSummary(m){
   const host=m.origin.replace(/^https?:\/\//,"");
   const top=[...m.issues].sort((a,b)=>SEV_ORDER[a.sev]-SEV_ORDER[b.sev]).slice(0,3);
@@ -2330,7 +2383,31 @@ function evolutionIssuesHtml(m){
 }
 const watchButtonHtml=m=>m.disc?.config?.watch&&m.auditMeta?.mode!=="rapide"?`<button class="btn ghost screen-only" id="watchBtn" data-site="${esc(m.origin)}" data-client="${esc(m.clientName||"")}" data-on="${m.watch?.watched?1:0}" onclick="toggleWatch(this)">${m.watch?.watched?"✓ Suivi mensuel actif — arrêter":"Suivre ce client chaque mois"}</button>`:"";
 
+// Fichier de travail : une ligne par constat et par emplacement, puis une
+// ligne par photo à décrire et par page. Point-virgule et BOM pour qu'Excel
+// en français l'ouvre directement.
+let currentModel=null;
+const csvFileName=()=>(document.title||"Outil SEO — PAPARMANE").replace(/[\\/:*?"<>|]+/g," ").replace(/\s+/g," ").trim()+".csv";
+function exportCsv(){
+  const m=currentModel; if(!m){alert("Aucun rapport à exporter.");return;}
+  const text=h=>{const d=document.createElement("div");d.innerHTML=String(h??"");return (d.textContent||"").replace(/\s+/g," ").trim();};
+  const cell=v=>{const t=String(v??"");return /[;"\n\r]/.test(t)?'"'+t.replace(/"/g,'""')+'"':t;};
+  const sevLabel={crit:"Critique",warn:"Important",info:"Opportunité"};
+  const rows=[["Section","Gravité","Constat","Page ou fichier","Détail","Effort","Gain"]];
+  for(const i of m.issues){
+    const where=(i.where||[]).map(text).filter(Boolean);
+    if(!where.length) rows.push(["Constat",sevLabel[i.sev]||i.sev,text(i.title),"",text(i.body).slice(0,300),text(i.effort),text(i.gain)]);
+    for(const w of where) rows.push(["Constat",sevLabel[i.sev]||i.sev,text(i.title),w,"",text(i.effort),text(i.gain)]);
+  }
+  for(const g of m.imgPages||[]) for(const f of g.files||[]) rows.push(["Photo à décrire","Important","Texte alternatif manquant",g.url,f,"~2 min","Google Images + accessibilité"]);
+  for(const p of m.pages||[]) rows.push(["Page","",p.title||"(sans titre)",p.url,"titre "+(p.titleLen||0)+" car. · description "+(p.descLen||0)+" car. · "+(p.h1Count||0)+" H1 · "+(p.words||0)+" mots","",""]);
+  const csv="\ufeff"+rows.map(r=>r.map(cell).join(";")).join("\r\n");
+  const name=csvFileName();
+  const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"})); a.download=name;
+  document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);
+}
 function renderReport(m){
+  currentModel=m;
   // L'en-tête imprimé porte le nom du client, pas la mention « usage interne ».
   // Mis à jour avant tout rendu : sinon un audit non concluant garde le nom du
   // client précédent.
@@ -2381,6 +2458,7 @@ function renderReport(m){
   const topPagesData=traffic.topPages||{};
   const marketTopPages=Array.isArray(topPagesData.items)?topPagesData.items.filter(item=>typeof item?.url==="string"):[];
   const backlinkData=traffic.backlinks||{};
+  const doubtfulDomains=(Array.isArray(backlinkData.referringDomainList)?backlinkData.referringDomainList:[]).filter(d=>typeof d.spamScore==="number"&&d.spamScore>=60);
   const aiMentionData=traffic.aiMentions||{};
   if(!Array.isArray(aiMentionData.platforms)) aiMentionData.platforms=[];
   const fmt=value=>Number(value||0).toLocaleString("fr-CA");
@@ -2424,11 +2502,12 @@ function renderReport(m){
     ...(schemaMissingPages.length?[schemaMissingPages.length+" page(s) sans donnée structurée"]:[]),
     ...(schemaInvalidPages.length?[schemaInvalidPages.length+" page(s) avec schéma invalide ou incomplet"]:[]),
     ...(!scoredIdentityReady?["identité d’entreprise précise absente"]:[]),
+    ...(!m.schemaAudit?.coordsReady?["téléphone ou adresse absents du balisage"]:[]),
   ];
   const schemaProof={
     title:m.scores.schema===100?"Pourquoi 100/100":"Pourquoi "+m.scores.schema+"/100",
     summary:m.scores.schema===100?"Aucun facteur noté ne retire de point; les suggestions restent des améliorations non pénalisées.":(100-m.scores.schema)+" point(s) retiré(s) : "+schemaCauses.join(" · "),
-    formula:"100 × [0,30×"+(m.pages.length-schemaMissingPages.length)+"/"+m.pages.length+" + 0,50×"+(m.pages.length-schemaInvalidPages.length)+"/"+m.pages.length+" + 0,20×"+(scoredIdentityReady?1:0)+"] = "+m.scores.schema,
+    formula:"100 × [0,30×"+(m.pages.length-schemaMissingPages.length)+"/"+m.pages.length+" + 0,45×"+(m.pages.length-schemaInvalidPages.length)+"/"+m.pages.length+" + 0,15×"+(scoredIdentityReady?1:0)+" + 0,10×"+(m.schemaAudit?.coordsReady?1:0)+"] = "+m.scores.schema,
     locations:[...schemaMissingPages,...schemaInvalidPages].map(p=>p.url).slice(0,3),
   };
   const noindexScorePages=m.pages.filter(p=>p.indexability?.noindex);
@@ -2499,8 +2578,8 @@ function renderReport(m){
     ["Pages qui attirent",topPagesData.available?marketTopPages.length:"—",topPagesData.available?(marketTopPages.length?(sh(marketTopPages[0].url)+" · "+fmt(marketTopPages[0].organicTraffic)+" visites estimées"):"aucune page classée détectée"):providerFailure(topPagesData),topPagesData.available?"DataForSEO · mise à jour hebdomadaire":"non mesuré",topPagesData.available?(marketTopPages.length?"good":"warn"):""],
     ...(gscData.available?[["Clics Google réels",Number(gscData.totals.clicks||0).toLocaleString("fr-CA"),Number(gscData.totals.impressions||0).toLocaleString("fr-CA")+" impressions · position moyenne "+(gscData.totals.position==null?"—":Number(gscData.totals.position).toFixed(1).replace(".",","))+" · 90 jours","Search Console · réel",gscData.previous&&gscData.previous.clicks&&gscData.totals.clicks<gscData.previous.clicks*0.7?"warn":"good"]]:[]),
     ...(psiMobileHome?[["Vitesse mobile",psiMobileHome.scores.performance==null?"—":psiMobileHome.scores.performance+"/100","Google PageSpeed · LCP "+fmtSec(psiMobileHome.lab.lcp)+((psiMobileHome.field||psiMobileHome.originField)?" · visiteurs réels : "+ratingLabel((psiMobileHome.field||psiMobileHome.originField).overall):" · pas de données de terrain"),"mesure Google · hors score",psiMobileHome.scores.performance==null?"warn":psiMobileHome.scores.performance>=90?"good":psiMobileHome.scores.performance>=50?"warn":"bad"]]:[]),
-    ["Données structurées",m.scores.schema+"/100",schemaCovered+" page(s) balisée(s) · "+m.schemaAudit.expectedMissing.length+" suggestion(s)","Schema Studio",scoreClass(m.scores.schema),schemaProof],
-    ["Préparation IA",m.scores.ia+"/100",aiSearchBlocked+" robot(s) de recherche bloqué(s) · llms.txt "+(aiLlmsExists?"présent":"absent"),"score technique expliqué",scoreClass(m.scores.ia),iaProof],
+    ["Validité du balisage",m.scores.schema+"/100",schemaCovered+" page(s) balisée(s) · "+(m.schemaAudit?.coordsReady?"coordonnées présentes":"coordonnées absentes")+" · "+m.schemaAudit.expectedMissing.length+" suggestion(s)","Schema Studio",scoreClass(m.scores.schema),schemaProof,"conformite"],
+    ["Accès aux robots IA",m.scores.ia+"/100",aiSearchBlocked+" robot(s) de recherche bloqué(s) · llms.txt "+(aiLlmsExists?"présent":"absent")+" · mesure l'accès technique, pas la probabilité d'être cité","score technique expliqué",scoreClass(m.scores.ia),iaProof,"conformite"],
     ["Liens",m.scores.liens+"/100",m.linksChecked+" vérifiés · "+brokenLinkCount+" brisé(s) · "+orphanCount+" orpheline(s)","score technique expliqué",scoreClass(m.scores.liens),linkProof],
     ["Indexabilité",m.scores.indexation+"/100",advanced.indexable+"/"+m.pages.length+" pages indexables","META + en-têtes HTTP",scoreClass(m.scores.indexation),indexProof],
     ["ALT vides — accueil",(advanced.homepageStrictMissing||0)+"/"+(advanced.homepageStrictTotal||0),(advanced.homepageDecorativeAltEmpty||0)+" décoratif(s) correct(s) · "+(advanced.homepageContentAltMissing||0)+" photo(s) de contenu à corriger","lecture expliquée",advanced.homepageContentAltMissing?"warn":"good"],
@@ -2564,7 +2643,8 @@ function renderReport(m){
 
   const effortRank=e=>/min|5 min|10 min|15 min|20 min|30 min/i.test(e||"")?1:/1 h|2 h|3 h|90 min/i.test(e||"")?2:3;
   const impactRank=i=>i.sev==="crit"?3:i.sev==="warn"?2:1;
-  const priorityIssues=[...m.issues].sort((a,b)=>(impactRank(b)*4-effortRank(b.effort))-(impactRank(a)*4-effortRank(a.effort))).slice(0,8);
+  const priorityScore=i=>impactRank(i)*4-effortRank(i.effort)+(i.boost||0);
+  const priorityIssues=[...m.issues].sort((a,b)=>priorityScore(b)-priorityScore(a)).slice(0,8);
 
   const sevSection = (sev,titre,intro)=>{
     const list = m.issues.filter(i=>i.sev===sev);
@@ -2644,9 +2724,13 @@ function renderReport(m){
 
   // Plan d'action
   const planRows=[];
-  if(m.counts.crit) planRows.push(["Semaine 1",(m.counts.crit>1?"Corriger les "+m.counts.crit+" problèmes critiques":"Corriger le problème critique")+" — voir la section rouge.","Impact immédiat"]);
-  if(m.imgPages.length) planRows.push(["Semaine 1-2","Décrire les "+m.uniqFiles.size+" photos (liste complète ci-dessus).","Google Images"]);
-  if(m.counts.warn) planRows.push(["Semaine 2","Traiter les points importants : descriptions, titres, longueurs.","+ taux de clic"]);
+  const speedIssue=m.issues.find(i=>i.boost&&i.cat==="qualite");
+  if(m.counts.crit) planRows.push(["Semaine 1",(m.counts.crit>1?"Corriger les "+m.counts.crit+" problèmes critiques":"Corriger le problème critique")+" — voir la section rouge"+(speedIssue?", en commençant par la vitesse mobile":"")+".","Impact immédiat"]);
+  if(speedIssue&&!m.counts.crit) planRows.push(["Semaine 1","Corriger la vitesse mobile (élément principal, images d'en-tête, scripts bloquants).","Visiteurs retenus"]);
+  if(m.issues.some(i=>i.cat==="balises"&&/même titre/.test(i.title))||m.cannibalization.length) planRows.push(["Semaine 1-2","Résoudre les vrais doublons : titres identiques et pages qui visent le même sujet.","Une page par sujet"]);
+  if(!m.disc.searchConsole?.available) planRows.push(["Semaine 2","Connecter Google Search Console pour confirmer les requêtes réelles et les chevauchements.","Données réelles"]);
+  if(m.counts.warn) planRows.push(["Semaine 2-3","Traiter les points importants : structure des titres, descriptions, balisage.","+ taux de clic"]);
+  if(m.imgPages.length) planRows.push(["Semaine 3-4","Décrire les "+m.uniqFiles.size+" photos (liste complète ci-dessus).","Google Images + accessibilité"]);
   if(m.issues.some(i=>i.cat==="schema")) planRows.push(["Mois 1","Enrichir les données structurées (type d'entreprise précis).","Résultats enrichis"]);
   if(m.issues.some(i=>i.cat==="ia")) planRows.push(["Mois 1","Régler la politique IA : robots débloqués + llms.txt à jour.","Visibilité IA"]);
   if(m.issues.some(i=>i.cat==="keywords")) planRows.push(["Mois 1","Clarifier un sujet principal par page et résoudre les chevauchements.","Positionnement Google"]);
@@ -2684,7 +2768,7 @@ function renderReport(m){
            <strong>comment le corriger</strong>, étape par étape${m.isWP?" — instructions adaptées à WordPress":""}.</p>
         <div class="potentiel">
           <div class="potentiel-v tnum">${m.opportunityScore}<span>/100</span></div>
-          <div class="potentiel-t"><b>Potentiel inexploité</b><span>Ce qu'il reste à aller chercher — plus le chiffre est haut, plus les gains rapides sont nombreux.</span></div>
+          <div class="potentiel-t"><b>Potentiel inexploité</b><span>Pas une deuxième note : la marge de progression. Plus le chiffre est haut, plus il reste de gains rapides à aller chercher.</span></div>
         </div>
       </div>
     </section>
@@ -2704,7 +2788,8 @@ function renderReport(m){
 
     <section class="overview" aria-labelledby="overview-title">
       <div class="overview-head"><h3 id="overview-title">Vue d'ensemble</h3><span>Chaque score inférieur à 100 est expliqué, preuves à l'appui</span></div>
-      <div class="overview-grid">${overviewCards.map(([label,value,detail,state,cls,proof])=>`<div class="ov"><div class="ov-label">${esc(label)}</div><div class="ov-value ${cls}">${esc(value)}</div><div class="ov-detail">${esc(detail)}</div>${scoreProofHtml(proof)}<span class="ov-state">${esc(state)}</span></div>`).join("")}</div>
+      ${OVERVIEW_GROUPS.map(([gid,gtitle,gsub])=>{const cards=overviewCards.filter(c=>(OVERVIEW_GROUP_OF[c[0]]||"p")===gid);return cards.length?`<div class="ov-group"><h4>${esc(gtitle)}</h4><span>${esc(gsub)}</span></div>
+      <div class="overview-grid">${cards.map(([label,value,detail,state,cls,proof])=>`<div class="ov"><div class="ov-label">${esc(label)}</div><div class="ov-value ${cls}">${esc(value)}</div><div class="ov-detail">${esc(detail)}</div>${scoreProofHtml(proof)}<span class="ov-state">${esc(state)}</span></div>`).join("")}</div>`:"";}).join("")}
     </section>
 
     <div class="sec-h"><h3>Contrôles techniques avancés</h3><div class="rule"></div></div>
@@ -2783,7 +2868,8 @@ function renderReport(m){
       <div class="ai-card"><div class="ai-card-head"><span>Backlinks</span><span class="ai-card-score">${fmt(backlinkData.backlinks)}</span></div><p>Liens externes vivants détectés vers le domaine.</p></div>
       <div class="ai-card"><div class="ai-card-head"><span>Domaines référents</span><span class="ai-card-score">${fmt(backlinkData.referringDomains)}</span></div><p>${fmt(backlinkData.referringMainDomains)} domaines principaux · ${fmt(backlinkData.referringPages)} pages référentes.</p></div>
       <div class="ai-card"><div class="ai-card-head"><span>Rang du domaine</span><span class="ai-card-score">${Number.isFinite(Number(backlinkData.rank))?Number(backlinkData.rank):"—"}/100</span></div><p>Indice DataForSEO sur une échelle de 100, distinct du score d'audit Paparmane.</p></div>
-      <div class="ai-card"><div class="ai-card-head"><span>Liens à surveiller</span><span class="ai-card-score">${fmt(backlinkData.brokenBacklinks)}</span></div><p>${fmt(backlinkData.nofollow)} liens nofollow${typeof backlinkData.spamScore==="number"?" · score de spam moyen "+backlinkData.spamScore:""}.</p></div>
+      <div class="ai-card"><div class="ai-card-head"><span>Liens cassés</span><span class="ai-card-score">${fmt(backlinkData.brokenBacklinks)}</span></div><p>Liens entrants qui pointent vers une page disparue · ${fmt(backlinkData.nofollow)} liens nofollow${typeof backlinkData.spamScore==="number"?" · score de spam moyen "+backlinkData.spamScore:""}.</p></div>
+      <div class="ai-card"><div class="ai-card-head"><span>Domaines douteux</span><span class="ai-card-score ${doubtfulDomains.length?"":"" }">${Array.isArray(backlinkData.referringDomainList)?fmt(doubtfulDomains.length):"—"}</span></div><p>${Array.isArray(backlinkData.referringDomainList)?"Domaines référents au score de spam ≥ 60 sur les "+fmt(backlinkData.referringDomainList.length)+" listés"+(doubtfulDomains.length?" : "+doubtfulDomains.slice(0,3).map(d=>esc(d.domain)).join(", ")+(doubtfulDomains.length>3?"…":""):"")+". Sans action manuelle de Google, un désaveu n'est pas nécessaire.":"Liste des domaines référents non chargée."}</p></div>
     </div>
     ${backlinkTablesHtml(backlinkData,m)}`:""}
 
@@ -2853,11 +2939,15 @@ function renderReport(m){
 
     <div class="note"><b>Méthodologie — score v${esc(m.auditMeta.scoreVersion)}, confiance ${esc(m.auditMeta.confidence)}.</b> Rapport produit par le moteur d'analyse Paparmane :
       ${m.pages.length} pages crawlées, ${m.pages.reduce((a,p)=>a+(p.images||[]).length,0)} images inspectées,
-      ${m.linksChecked} liens internes vérifiés, robots.txt, indexabilité META/HTTP, canoniques, hiérarchie H1–H6, ALT strict et sémantique, ressources HTML, iFrames, favicon, hreflang, données structurées et llms.txt analysés. Les URL et les liens sont triés avant échantillonnage pour rendre deux audits comparables; les erreurs réseau sont relancées une fois. Le plan de site est cherché à /sitemap.xml, aux adresses déclarées dans robots.txt, puis à sitemap_index.xml, wp-sitemap.xml et sitemaps.xml; une adresse restée sans réponse claire est redemandée une seconde fois. Une absence de réponse, une erreur du serveur, un refus ou une page anti-robot sont rapportés « non vérifiable », jamais comptés comme une absence : seule une réponse « introuvable » à chaque adresse conclut à l'absence. Vitesse : Google PageSpeed (Lighthouse) sur l'accueil, mobile et ordinateur, et deux autres pages, avec les Core Web Vitals des vrais visiteurs Chrome quand Google en publie ; une mesure échouée pour une raison passagère (page non chargée à temps par le robot Google, raté interne) est relancée une fois ; cette mesure n'entre pas dans le score. Courriels : SPF, DKIM et DMARC lus dans le DNS. Search Console : données Google réelles sur 90 jours quand le client en accorde l'accès. Pages quasi identiques détectées par empreinte de similarité du texte. Coordonnées comparées entre le site, le balisage Schema.org et la fiche Google Business Profile (retenue seulement si son site web est celui audité). Le résumé d'ouverture est rédigé à partir des résultats${m.summary?.source==="Claude"?" par Claude, puis relu par Paparmane":""}. Le temps de réponse est un indicateur ponctuel et ne modifie pas le score. Les volumes Google, estimations de trafic, pages les plus visibles, concurrents organiques, backlinks et mentions IA affichés comme tels proviennent de DataForSEO; Paparmane ne fabrique jamais ces chiffres et les données externes ne modifient pas le score technique.</div>
+      ${m.linksChecked} liens internes vérifiés, robots.txt, indexabilité META/HTTP, canoniques, hiérarchie H1–H6, ALT strict et sémantique, ressources HTML, iFrames, favicon, hreflang, données structurées et llms.txt analysés. Les URL et les liens sont triés avant échantillonnage pour rendre deux audits comparables; les erreurs réseau sont relancées une fois. Le plan de site est cherché à /sitemap.xml, aux adresses déclarées dans robots.txt, puis à sitemap_index.xml, wp-sitemap.xml et sitemaps.xml; une adresse restée sans réponse claire est redemandée une seconde fois. Une absence de réponse, une erreur du serveur, un refus ou une page anti-robot sont rapportés « non vérifiable », jamais comptés comme une absence : seule une réponse « introuvable » à chaque adresse conclut à l'absence. Vitesse : Google PageSpeed (Lighthouse) sur l'accueil, mobile et ordinateur, et deux autres pages, avec les Core Web Vitals des vrais visiteurs Chrome quand Google en publie ; une mesure échouée pour une raison passagère (page non chargée à temps par le robot Google, raté interne) est relancée une fois ; cette mesure n'entre pas dans le score. Courriels : SPF, DKIM et DMARC lus dans le DNS. Search Console : données Google réelles sur 90 jours quand le client en accorde l'accès. Pages quasi identiques détectées par empreinte de similarité du texte. Coordonnées comparées entre le site, le balisage Schema.org et la fiche Google Business Profile (retenue seulement si son site web est celui audité). Gravités : « critique » est réservé à ce qui coûte des visiteurs aujourd'hui (pages inaccessibles ou désindexées, titres identiques, vitesse mobile faible) ; les cibles d'affichage des titres et descriptions sont des recommandations éditoriales, non des pénalités. Le résumé d'ouverture est rédigé à partir des résultats${m.summary?.source==="Claude"?" par Claude, puis relu par Paparmane":""}. Le temps de réponse est un indicateur ponctuel et ne modifie pas le score. Les volumes Google, estimations de trafic, pages les plus visibles, concurrents organiques, backlinks et mentions IA affichés comme tels proviennent de DataForSEO; Paparmane ne fabrique jamais ces chiffres et les données externes ne modifient pas le score technique.</div>
+
+    <p class="note exec-only"><b>Version décideur.</b> Ce document reprend le résumé, les priorités, les problèmes critiques, les points forts et le plan d'action. L'annexe technique complète (détail page par page, photos à décrire, mots-clés, marché, backlinks, méthodologie) est fournie séparément sur demande.</p>
 
     <div class="toolbar">
       ${watchButtonHtml(m)}
-      <button class="btn ghost" onclick="window.print()">Imprimer / PDF client</button>
+      <button class="btn ghost" onclick="exportCsv()">Exporter CSV (Excel)</button>
+      <button class="btn ghost" onclick="printExec()">PDF décideur (court)</button>
+      <button class="btn ghost" onclick="window.print()">PDF complet</button>
       <button class="btn" onclick="window.scrollTo({top:0,behavior:'smooth'})">Nouvel audit</button>
     </div>`;
 }

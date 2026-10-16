@@ -503,6 +503,10 @@ function inspectStructuredData(blocks) {
   };
 }
 
+const MONTHS_FR_EN = "janvier|février|fevrier|mars|avril|mai|juin|juillet|août|aout|septembre|octobre|novembre|décembre|decembre|january|february|march|april|may|june|july|august|september|october|november|december";
+const EVENT_DATE_RE = new RegExp(`\\b(\\d{1,2}(?:er)?\\s+(?:${MONTHS_FR_EN})(?:\\s+20\\d{2})?|(?:${MONTHS_FR_EN})\\s+\\d{1,2},?\\s+20\\d{2}|20\\d{2}-\\d{2}-\\d{2})\\b`, "i");
+function hasEventDate(text) { return EVENT_DATE_RE.test(String(text || "").slice(0, 6000)); }
+
 function inferExpectedSchema(url, title, h1, bodyText) {
   const hay = `${url} ${title || ""} ${(h1 || []).join(" ")} ${bodyText.slice(0, 2500)}`.toLocaleLowerCase("fr-CA");
   const headingHay = `${new URL(url).pathname} ${title || ""} ${(h1 || []).join(" ")}`.toLocaleLowerCase("fr-CA");
@@ -518,7 +522,9 @@ function inferExpectedSchema(url, title, h1, bodyText) {
   // « événements » dans un paragraphe (« salle pour vos événements ») ne fait
   // pas de la page un événement daté.
   if (/faq|foire aux questions|questions fréquentes/.test(headingHay)) add("FAQPage", "section de questions-réponses détectée");
-  if (/\/evenement|\/event|billetterie/.test(headingHay)) add("Event", "événement détecté");
+  // Google réserve le balisage Event aux événements datés et ouverts au public :
+  // sans date dans la page, « production événementielle » n'en est pas un.
+  if (/\/evenement|\/event|billetterie/.test(headingHay) && hasEventDate(bodyText)) add("Event", "page d'événement avec une date détectée");
   return expected;
 }
 
