@@ -1,824 +1,446 @@
-<!DOCTYPE html>
-<html lang="en">
-
+<!doctype html>
+<html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Paparmane — studio créatif : branding, design & développement.">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Paparmane — Studio créatif</title>
+  <meta name="description" content="Paparmane — studio créatif web. Branding, sites web, infolettres, SEO & GEO, Astro, hébergement, TI, dév. app. Mon site est vide : je suis trop occupée à remplir les vôtres." />
+  <link rel="icon" type="image/svg+xml" href="assets/imgs/favicon-dot.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Covered+By+Your+Grace&family=Fraunces:opsz,wght,SOFT@144,900,100&display=swap" rel="stylesheet" />
+  <style>
+    :root{
+      --bg:#efe5d3; --text:#2a1f18; --muted:#2a1f18; --accent:#e64015; --ink:#2a1f18;
+      --hand:"Covered By Your Grace","Bradley Hand","Segoe Print",cursive;
+      --pad:clamp(1.25rem,5vw,5rem);
+      --space:clamp(5rem,10vw,9rem);
+      --grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35  0 0 0 0 .25  0 0 0 0 .15  0 0 0 .2 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      --line1:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 10' preserveAspectRatio='none'%3E%3Cpath d='M2 6 C 70 2, 130 9, 210 5 S 340 2, 398 6' fill='none' stroke='%232a1f18' stroke-width='1.8' stroke-linecap='round' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E");
+      --line2:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 10' preserveAspectRatio='none'%3E%3Cpath d='M1 4 C 90 8, 160 3, 250 6 S 360 8, 399 3' fill='none' stroke='%232a1f18' stroke-width='1.5' stroke-linecap='round' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E");
+      --scrib:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 20' preserveAspectRatio='none'%3E%3Cpath d='M3 12 C 50 6, 110 16, 197 8 M 12 17 C 70 12, 130 18, 185 13' fill='none' stroke='%23e64015' stroke-width='3' stroke-linecap='round' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E");
+      --wobbly:1.4em .7em 1.2em .6em/.8em 1.3em .7em 1.1em;
+    }
+    *{margin:0;padding:0;box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{background:var(--grain) repeat,var(--bg);background-size:220px 220px,auto;background-attachment:fixed;color:var(--text);font-family:var(--hand);font-size:1.35rem;line-height:1.4;-webkit-font-smoothing:antialiased;overflow-x:hidden;font-synthesis:none}
+    a{color:inherit;text-decoration:none}
+    ::selection{background:var(--accent);color:#fff}
 
-  <title>Paparmane — Studio créatif &amp; portfolio</title>
+    .reveal{opacity:0;translate:0 26px;transition:opacity .9s cubic-bezier(.16,1,.3,1),translate .9s cubic-bezier(.16,1,.3,1)}
+    .reveal.in{opacity:1;translate:0 0}
+    .eyebrow{display:inline-block;font-weight:600;font-size:1.5rem;color:var(--accent);rotate:-2deg}
+    .eyebrow::before{content:"→ "}
 
-  <!-- Fav Icon -->
-  <link rel="icon" type="image/svg+xml" href="assets/imgs/favicon-dot.svg">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@144,900,100&display=swap" rel="stylesheet">
 
-  <!-- Vendor CSS Files -->
-  <link rel="stylesheet" href="assets/vendor/bootstrap.min.css">
-  <link rel="stylesheet" href="assets/vendor/fontawesome.min.css">
-  <link rel="stylesheet" href="assets/vendor/swiper-bundle.min.css">
-  <link rel="stylesheet" href="assets/vendor/meanmenu.min.css">
-  <link rel="stylesheet" href="assets/vendor/magnific-popup.css">
-  <link rel="stylesheet" href="assets/vendor/animate.min.css">
 
-  <!-- Template Main CSS File -->
-  <link rel="stylesheet" href="assets/css/style.css">
-  <link rel="stylesheet" href="assets/css/paparmane.css?v=9">
+    /* Header */
+    .top{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1.8rem var(--pad)}
+    .logo{font-weight:700;font-size:2.4rem;rotate:-3deg;display:inline-block}
+    .logo .dot{color:var(--accent)}
+    .top__mail{font-weight:700;font-size:1.35rem;border:2px solid var(--text);border-radius:var(--wobbly);padding:.2rem 1.2rem;rotate:2deg;transition:.3s}
+    .top__mail:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
 
+    /* Hero */
+    .hero{position:relative;padding:clamp(4rem,9vw,8rem) var(--pad) var(--space)}
+    .note-wrap{order:1;position:relative}
+    .stain{position:absolute;left:calc(100% + .5rem);top:clamp(-1rem,1vw,2rem);width:clamp(150px,19vw,280px);pointer-events:none;rotate:14deg}
+    .hero__title{font-weight:400;font-size:clamp(3.4rem,10.5vw,11rem);line-height:.9}
+    .hero__title .l{display:block;width:max-content;max-width:100%}
+    .hero__title .l1{rotate:-5deg;transform-origin:left}
+    .hero__title .l2{margin-left:clamp(1.5rem,14vw,16rem);rotate:3deg;margin-top:-.05em}
+    .hero__title .l3{margin-left:clamp(.5rem,5vw,6rem);rotate:-2.5deg;margin-top:.02em}
+    .wd{display:inline-block;white-space:nowrap}
+    .ch{display:inline-block;rotate:var(--r);translate:0 var(--y)}
+    .hero__row{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:2rem 4rem;margin-top:clamp(2.5rem,5vw,5rem)}
+    .hero__title .o{color:var(--accent);background:var(--scrib) no-repeat 0 92%/100% .32em;padding-bottom:.08em}
+    .hero__coin{position:absolute;right:var(--pad);top:clamp(4rem,8vw,7rem);width:clamp(110px,30vw,440px);aspect-ratio:1;pointer-events:none;animation:flotte 7s ease-in-out infinite}
+    @keyframes flotte{0%,100%{translate:0 0;rotate:-3deg}50%{translate:0 -14px;rotate:3deg}}
+    .hero__sub{order:2;max-width:30ch;margin-left:auto;margin-right:clamp(0rem,6vw,8rem);font-size:clamp(1.8rem,3.3vw,3.2rem);line-height:1.2;color:var(--muted);rotate:3deg}
+    .hero__sub b,.hero__sub em{color:var(--text);font-weight:700;font-style:normal}
+    .note{position:relative;z-index:1;display:inline-block;margin-top:clamp(0rem,8vw,9rem);max-width:18ch;font-size:clamp(1.7rem,2.8vw,2.6rem);line-height:1.2;color:var(--accent);rotate:-8deg}
+
+    /* Sections */
+    .sec{padding:var(--space) var(--pad)}
+    .sec + .sec{padding-top:0}
+    .sec:has(+ .cta){padding-bottom:clamp(3rem,6vw,5rem)}
+    .sec h2{font-weight:700;font-size:clamp(2.6rem,6vw,4.4rem);margin-top:.4rem;line-height:1;rotate:-1.5deg;transform-origin:left}
+    .sec h2 .o{color:var(--accent)}
+    .sec .lead{color:var(--muted);margin-top:1.2rem;max-width:40ch;font-size:clamp(1.4rem,2.2vw,1.75rem);rotate:.8deg}
+    s{text-decoration-color:var(--accent);text-decoration-thickness:3px}
+
+    /* Paparmanes qui tombent — pleine largeur */
+    .stage{position:relative;height:clamp(420px,62vh,660px);margin:clamp(2.5rem,5vw,4rem) calc(-1 * var(--pad)) 0;overflow:hidden;
+      }
+    #drop{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:pan-y}
+    .stage__hint{position:absolute;left:50%;top:26px;translate:-50% 0;rotate:-2deg;font-size:1.5rem;color:var(--muted);pointer-events:none;white-space:nowrap}
+
+    /* Liste clients */
+    .list{margin-top:clamp(3rem,6vw,4.5rem);background:var(--line1) no-repeat top/100% 10px}
+    .item{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:clamp(2rem,3.4vw,3rem) var(--pad);margin:0 calc(-1 * var(--pad));background:var(--line2) no-repeat bottom/100% 10px;transition:background-color .25s}
+    .item:nth-child(even){background-image:var(--line1)}
+    .item:last-child{background-image:none}
+    .item:hover{background-color:var(--accent);color:#fff}
+    .item__name{display:inline-block;font-weight:700;font-size:clamp(2rem,4.4vw,3rem);line-height:1;rotate:-1.2deg}
+    .item:nth-child(3n) .item__name{rotate:1deg}
+    .item:nth-child(4n+1) .item__name{rotate:-2deg}
+    .item__note{display:block;font-size:1.3rem;color:var(--muted);margin-top:.5rem;font-weight:400}
+    .item:hover .item__note{color:#fff;opacity:.9}
+    .item__right{display:flex;align-items:center;gap:1rem;color:var(--muted);font-size:1.5rem;white-space:nowrap;rotate:1.5deg}
+    .item:hover .item__right{color:#fff}
+    .item__arrow{font-size:1.9rem;transition:translate .3s}
+    .item:hover .item__arrow{translate:4px -4px}
+    .item--soon:hover{background-color:transparent;color:inherit}
+    .item--soon:hover .item__right,.item--soon:hover .item__note{color:var(--muted)}
+    .soon{font-weight:700;font-size:1.3rem;color:var(--accent);border:2px solid var(--accent);border-radius:var(--wobbly);padding:.1rem .9rem;rotate:-3deg;display:inline-block}
+
+    /* CTA rouge */
+    .cta{text-align:center;padding:0 var(--pad) clamp(4rem,8vw,7rem)}
+    .cta h2{font-weight:700;font-size:clamp(3rem,8vw,5.6rem);line-height:.95;margin-bottom:2.2rem;rotate:-2deg}
+    .cta__mail{display:inline-block;font-weight:700;font-size:clamp(1.8rem,4.4vw,2.8rem);padding-bottom:.2rem;rotate:1.5deg;
+      background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 12' preserveAspectRatio='none'%3E%3Cpath d='M2 7 C 60 3, 130 11, 198 5' fill='none' stroke='%23e64015' stroke-width='3' stroke-linecap='round' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E") no-repeat bottom/100% 12px;color:var(--accent)}
+    .cta__mail:hover{opacity:.75}
+    .cta .o{color:var(--accent)}
+
+    .foot{display:flex;flex-wrap:wrap;gap:.6rem 1.5rem;justify-content:space-between;padding:2.5rem var(--pad);color:var(--muted);font-size:1.3rem}
+
+    @media (max-width:720px){
+      .hero__coin{top:1.5rem;width:110px}
+      .item__url{display:none}
+      .stain{left:calc(100% + .25rem);top:0;width:min(130px,28vw);opacity:.85}
+    }
+    @media (prefers-reduced-motion:reduce){
+      .reveal{opacity:1;translate:none}
+      .hero__coin{animation:none}
+    }
+  </style>
 </head>
+<body>
 
-
-<body class="body-wrapper dark body-digital-agency font-heading-instrumentsans-medium">
-
-  <!-- Preloader -->
-  <div id="preloader">
-    <div id="container" class="container-preloader">
-      <div class="animation-preloader">
-        <div class="spinner"></div>
-
-      </div>
-      <div class="loader-section section-left"></div>
-      <div class="loader-section section-right"></div>
-    </div>
-  </div>
-
-  <!-- Sroll to top -->
-  <div class="progress-wrap">
-    <svg class="progress-circle svg-content" width="100%" height="100%" viewBox="-1 -1 102 102">
-      <path d="M50,1 a49,49 0 0,1 0,98 a49,49 0 0,1 0,-98"></path>
-    </svg>
-  </div>
-
-  <!-- cursorAnimation start -->
-  <div class="cursor-wrapper relative">
-    <div class="cursor"></div>
-    <div class="cursor-follower"></div>
-  </div>
-  <!-- cursorAnimation end -->
-
-  <!-- side toggle start -->
-  <aside class="fix">
-    <div class="side-info">
-      <div class="side-info-content">
-        <div class="offset-widget offset-header">
-          <div class="offset-logo">
-            <a href="index.html">
-              <span class="brand-text">Paparmane<span class="dot">.</span></span>
-            </a>
-          </div>
-          <button id="side-info-close" class="side-info-close">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-        <div class="mobile-menu d-xl-none fix"></div>
-        <div class="offset-button">
-          <a href="contact.html" class="rr-btn hover-bg-theme">
-            <span class="btn-wrap">
-              <span class="text-one">Parlons-en</span>
-              <span class="text-two">Parlons-en</span>
-            </span>
-          </a>
-        </div>
-        <div class="offset-widget-box">
-          <h2 class="title">Contact</h2>
-          <div class="contact-meta">
-            <div class="contact-item">
-              <span class="icon"><i class="fa-solid fa-location-dot"></i></span>
-              <span class="text">3891 Ranchview Dr. Richardson</span>
-            </div>
-            <div class="contact-item">
-              <span class="icon"><i class="fa-solid fa-envelope"></i></span>
-              <span class="text"><a href="mailto:bonjour@paparmane.com">bonjour@paparmane.com</a></span>
-            </div>
-            <div class="contact-item">
-              <span class="icon"><i class="fa-solid fa-phone"></i></span>
-              <span class="text"><a href="tel:(505)555-0125">(505) 555-0125</a></span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </aside>
-  <div class="offcanvas-overlay"></div>
-  <!-- side toggle end -->
-
-  <!-- Header area start -->
-  <header class="header-area">
-    <div class="header-main">
-      <div class="container large">
-        <div class="header-area__inner">
-          <div class="header__logo">
-            <a href="index.html">
-              <span class="brand-text">Paparmane<span class="dot">.</span></span>
-            </a>
-          </div>
-          <div class="header__nav">
-            <nav class="main-menu">
-              <ul>
-                <li><a href="index.html">Accueil</a></li>
-                <li><a href="about.html">À propos</a></li>
-                <li><a href="services.html">Services</a></li>
-                <li><a href="portfolio.html">Portfolio</a></li>
-                <li><a href="blog.html">Blog</a></li>
-                <li><a href="team.html">Équipe</a></li>
-                <li><a href="faq.html">FAQ</a></li>
-                <li><a href="contact.html">Contact</a></li>
-              </ul>
-            </nav>
-          </div>
-          <div class="header__button">
-            <a href="contact.html" class="rr-btn hover-bg-theme">
-              <span class="btn-wrap">
-                <span class="text-one">Parlons-en</span>
-                <span class="text-two">Parlons-en</span>
-              </span>
-            </a>
-          </div>
-          <div class="header__navicon d-xl-none">
-            <button class="side-toggle">
-              <i class="fa-solid fa-bars"></i></button>
-          </div>
-        </div>
-      </div>
-    </div>
+  <header class="top">
+    <a href="#" class="logo">Paparmane<span class="dot">.</span></a>
+    <a href="mailto:bonjour@paparmane.com" class="top__mail">Écrivez-moi</a>
   </header>
 
-  <!-- Header area end -->
-
-  <div class="has-smooth" id="has_smooth"></div>
-  <div id="smooth-wrapper">
-    <div id="smooth-content">
-
-      <main>
-
-        <!-- hero area start  -->
-        <section class="hero-area">
-          <div class="container large">
-            <div class="hero-area-inner section-spacing-top">
-              <div class="hero-content section-spacing-bottom">
-                <div class="award-wrapper fade-anim" data-delay="0.90" data-direction="left" data-ease="back.out(4)">
-                  <div class="circle-text-wrapper">
-                    <div class="circle-text">
-                      <svg class="text" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                        <defs><path id="pmRing" d="M100,100 m-78,0 a78,78 0 1,1 156,0 a78,78 0 1,1 -156,0"/></defs>
-                        <text><textPath href="#pmRing" startOffset="0">PAPARMANE • STUDIO CRÉATIF • DÉJÀ DEPUIS 2013 • </textPath></text>
-                      </svg>
-                      <span class="icon center-p" aria-hidden="true">P.</span>
-                    </div>
-                  </div>
-                </div>
-                <div class="section-header">
-                  <div class="section-title-wrapper">
-                    <div class="title-wrapper">
-                      <h2 class="section-title font-instrumentsans-medium char-anim" data-delay="0.45">Affinons ta marque
-                        avec<span class="title-round" aria-hidden="true"></span>un travail de qualité</h2>
-                    </div>
-                  </div>
-                </div>
-                <div class="section-content">
-                  <div class="features-wrapper-box fade-anim" data-delay="0.75">
-                    <div class="features-wrapper">
-                      <div class="feature-box">
-                        <div class="content">
-                          <span class="number">98%</span>
-                          <p class="text">Clients satisfaits et
-                            fidèles en moyenne</p>
-                        </div>
-                      </div>
-                      <div class="feature-box">
-                        <div class="content">
-                          <span class="number">120+</span>
-                          <p class="text">Projets menés à bien
-                            dans 24 pays</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="text-wrapper fade-anim" data-delay="0.75">
-                    <p class="text">Nous sommes un studio de design & développement de produits numériques,
-                      passionné par les expériences digitales.</p>
-                  </div>
-                </div>
-              </div>
-              <div class="big-text-wrapper">
-                <h2 class="big-text">Paparmane
-                </h2>
-              </div>
-
-            </div>
-          </div>
-        </section>
-        <!-- hero area end  -->
-
-        <!-- about area start  -->
-        <section class="about-area ">
-          <div class="container large">
-            <div class="about-area-inner section-spacing">
-              <div class="section-content">
-                <div class="shape-1"></div>
-                <div class="shape-2"></div>
-                <div class="shape-3"></div>
-                <div class="shape-4"></div>
-                <div class="section-title-wrapper">
-                  <div class="title-wrapper">
-                    <h2 class="section-title font-instrumentsans-medium">Paparmane</h2>
-                  </div>
-                </div>
-                <div class="text-wrapper">
-                  <p class="text">Nous sommes un studio dynamique spécialisé dans les solutions innovantes pour les
-                    entreprises qui veulent renforcer leur présence de marque. Nous offrons une gamme de services —
-                    marketing digital, branding, développement web et stratégie créative — pour propulser votre projet.</p>
-                </div>
-                <div class="btn-wrapper ">
-                  <a href="contact.html" class="rr-btn  btn-text-fli hover-bg-theme">
-                    <span class="btn-wrap">
-                      <span class="text-one">En savoir plus</span>
-                      <span class="text-two">En savoir plus</span>
-                    </span>
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-        <!-- about area end  -->
-
-        <!-- video-box  start -->
-        <div class="video-box">
-          <video class="video-area" loop="" muted="" autoplay="" playsinline="">
-            <source src="https://rrdevs.net/project-video/group-meeting.mp4" type="video/mp4">
-          </video>
-        </div>
-        <!-- video-box  end -->
-
-        <!-- work area start  -->
-        <section class="work-area">
-
-          <!-- text slider area start  -->
-          <div class="text-slider-box fade-anim">
-            <div class="text-slider">
-              <div class="swiper text-slider-active">
-                <div class="swiper-wrapper">
-                  <div class="swiper-slide">
-                    <div class="text-slider-item">
-                      <h2 class="title"><span class="dot"></span>Réalisations
-                      </h2>
-                    </div>
-                  </div>
-                  <div class="swiper-slide">
-                    <div class="text-slider-item">
-                      <h2 class="title"><span class="dot"></span>Réalisations
-                      </h2>
-                    </div>
-                  </div>
-                  <div class="swiper-slide">
-                    <div class="text-slider-item">
-                      <h2 class="title"><span class="dot"></span>Réalisations
-                      </h2>
-                    </div>
-                  </div>
-                  <div class="swiper-slide">
-                    <div class="text-slider-item">
-                      <h2 class="title"><span class="dot"></span>Réalisations
-                      </h2>
-                    </div>
-                  </div>
-                  <div class="swiper-slide">
-                    <div class="text-slider-item">
-                      <h2 class="title"><span class="dot"></span>Réalisations
-                      </h2>
-                    </div>
-                  </div>
-                  <div class="swiper-slide">
-                    <div class="text-slider-item">
-                      <h2 class="title"><span class="dot"></span>Réalisations
-                      </h2>
-                    </div>
-                  </div>
-                  <div class="swiper-slide">
-                    <div class="text-slider-item">
-                      <h2 class="title"><span class="dot"></span>Réalisations
-                      </h2>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <!-- /text slider area end -->
-
-          <div class="container large">
-            <div class="work-area-inner">
-              <div class="section-header fade-anim">
-                <div class="section-title-wrapper">
-                  <div class="title-wrapper">
-                    <h2 class="section-title font-instrumentsans-medium">Réalisations</h2>
-                  </div>
-                </div>
-                <div class="text-wrapper">
-                  <p class="text">L'excellence du design créatif</p>
-                </div>
-                <div class="total-count">
-                  <span class="number">(26)</span>
-                </div>
-              </div>
-              <div class="works-wrapper-box">
-                <div class="works-wrapper-1 fade-anim">
-                  <div class="work-box">
-                    <div class="thumb">
-                      <div class="image scale" data-cursor-text="Voir le projet">
-                        <a href="https://pacini.com" target="_blank" rel="noopener"><img src="assets/imgs/pacini.jpg" alt="Site web Pacini"></a>
-                      </div>
-                    </div>
-                    <div class="content">
-                      <h3 class="title"><a href="https://pacini.com" target="_blank" rel="noopener">Pacini</a></h3>
-                      <div class="meta">
-                        <span class="tag">Site web</span>
-                        <span class="date">2025</span>
-                      </div>
-
-                    </div>
-                  </div>
-                  <div class="work-box">
-                    <div class="thumb">
-                      <div class="image scale" data-cursor-text="Voir le projet">
-                        <a href="portfolio-details.html"><img src="assets/imgs/project/image-2.webp" alt="image"></a>
-                      </div>
-                    </div>
-                    <div class="content">
-                      <h3 class="title"><a href="portfolio-details.html">Saudi Venture Capital</a></h3>
-                      <div class="meta">
-                        <span class="tag">Graphics</span>
-                        <span class="date">2025</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="work-box">
-                    <div class="thumb">
-                      <div class="image scale" data-cursor-text="Voir le projet">
-                        <a href="portfolio-details.html"><img src="assets/imgs/project/image-3.webp" alt="image"></a>
-                      </div>
-                    </div>
-                    <div class="content">
-                      <h3 class="title"><a href="portfolio-details.html">Rebrand Lawberry</a></h3>
-                      <div class="meta">
-                        <span class="tag">Motion, design</span>
-                        <span class="date">2025</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="work-box">
-                    <div class="thumb">
-                      <div class="image scale" data-cursor-text="Voir le projet">
-                        <a href="portfolio-details.html"><img src="assets/imgs/project/image-4.webp" alt="image"></a>
-                      </div>
-                    </div>
-                    <div class="content">
-                      <h3 class="title"><a href="portfolio-details.html">Selicon Cloud Cave</a></h3>
-                      <div class="meta">
-                        <span class="tag">Design UI</span>
-                        <span class="date">2025</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="work-box">
-                    <div class="thumb">
-                      <div class="image scale" data-cursor-text="Voir le projet">
-                        <a href="portfolio-details.html"><img src="assets/imgs/project/image-5.webp" alt="image"></a>
-                      </div>
-                    </div>
-                    <div class="content">
-                      <h3 class="title"><a href="portfolio-details.html">Mountain Upwork</a></h3>
-                      <div class="meta">
-                        <span class="tag">Branding</span>
-                        <span class="date">2025</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="work-box">
-                    <div class="thumb">
-                      <div class="image scale" data-cursor-text="Voir le projet">
-                        <a href="portfolio-details.html"><img src="assets/imgs/project/image-6.webp" alt="image"></a>
-                      </div>
-                    </div>
-                    <div class="content">
-                      <h3 class="title"><a href="portfolio-details.html">Blacky Motorola</a></h3>
-                      <div class="meta">
-                        <span class="tag">Design UI</span>
-                        <span class="date">2025</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="all-btn-wrapper fade-anim">
-                <a href="portfolio.html" class="rr-btn btn-border hover-bg-theme">
-                  <span class="btn-wrap">
-                    <span class="text-one">Voir tout</span>
-                    <span class="text-two">Voir tout</span>
-                  </span>
-                </a>
-              </div>
-            </div>
-          </div>
-        </section>
-        <!-- work area end  -->
-
-        <!-- service area start  -->
-        <section class="service-area">
-          <div class="container large">
-            <div class="service-area-inner section-spacing">
-              <div class="section-header">
-                <div class="section-title-wrapper fade-anim">
-                  <div class="title-wrapper">
-                    <h2 class="section-title font-instrumentsans-medium word-anim">Savoir-faire <br> pointu</h2>
-                  </div>
-                </div>
-              </div>
-              <div class="services-wrapper-box">
-                <div class="services-wrapper-1">
-                  <div class="service-box fade-anim">
-                    <div class="count">
-                      <span class="number">(01)</span>
-                    </div>
-
-                    <div class="content">
-                      <h3 class="title"><a href="service-details.html">Branding</a></h3>
-                      <ul class="service-list">
-                        <li><a href="service-details.html">Direction créative</a></li>
-                        <li><a href="service-details.html">Identité de marque</a></li>
-                        <li><a href="service-details.html">Stratégie de marque</a></li>
-                        <li><a href="service-details.html">Design graphique</a></li>
-                        <li><a href="service-details.html">Startup</a></li>
-                      </ul>
-                    </div>
-                    <div class="thumb">
-                      <img class="grow" src="assets/imgs/gallery/image-3.webp" alt="image">
-                    </div>
-                  </div>
-                  <div class="service-box fade-anim">
-                    <div class="count">
-                      <span class="number">(02)</span>
-                    </div>
-
-                    <div class="content">
-                      <h3 class="title"><a href="service-details.html">Design UI-UX</a></h3>
-                      <ul class="service-list">
-                        <li><a href="service-details.html">Conseil UI/UX</a></li>
-                        <li><a href="service-details.html">Recherche UX</a></li>
-                        <li><a href="service-details.html">Tests d’utilisabilité</a></li>
-                        <li><a href="service-details.html">Wireframing</a></li>
-                        <li><a href="service-details.html">Prototypage</a></li>
-                      </ul>
-                    </div>
-                    <div class="thumb">
-                      <img class="grow" src="assets/imgs/gallery/image-4.webp" alt="image">
-                    </div>
-                  </div>
-                  <div class="service-box fade-anim">
-                    <div class="count">
-                      <span class="number">(03)</span>
-                    </div>
-
-                    <div class="content">
-                      <h3 class="title"><a href="service-details.html">Développement</a></h3>
-                      <ul class="service-list">
-                        <li><a href="service-details.html">WordPress</a></li>
-                        <li><a href="service-details.html">Webflow</a></li>
-                        <li><a href="service-details.html">Framework Laravel</a></li>
-                        <li><a href="service-details.html">React & Flutter</a></li>
-                        <li><a href="service-details.html">Design System</a></li>
-                      </ul>
-                    </div>
-                    <div class="thumb">
-                      <img class="grow" src="assets/imgs/gallery/image-5.webp" alt="image">
-                    </div>
-                  </div>
-                  <div class="service-box fade-anim">
-                    <div class="count">
-                      <span class="number">(04)</span>
-                    </div>
-
-                    <div class="content">
-                      <h3 class="title"><a href="service-details.html">Marketing digital</a></h3>
-                      <ul class="service-list">
-                        <li><a href="service-details.html">Marketing en ligne</a></li>
-                        <li><a href="service-details.html">Référencement SEO</a></li>
-                        <li><a href="service-details.html">Stratégie</a></li>
-                        <li><a href="service-details.html">Étude de marché</a></li>
-                        <li><a href="service-details.html">Réseaux sociaux</a></li>
-                      </ul>
-                    </div>
-                    <div class="thumb">
-                      <img class="grow" src="assets/imgs/gallery/image-6.webp" alt="image">
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-        <!-- service area end  -->
-
-        <!-- funfact area start  -->
-        <section class="funfact-area fade-anim">
-          <div class="container large">
-            <div class="funfact-area-inner pin-area">
-              <div class="section-header section-spacing-top pin-element">
-                <div class="section-title-wrapper">
-                  <div class="title-wrapper">
-                    <h2 class="section-title font-instrumentsans-medium word-anim">Précision <br> parfaite</h2>
-                  </div>
-                </div>
-              </div>
-              <div class="funfact-wrapper-box section-spacing">
-                <span class="line-1"></span>
-                <span class="line-2"></span>
-                <span class="line-3"></span>
-                <span class="line-4"></span>
-                <div class="funfact-wrapper">
-                  <div class="funfact-item go-visible">
-                    <span class="number">1.8M</span>
-                    <p class="text">Nous avons aidé des entreprises à lever plus de 200 M$ de financement.</p>
-                  </div>
-                  <div class="funfact-item go-visible">
-                    <span class="number">260+</span>
-                    <p class="text">Des sites et applications responsives, centrés sur l’utilisateur.</p>
-                  </div>
-                  <div class="funfact-item go-visible">
-                    <span class="number">12+</span>
-                    <p class="text">Une belle aventure : plus de 12 ans à créer.</p>
-                  </div>
-                  <div class="funfact-item go-visible">
-                    <span class="number">80+</span>
-                    <p class="text">Des designers et développeurs professionnels et talentueux.</p>
-                  </div>
-                  <div class="funfact-item go-visible">
-                    <span class="number">99%</span>
-                    <p class="text">99 % de satisfaction client en moyenne.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-        <!-- funfact area end  -->
-
-        <!-- client area start  -->
-        <section class="client-area">
-          <div class="container large">
-            <div class="client-area-inner section-spacing-top">
-              <div class="section-content">
-                <div class="section-title-wrapper">
-                  <div class="title-wrapper">
-                    <h2 class="section-title font-instrumentsans-medium word-anim"><span>Clients :</span> aider les marques à grandir et à partager leurs réussites au monde entier.</h2>
-                  </div>
-                </div>
-                <div class="text-wrapper fade-anim">
-                  <p class="text">Une belle équipe de créatifs aux compétences solides, qui aide les secteurs d’avenir à atteindre leurs objectifs — avec les meilleurs talents sur chaque projet.</p>
-                </div>
-              </div>
-              <div class="client-capsule-wrapper-box" data-t-throwable-scene="true">
-                <div class="client-capsule-wrapper">
-                  <p data-t-throwable-el="">
-                    <span class="client-box bg-theme">
-                      <img src="assets/imgs/client/client-9-light.webp" alt="image">
-                    </span>
-                  </p>
-                  <p data-t-throwable-el="">
-                    <span class="client-box">
-                      <img src="assets/imgs/client/client-10.webp" alt="image">
-                    </span>
-                  </p>
-                  <p data-t-throwable-el="">
-                    <span class="client-box">
-                      <img src="assets/imgs/client/client-11.webp" alt="image">
-                    </span>
-                  </p>
-                  <p data-t-throwable-el="">
-                    <span class="client-box bg-theme">
-                      <img src="assets/imgs/client/client-12-light.webp" alt="image">
-                    </span>
-                  </p>
-                  <p data-t-throwable-el="">
-                    <span class="client-box">
-                      <img src="assets/imgs/client/client-13.webp" alt="image">
-                    </span>
-                  </p>
-                  <p data-t-throwable-el="">
-                    <span class="client-box">
-                      <img src="assets/imgs/client/client-14.webp" alt="image">
-                    </span>
-                  </p>
-                  <p data-t-throwable-el="">
-                    <span class="client-box bg-theme">
-                      <img src="assets/imgs/client/client-15-light.webp" alt="image">
-                    </span>
-                  </p>
-                  <p data-t-throwable-el="">
-                    <span class="client-box bg-theme">
-                      <img src="assets/imgs/client/client-16-light.webp" alt="image">
-                    </span>
-                  </p>
-                  <p data-t-throwable-el="">
-                    <span class="client-box">
-                      <img src="assets/imgs/client/client-17.webp" alt="image">
-                    </span>
-                  </p>
-                  <p data-t-throwable-el="">
-                    <span class="client-box bg-theme">
-                      <img src="assets/imgs/client/client-18-light.webp" alt="image">
-                    </span>
-                  </p>
-                  <p data-t-throwable-el="">
-                    <span class="client-box">
-                      <img src="assets/imgs/client/client-19.webp" alt="image">
-                    </span>
-                  </p>
-                  <p data-t-throwable-el="">
-                    <span class="client-box bg-theme">
-                      <img src="assets/imgs/client/client-20-light.webp" alt="image">
-                    </span>
-                  </p>
-                  <p data-t-throwable-el="">
-                    <span class="client-box">
-                      <img src="assets/imgs/client/client-21.webp" alt="image">
-                    </span>
-                  </p>
-                  <p data-t-throwable-el="">
-                    <span class="client-box">
-                      <img src="assets/imgs/client/client-22.webp" alt="image">
-                    </span>
-                  </p>
-                </div>
-              </div>
-              <div class="lines-wrapper">
-                <div class="line"></div>
-                <div class="line"></div>
-                <div class="line"></div>
-                <div class="line"></div>
-                <div class="line"></div>
-                <div class="line"></div>
-                <div class="line"></div>
-                <div class="line"></div>
-              </div>
-            </div>
-          </div>
-        </section>
-        <!-- client area end  -->
-
-        <!-- cta area start  -->
-        <div class="p-relative overflow-hidden">
-          <section class="cta-area">
-            <div class="cta-area-inner section-spacing">
-              <div class="area-bg"></div>
-              <div class="container large">
-                <div class="section-content">
-                  <div class="section-title-wrapper">
-                    <div class="title-wrapper">
-                      <h2 class="section-title font-instrumentsans-medium char-anim"><a href="contact.html">GO!</a></h2>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-        </div>
-        <!-- cta area end  -->
-
-        <!-- productivity area start  -->
-        <section class="productivity-area">
-          <div class="container large">
-            <div class="productivity-area-inner section-spacing">
-              <div class="section-content">
-                <div class="section-title-wrapper">
-                  <div class="title-wrapper">
-                    <h2 class="section-title font-instrumentsans-medium word-anim">Tout repose sur une <br>
- pensée <span class="shape-1">unique</span>, de la
- <span class="shape-2">créativité</span> et de la <span class="shape-3">qualité</span>
- pour des solutions complexes, <br>
- en toute simplicité
-                    </h2>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-        <!-- productivity area end  -->
-
-        <div class="image-wrapper parallax-view">
-          <img class="w-100" src="assets/imgs/gallery/image-7.webp" alt="image" data-speed="0.1">
-        </div>
-
-      </main>
-
-      <!-- footer area start  -->
-      <footer class="footer-area">
-        <div class="container large">
-          <div class="footer-top-inner">
-            <div class="footer-logo">
-              <a href="index.html"><span class="brand-text">Paparmane<span class="dot">.</span></span></a>
-            </div>
-            <div class="info-text">
-              <div class="text-wrapper">
-                <p class="text">Paparmane est un studio créatif de design, développement et marketing qui
-                  accompagne ses clients partout dans le monde.</p>
-              </div>
-              <div class="info-link">
-                <a href="mailto:bonjour@paparmane.com">bonjour@paparmane.com</a>
-              </div>
-            </div>
-          </div>
-          <div class="footer-widget-wrapper-box">
-            <div class="footer-widget-wrapper">
-              <div class="footer-widget-box newsletter">
-                <form action="#" class="subscribe-form">
-                  <div class="input-field">
-                    <input type="email" placeholder="Votre email">
-                    <button type="submit" class="subscribe-btn"><img src="assets/imgs/icon/icon-1.webp"
-                        alt="image"></button>
-                  </div>
-                </form>
-                <div class="subscription-text">
-                  <div class="text-wrapper">
-                    <p class="text">En vous inscrivant, vous acceptez notre
-                      <a href="contact.html">politique de confidentialité</a>
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div class="footer-widget-box">
-                <h2 class="title">Entreprise</h2>
-                <ul class="footer-nav-list">
-                  <li><a href="contact.html">Studio</a></li>
-                  <li><a href="contact.html">Solutions</a></li>
-                  <li><a href="contact.html">Communauté</a></li>
-                  <li><a href="contact.html">Réalisations</a></li>
-                  <li><a href="contact.html">Contact</a></li>
-                </ul>
-              </div>
-              <div class="footer-widget-box">
-                <h2 class="title">Réseaux</h2>
-                <ul class="footer-nav-list">
-                  <li><a href="contact.html">Facebook</a></li>
-                  <li><a href="contact.html">Twitter</a></li>
-                  <li><a href="contact.html">Dribbble</a></li>
-                  <li><a href="contact.html">Instagram</a></li>
-                  <li><a href="contact.html">Awwwards</a></li>
-                  <li><a href="contact.html">YouTube</a></li>
-                </ul>
-              </div>
-              <div class="footer-widget-box">
-                <h2 class="title">Bureaux</h2>
-                <ul class="footer-nav-list">
-                  <li><a href="contact.html">New York</a></li>
-                  <li><a href="contact.html">Toronto</a></li>
-                  <li><a href="contact.html">Berlin</a></li>
-                  <li><a href="contact.html">London</a></li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="copyright-area">
-          <div class="copyright-area-inner">
-            <div class="copyright-text">
-              <p class="text">© 2026 Paparmane. Tous droits réservés.</p>
-            </div>
-          </div>
-        </div>
-      </footer>
-      <!-- footer area end  -->
-
+  <section class="hero">
+    <canvas class="hero__coin" aria-hidden="true"></canvas>
+    <h1 class="hero__title" aria-label="Désolée, mon site est vide."><span class="l l1">Désolée,</span><span class="l l2">mon site</span><span class="l l3">est <span class="o">vide.</span></span></h1>
+    <div class="hero__row">
+      <p class="hero__sub"><b>Je suis trop occupée à remplir les vôtres.</b> Branding, sites web, infolettres, SEO &amp; GEO, etc. — <em>J'ai toujours du temps pour les autres.</em></p>
+      <div class="note-wrap">
+        <p class="note">(fait sur le coin d'une table, entre deux clients ↗)</p>
+      <svg class="stain" viewBox="0 0 240 240" aria-hidden="true">
+        <defs>
+          <filter id="cafe" x="-20%" y="-20%" width="140%" height="140%">
+            <feTurbulence type="fractalNoise" baseFrequency=".03" numOctaves="3" seed="11"/>
+            <feDisplacementMap in="SourceGraphic" scale="16"/>
+            <feGaussianBlur stdDeviation=".7"/>
+          </filter>
+        </defs>
+        <g filter="url(#cafe)" fill="none" stroke="#6b3c17">
+          <circle cx="120" cy="120" r="84" fill="#8a5428" fill-opacity=".07" stroke="none"/>
+          <circle cx="120" cy="120" r="88" stroke-opacity=".6" stroke-width="3.5"/>
+          <circle cx="120" cy="120" r="85" stroke-opacity=".24" stroke-width="9" stroke-dasharray="330 25 120 60"/>
+          <circle cx="122" cy="118" r="78" stroke-opacity=".1" stroke-width="2" stroke-dasharray="200 80"/>
+          <ellipse cx="206" cy="196" rx="8" ry="6" fill="#6b3c17" fill-opacity=".22" stroke="none"/>
+          <circle cx="222" cy="176" r="3" fill="#6b3c17" fill-opacity=".2" stroke="none"/>
+        </g>
+      </svg>
+      </div>
     </div>
-  </div>
+  </section>
 
-  <!-- Vendor JS Files -->
-  <script src="assets/vendor/jquery-3.7.1.min.js"></script>
-  <script src="assets/vendor/bootstrap.bundle.min.js"></script>
-  <script src="assets/vendor/jquery.magnific-popup.min.js"></script>
-  <script src="assets/vendor/swiper-bundle.min.js"></script>
-  <script src="assets/vendor/gsap.min.js"></script>
-  <script src="assets/vendor/ScrollTrigger.min.js"></script>
-  <script src="assets/vendor/ScrollSmoother.min.js"></script>
-  <script src="assets/vendor/ScrollToPlugin.min.js"></script>
-  <script src="assets/vendor/SplitText.min.js"></script>
-  <script src="assets/vendor/TextPlugin.js"></script>
-  <script src="assets/vendor/customEase.js"></script>
-  <script src="assets/vendor/Flip.min.js"></script>
-  <script src="assets/vendor/jquery.meanmenu.min.js"></script>
-  <script src="assets/vendor/backToTop.js"></script>
-  <script src="assets/vendor/matter.js"></script>
-  <script src="assets/vendor/throwable.js"></script>
-  <script src="assets/js/magiccursor.js"></script>
+  <section class="sec">
+    <p class="eyebrow reveal">Ce que je fais</p>
+    <h2 class="reveal">Pas de portfolio tape-à-l'œil ici<span class="o">.</span></h2>
+    <p class="lead reveal">Juste des clients contents et des sites qui roulent.</p>
+    <div class="stage" id="stage">
+      <canvas id="drop" role="img" aria-label="Services : Branding, sites web, infolettres, SEO, GEO, Astro, hébergement, TI, dév. app, Shopify, WordPress, photographie, e-commerce"></canvas>
+      <span class="stage__hint">attrape les paparmanes ↓ lance-les!</span>
+    </div>
+  </section>
 
-  <!-- Template Main JS File -->
-  <script src="assets/js/main.js"></script>
+  <section class="sec">
+    <p class="eyebrow reveal">Mes réalisations</p>
+    <h2 class="reveal">Ce que j'ai <span class="o">bâti.</span></h2>
+    <p class="lead reveal">Des vrais sites, en ligne, pour de vrais clients. Clique, va voir.</p>
+
+    <div class="list">
+      <a class="item reveal" href="https://pacini.com" target="_blank" rel="noopener noreferrer">
+        <span class="item__name">Pacini<span class="item__note">+ le réseau de restaurants Pacini (ex. granby.pacini.com)</span></span>
+        <span class="item__right"><span class="item__url">pacini.com</span><span class="item__arrow">↗</span></span>
+      </a>
+      <a class="item reveal" href="https://eossaunas.com" target="_blank" rel="noopener noreferrer">
+        <span class="item__name">EOS Saunas<span class="item__note">Boutique Shopify</span></span>
+        <span class="item__right"><span class="item__url">eossaunas.com</span><span class="item__arrow">↗</span></span>
+      </a>
+      <a class="item reveal" href="https://taxicentral.ca" target="_blank" rel="noopener noreferrer">
+        <span class="item__name">Taxi Central<span class="item__note">Site web &amp; photographie</span></span>
+        <span class="item__right"><span class="item__url">taxicentral.ca</span><span class="item__arrow">↗</span></span>
+      </a>
+      <a class="item reveal" href="https://coteauxmissisquoi.com" target="_blank" rel="noopener noreferrer">
+        <span class="item__name">Coteaux Missisquoi</span>
+        <span class="item__right"><span class="item__url">coteauxmissisquoi.com</span><span class="item__arrow">↗</span></span>
+      </a>
+      <a class="item reveal" href="https://frettsolutions.com" target="_blank" rel="noopener noreferrer">
+        <span class="item__name">Frett Solutions</span>
+        <span class="item__right"><span class="item__url">frettsolutions.com</span><span class="item__arrow">↗</span></span>
+      </a>
+      <a class="item reveal" href="https://goyeti.ca" target="_blank" rel="noopener noreferrer">
+        <span class="item__name">Go Yeti</span>
+        <span class="item__right"><span class="item__url">goyeti.ca</span><span class="item__arrow">↗</span></span>
+      </a>
+      <a class="item reveal" href="https://excavationwstg.com" target="_blank" rel="noopener noreferrer">
+        <span class="item__name">Excavation WSTG</span>
+        <span class="item__right"><span class="item__url">excavationwstg.com</span><span class="item__arrow">↗</span></span>
+      </a>
+      <a class="item reveal" href="https://lepaniersante.com" target="_blank" rel="noopener noreferrer">
+        <span class="item__name">Le Panier Santé</span>
+        <span class="item__right"><span class="item__url">lepaniersante.com</span><span class="item__arrow">↗</span></span>
+      </a>
+      <a class="item reveal" href="https://cimetieresdrummond.ca" target="_blank" rel="noopener noreferrer">
+        <span class="item__name">Cimetières Drummond</span>
+        <span class="item__right"><span class="item__url">cimetieresdrummond.ca</span><span class="item__arrow">↗</span></span>
+      </a>
+      <a class="item reveal" href="https://jecoursdmv.ca" target="_blank" rel="noopener noreferrer">
+        <span class="item__name">Je Cours DMV</span>
+        <span class="item__right"><span class="item__url">jecoursdmv.ca</span><span class="item__arrow">↗</span></span>
+      </a>
+      <a class="item reveal" href="https://www.locationlamarche.ca/" target="_blank" rel="noopener noreferrer">
+        <span class="item__name">Location Lamarche<span class="item__note">Location d'outils à Drummondville</span></span>
+        <span class="item__right"><span class="item__url">locationlamarche.ca</span><span class="item__arrow">↗</span></span>
+      </a>
+      <div class="item item--soon reveal">
+        <span class="item__name">Studio Vélo<span class="item__note">Boutique Shopify</span></span>
+        <span class="item__right"><span class="soon">Bientôt en ligne</span></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta">
+    <h2>Un site qui,<br>lui, sera <span class="o">terminé.</span></h2>
+    <a href="mailto:bonjour@paparmane.com" class="cta__mail">bonjour@paparmane.com</a>
+  </section>
+
+  <footer class="foot">
+    <span>© 2026 Paparmane — Studio créatif</span>
+    <span>Ce site a été fait vite. Assumé.</span>
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+  <script>
+  (function () {
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+
+    /* Lettres écrites tout croche */
+    let seed = 7;
+    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    function croche(el, amp) {
+      const walk = node => {
+        [...node.childNodes].forEach(n => {
+          if (n.nodeType === 1) { if (!n.classList.contains('item__note')) walk(n); return; }
+          if (n.nodeType !== 3 || !n.textContent.trim()) return;
+          const frag = document.createDocumentFragment();
+          n.textContent.split(/(\s+)/).forEach(part => {
+            if (!part) return;
+            if (/^\s+$/.test(part)) { frag.appendChild(document.createTextNode(part)); return; }
+            const wd = document.createElement('span'); wd.className = 'wd';
+            for (const c of part) {
+              const ch = document.createElement('span'); ch.className = 'ch'; ch.textContent = c;
+              ch.style.setProperty('--r', ((rnd() - .5) * 2 * amp).toFixed(1) + 'deg');
+              ch.style.setProperty('--y', ((rnd() - .5) * amp * .016).toFixed(3) + 'em');
+              wd.appendChild(ch);
+            }
+            frag.appendChild(wd);
+          });
+          n.replaceWith(frag);
+        });
+      };
+      walk(el);
+    }
+    document.querySelectorAll('.hero__title .l').forEach(el => croche(el, 7));
+    document.querySelectorAll('.sec h2, .cta h2, .logo').forEach(el => croche(el, 6));
+    document.querySelectorAll('.item__name').forEach(el => croche(el, 5));
+
+    /* Apparitions au scroll */
+    const items = document.querySelectorAll('.reveal');
+    if (reduce || !('IntersectionObserver' in window)) items.forEach(el => el.classList.add('in'));
+    else {
+      const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold:.15, rootMargin:'0px 0px -8% 0px' });
+      items.forEach(el => io.observe(el));
+    }
+
+    /* ---------- Paparmanes 3D qui tombent ---------- */
+    const stage = document.getElementById('stage');
+    const cv = document.getElementById('drop');
+    const ctx = cv.getContext('2d');
+    if (typeof Matter === 'undefined') return;
+    const { Engine, Runner, World, Bodies, Body, Mouse, MouseConstraint, Events } = Matter;
+
+    const LABELS = ["Branding","Sites web","Infolettres","SEO","GEO","Astro","Hébergement","TI","Dév. app","Shopify","WordPress","Photographie","E-commerce"];
+    const TILT = 0.55;      // rapport hauteur/largeur de la face vue en perspective
+    const DEPTH = 0.32;     // épaisseur de la tranche (fraction du rayon)
+
+    let W, H, dpr;
+    function size() {
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      W = stage.clientWidth; H = stage.clientHeight;
+      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+      cv.setAttribute('data-pixel-ratio', dpr);
+    }
+    size();
+
+    const engine = Engine.create();
+    engine.gravity.y = 1;
+    const wall = { isStatic: true };
+    const ground = Bodies.rectangle(W / 2, H + 40, W * 3, 80, wall);
+    const left = Bodies.rectangle(-40, H / 2, 80, H * 6, wall);
+    const right = Bodies.rectangle(W + 40, H / 2, 80, H * 6, wall);
+    World.add(engine.world, [ground, left, right]);
+
+    // taille d'une paparmane selon l'écran
+    const base = () => Math.max(46, Math.min(96, W * 0.055));
+    const coins = [];
+
+    function makeCoin(label, i) {
+      const rx = base() * (0.92 + Math.random() * 0.22);
+      const ry = rx * TILT, depth = rx * DEPTH;
+      const h = 2 * ry + depth;
+      const x = rx + 10 + Math.random() * Math.max(10, W - 2 * rx - 20);
+      const b = Bodies.rectangle(x, -h - i * 70, 2 * rx, h, {
+        chamfer: { radius: h / 2 * 0.98 }, restitution: 0.35, friction: 0.5, frictionAir: 0.01,
+        angle: (Math.random() - 0.5) * 1.2
+      });
+      b.coin = { label, rx, ry, depth };
+      return b;
+    }
+
+    // Fraunces 900 arrondie (opsz 144, SOFT 100), chargée par la feuille Google Fonts
+    const COIN_FONT = 'Fraunces, serif';
+    const coinFont = document.fonts ? document.fonts.load('900 40px Fraunces').catch(() => {}) : Promise.resolve();
+
+    function red(f) { return `rgb(${Math.round(230 * f)},${Math.round(64 * f)},${Math.round(21 * f)})`; }
+
+    function drawCoin(b, c = ctx) {
+      const { label, rx, ry, depth } = b.coin;
+      c.save();
+      c.translate(b.position.x, b.position.y);
+      c.rotate(b.angle);
+      const top = -depth / 2, bottom = depth / 2;
+
+      // tranche (épaisseur 3D) + ombre douce
+      const steps = Math.max(6, Math.round(depth / 1.2));
+      for (let i = steps; i >= 0; i--) {
+        const y = top + (bottom - top) * (i / steps);
+        if (i === steps) { c.shadowColor = 'rgba(90,40,15,.35)'; c.shadowBlur = rx * 0.35; c.shadowOffsetY = rx * 0.14; }
+        c.beginPath();
+        c.ellipse(0, y, rx, ry, 0, 0, Math.PI * 2);
+        c.fillStyle = red(0.5 + 0.14 * (1 - i / steps));
+        c.fill();
+        if (i === steps) { c.shadowColor = 'transparent'; c.shadowBlur = 0; c.shadowOffsetY = 0; }
+      }
+      // face — rouge plein
+      const g = c.createLinearGradient(0, top - ry, 0, top + ry);
+      g.addColorStop(0, '#ee4a1d');
+      g.addColorStop(1, '#de3d13');
+      c.beginPath();
+      c.ellipse(0, top, rx, ry, 0, 0, Math.PI * 2);
+      c.fillStyle = g;
+      c.fill();
+      c.beginPath();
+      c.ellipse(0, top, rx * 0.97, ry * 0.94, 0, Math.PI * 1.08, Math.PI * 1.92);
+      c.lineWidth = Math.max(1, rx * 0.035);
+      c.strokeStyle = 'rgba(255,170,140,.45)';
+      c.stroke();
+
+      // texte blanc posé sur la face
+      c.translate(0, top);
+      c.scale(1, ry / rx);
+      let fs = rx * 0.44;
+      c.font = `900 ${fs}px ${COIN_FONT}`;
+      const w = c.measureText(label).width;
+      const max = rx * 1.55;
+      if (w > max) { fs *= max / w; c.font = `900 ${fs}px ${COIN_FONT}`; }
+      c.fillStyle = '#fff';
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      c.fillText(label, 0, fs * 0.02);
+      c.restore();
+    }
+
+    /* Grosse paparmane à droite du titre */
+    const heroCv = document.querySelector('.hero__coin');
+    function drawHeroCoin() {
+      if (!heroCv) return;
+      const r = Math.min(2, window.devicePixelRatio || 1), size = heroCv.clientWidth;
+      heroCv.width = heroCv.height = Math.round(size * r);
+      const hc = heroCv.getContext('2d');
+      hc.setTransform(r, 0, 0, r, 0, 0);
+      const rx = size * 0.4;
+      drawCoin({ position: { x: size / 2, y: size / 2 }, angle: -0.18, coin: { label: 'Paparmane', rx, ry: rx * TILT, depth: rx * DEPTH } }, hc);
+    }
+    coinFont.then(drawHeroCoin);
+    drawHeroCoin();
+    window.addEventListener('resize', drawHeroCoin);
+
+    function draw() {
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, W, H);
+      for (const b of coins) drawCoin(b);
+    }
+
+    // souris : attraper / lancer (pas sur mobile, pour garder le défilement de la page)
+    if (!window.matchMedia('(pointer: coarse)').matches && !reduce) {
+      const mouse = Mouse.create(cv);
+      mouse.pixelRatio = dpr;
+      const mc = MouseConstraint.create(engine, { mouse, constraint: { stiffness: 0.2, render: { visible: false } } });
+      World.add(engine.world, mc);
+      try {
+        cv.removeEventListener('wheel', mouse.mousewheel);
+        cv.removeEventListener('DOMMouseScroll', mouse.mousewheel);
+      } catch (e) {}
+      cv.style.cursor = 'grab';
+      Events.on(mc, 'startdrag', () => cv.style.cursor = 'grabbing');
+      Events.on(mc, 'enddrag', () => cv.style.cursor = 'grab');
+    }
+
+    function addAll(stagger) {
+      LABELS.forEach((label, i) => {
+        const add = () => { const b = makeCoin(label, stagger ? 0 : i); coins.push(b); World.add(engine.world, b); };
+        stagger ? setTimeout(add, i * 160) : add();
+      });
+    }
+
+    window.addEventListener('resize', () => {
+      size();
+      Body.setPosition(ground, { x: W / 2, y: H + 40 });
+      Body.setPosition(right, { x: W + 40, y: H / 2 });
+      Body.setPosition(left, { x: -40, y: H / 2 });
+      for (const b of coins) if (b.position.x > W - 10) Body.setPosition(b, { x: W - b.coin.rx - 10, y: b.position.y });
+      if (reduce) draw();
+    });
+
+    if (reduce) {
+      addAll(false);
+      for (let i = 0; i < 400; i++) Engine.update(engine, 1000 / 60);
+      coinFont.then(draw);
+      draw();
+      return;
+    }
+
+    // elles tombent quand la section arrive à l'écran
+    let started = false, running = false;
+    const runner = Runner.create();
+    (function loop() { draw(); requestAnimationFrame(loop); })();
+    new IntersectionObserver(es => {
+      const vis = es[0].isIntersecting;
+      if (vis && !started) { started = true; addAll(true); }
+      if (vis && !running) { Runner.run(runner, engine); running = true; }
+      else if (!vis && running) { Runner.stop(runner); running = false; }
+    }, { threshold: 0.25 }).observe(stage);
+  })();
+  </script>
 
 </body>
-
 </html>
