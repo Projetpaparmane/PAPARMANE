@@ -45,7 +45,7 @@
     .hero{position:relative;padding:clamp(4rem,9vw,8rem) var(--pad) var(--space)}
     .note-wrap{order:1;position:relative}
     .stain{position:absolute;left:calc(100% + .5rem);top:clamp(-1rem,1vw,2rem);width:clamp(150px,19vw,280px);pointer-events:none;rotate:14deg}
-    .hero__title{font-weight:400;font-size:clamp(3.8rem,13vw,14rem);line-height:.9}
+    .hero__title{font-weight:400;font-size:clamp(4.2rem,16vw,17rem);line-height:.9}
     .hero__title .l{display:block;width:max-content;max-width:100%}
     .hero__title .l1{rotate:-5deg;transform-origin:left}
     .hero__title .l2{margin-left:clamp(1.5rem,14vw,16rem);rotate:3deg;margin-top:-.05em}
@@ -54,8 +54,6 @@
     .ch{display:inline-block;rotate:var(--r);translate:0 var(--y)}
     .hero__row{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:2rem 4rem;margin-top:clamp(2.5rem,5vw,5rem)}
     .hero__title .o{color:var(--accent);background:var(--scrib) no-repeat 0 92%/100% .32em;padding-bottom:.08em}
-    .hero__coin{position:absolute;right:var(--pad);top:clamp(4rem,8vw,7rem);width:clamp(110px,30vw,440px);aspect-ratio:1;pointer-events:none;animation:flotte 7s ease-in-out infinite}
-    @keyframes flotte{0%,100%{translate:0 0;rotate:-3deg}50%{translate:0 -14px;rotate:3deg}}
     .hero__sub{order:2;max-width:30ch;margin-left:auto;margin-right:clamp(0rem,6vw,8rem);font-size:clamp(1.8rem,3.3vw,3.2rem);line-height:1.2;color:var(--muted);rotate:3deg}
     .hero__sub b,.hero__sub em{color:var(--text);font-weight:700;font-style:normal}
     .note{position:relative;z-index:1;display:inline-block;margin-top:clamp(0rem,8vw,9rem);max-width:18ch;font-size:clamp(1.7rem,2.8vw,2.6rem);line-height:1.2;color:var(--accent);rotate:-8deg}
@@ -105,13 +103,11 @@
     .foot{display:flex;flex-wrap:wrap;gap:.6rem 1.5rem;justify-content:space-between;padding:2.5rem var(--pad);color:var(--muted);font-size:1.3rem}
 
     @media (max-width:720px){
-      .hero__coin{top:0;width:96px}
       .item__url{display:none}
       .stain{left:calc(100% + .25rem);top:0;width:min(130px,28vw);opacity:.85}
     }
     @media (prefers-reduced-motion:reduce){
       .reveal{opacity:1;translate:none}
-      .hero__coin{animation:none}
     }
   </style>
 </head>
@@ -123,7 +119,6 @@
   </header>
 
   <section class="hero">
-    <canvas class="hero__coin" aria-hidden="true"></canvas>
     <h1 class="hero__title" aria-label="Désolée, mon site est vide."><span class="l l1">Désolée,</span><span class="l l2">mon site</span><span class="l l3">est <span class="o">vide.</span></span></h1>
     <div class="hero__row">
       <p class="hero__sub"><b>Je suis trop occupée à remplir les vôtres.</b> Branding, sites web, infolettres, SEO &amp; GEO, etc. — <em>J'ai toujours du temps pour les autres.</em></p>
@@ -369,20 +364,6 @@
       c.restore();
     }
 
-    /* Grosse paparmane à droite du titre */
-    const heroCv = document.querySelector('.hero__coin');
-    function drawHeroCoin() {
-      if (!heroCv) return;
-      const r = Math.min(2, window.devicePixelRatio || 1), size = heroCv.clientWidth;
-      heroCv.width = heroCv.height = Math.round(size * r);
-      const hc = heroCv.getContext('2d');
-      hc.setTransform(r, 0, 0, r, 0, 0);
-      const rx = size * 0.4;
-      drawCoin({ position: { x: size / 2, y: size / 2 }, angle: -0.18, coin: { label: 'Paparmane', rx, ry: rx * TILT, depth: rx * DEPTH } }, hc);
-    }
-    coinFont.then(drawHeroCoin);
-    drawHeroCoin();
-    window.addEventListener('resize', drawHeroCoin);
 
     function draw() {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
