@@ -23,7 +23,7 @@
     }
     *{margin:0;padding:0;box-sizing:border-box}
     html{scroll-behavior:smooth}
-    body{background:var(--grain) repeat,var(--bg);background-size:220px 220px,auto;background-attachment:fixed;color:var(--text);font-family:var(--hand);font-size:1.35rem;line-height:1.4;-webkit-font-smoothing:antialiased;overflow-x:hidden;font-synthesis:none}
+    body{background:var(--grain) repeat,var(--bg);background-size:220px 220px,auto;color:var(--text);font-family:var(--hand);font-size:1.35rem;line-height:1.4;-webkit-font-smoothing:antialiased;overflow-x:hidden;font-synthesis:none}
     a{color:inherit;text-decoration:none}
     ::selection{background:var(--accent);color:#fff}
 
@@ -406,6 +406,8 @@
       const mc = MouseConstraint.create(engine, { mouse, constraint: { stiffness: 0.2, render: { visible: false } } });
       World.add(engine.world, mc);
       try {
+        // Matter bloque la molette par défaut : on la rend à la page
+        cv.removeEventListener('mousewheel', mouse.mousewheel);
         cv.removeEventListener('wheel', mouse.mousewheel);
         cv.removeEventListener('DOMMouseScroll', mouse.mousewheel);
       } catch (e) {}
