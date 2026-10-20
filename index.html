@@ -63,6 +63,11 @@
     .hero__sub b,.hero__sub em{color:var(--text);font-weight:700;font-style:normal}
     .note{position:relative;z-index:1;display:inline-block;margin-top:clamp(0rem,8vw,9rem);max-width:18ch;font-size:clamp(1.7rem,2.8vw,2.6rem);line-height:1.2;color:var(--accent);rotate:-8deg}
 
+    /* Texte qui s'écrit tout seul */
+    .ecrit .wc{opacity:0;filter:blur(2px)}
+    .ecrit.go .wc{animation:encre .35s ease-out forwards;animation-delay:calc(var(--i) * 38ms)}
+    @keyframes encre{to{opacity:1;filter:none}}
+
     /* Sections */
     .sec{padding:var(--space) var(--pad)}
     .sec + .sec{padding-top:0}
@@ -114,6 +119,7 @@
     }
     @media (prefers-reduced-motion:reduce){
       .reveal{opacity:1;translate:none}
+      .ecrit .wc{opacity:1;filter:none;animation:none!important}
       .badge svg{animation:none}
     }
   </style>
@@ -135,7 +141,7 @@
     </div>
     <h1 class="hero__title" aria-label="Désolée, mon site est vide."><span class="l l1">Désolée,</span><span class="l l2">mon site</span><span class="l l3">est <span class="o">vide.</span></span></h1>
     <div class="hero__row">
-      <p class="hero__sub"><b>Je suis trop occupée à remplir les vôtres.</b> Branding, sites web, infolettres, SEO &amp; GEO, etc. — <em>J'ai toujours du temps pour les autres.</em></p>
+      <p class="hero__sub ecrit"><b>Je suis trop occupée à remplir les vôtres.</b> Branding, sites web, infolettres, SEO &amp; GEO, etc. — <em>J'ai toujours du temps pour les autres.</em></p>
       <div class="note-wrap">
         <p class="note">(fait sur le coin d'une table, entre deux clients ↗)</p>
       <svg class="stain" viewBox="0 0 240 240" aria-hidden="true">
@@ -162,13 +168,13 @@
   <section class="sec">
     <p class="eyebrow reveal">Ce que je fais</p>
     <h2 class="reveal">Pas de portfolio tape-à-l'œil ici<span class="o">.</span></h2>
-    <p class="lead reveal">Juste des clients contents et des sites qui roulent.</p>
+    <p class="lead ecrit">Juste des clients contents et des sites qui roulent.</p>
   </section>
 
   <section class="sec">
     <p class="eyebrow reveal">Mes réalisations</p>
     <h2 class="reveal">Ce que j'ai <span class="o">bâti.</span></h2>
-    <p class="lead reveal">Des vrais sites, en ligne, pour de vrais clients. Clique, va voir.</p>
+    <p class="lead ecrit">Des vrais sites, en ligne, pour de vrais clients. Clique, va voir.</p>
 
     <div class="list">
       <a class="item reveal" href="https://pacini.com" target="_blank" rel="noopener noreferrer">
@@ -299,6 +305,35 @@
     document.querySelectorAll('.hero__title .l').forEach(el => croche(el, 7));
     document.querySelectorAll('.sec h2, .cta h2, .logo').forEach(el => croche(el, 6));
     document.querySelectorAll('.item__name').forEach(el => croche(el, 5));
+
+
+    /* Paragraphes qui s'écrivent comme à la main */
+    document.querySelectorAll('.ecrit').forEach(el => {
+      let i = 0;
+      const walk = node => [...node.childNodes].forEach(n => {
+        if (n.nodeType === 1) return walk(n);
+        if (n.nodeType !== 3) return;
+        const frag = document.createDocumentFragment();
+        n.textContent.split(/(\s+)/).forEach(part => {
+          if (!part) return;
+          if (/^\s+$/.test(part)) { frag.appendChild(document.createTextNode(part)); i++; return; }
+          const wd = document.createElement('span'); wd.className = 'wd';
+          for (const c of part) {
+            const ch = document.createElement('span'); ch.className = 'wc'; ch.textContent = c;
+            ch.style.setProperty('--i', i++); wd.appendChild(ch);
+          }
+          frag.appendChild(wd);
+        });
+        n.replaceWith(frag);
+      });
+      walk(el);
+    });
+    const ecrits = document.querySelectorAll('.ecrit');
+    if (reduce || !('IntersectionObserver' in window)) ecrits.forEach(el => el.classList.add('go'));
+    else {
+      const io2 = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('go'); io2.unobserve(e.target); } }), { threshold: .5 });
+      ecrits.forEach(el => io2.observe(el));
+    }
 
     /* Apparitions au scroll */
     const items = document.querySelectorAll('.reveal');
