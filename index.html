@@ -8,119 +8,98 @@
   <link rel="icon" type="image/svg+xml" href="assets/imgs/favicon-dot.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Covered+By+Your+Grace&family=Fraunces:opsz,wght,SOFT@144,900,100&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     :root{
-      --bg:#efe5d3; --text:#2a1f18; --muted:#2a1f18; --accent:#e64015; --ink:#2a1f18;
-      --hand:"Covered By Your Grace","Bradley Hand","Segoe Print",cursive;
+      --bg:#efe5d3; --text:#2a1f18; --muted:#5a4a3e; --line:#d3c4ac; --accent:#e64015;
+      --display:"Bagel Fat One","Arial Rounded MT Bold",system-ui,sans-serif;
+      --body:"Inter",system-ui,sans-serif;
       --pad:clamp(1.25rem,5vw,5rem);
       --space:clamp(5rem,10vw,9rem);
       --grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35  0 0 0 0 .25  0 0 0 0 .15  0 0 0 .2 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-      --line1:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 10' preserveAspectRatio='none'%3E%3Cpath d='M2 6 C 70 2, 130 9, 210 5 S 340 2, 398 6' fill='none' stroke='%232a1f18' stroke-width='1.8' stroke-linecap='round' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E");
-      --line2:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 10' preserveAspectRatio='none'%3E%3Cpath d='M1 4 C 90 8, 160 3, 250 6 S 360 8, 399 3' fill='none' stroke='%232a1f18' stroke-width='1.5' stroke-linecap='round' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E");
-      --scrib:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 20' preserveAspectRatio='none'%3E%3Cpath d='M3 12 C 50 6, 110 16, 197 8 M 12 17 C 70 12, 130 18, 185 13' fill='none' stroke='%23e64015' stroke-width='3' stroke-linecap='round' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E");
-      --wobbly:1.4em .7em 1.2em .6em/.8em 1.3em .7em 1.1em;
     }
     *{margin:0;padding:0;box-sizing:border-box}
     html{scroll-behavior:smooth;overflow-x:clip}
-    body{background:var(--grain) repeat,var(--bg);background-size:220px 220px,auto;color:var(--text);font-family:var(--hand);font-size:1.35rem;line-height:1.4;-webkit-font-smoothing:antialiased;overflow-x:hidden;font-synthesis:none}
+    body{background:var(--grain) repeat,var(--bg);background-size:220px 220px,auto;color:var(--text);font-family:var(--body);font-size:1.05rem;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
     a{color:inherit;text-decoration:none}
     ::selection{background:var(--accent);color:#fff}
+    h1,h2,.logo,.item__name{font-family:var(--display);font-weight:400;letter-spacing:-.01em}
 
     .reveal{opacity:0;translate:0 26px;transition:opacity .9s cubic-bezier(.16,1,.3,1),translate .9s cubic-bezier(.16,1,.3,1)}
     .reveal.in{opacity:1;translate:0 0}
-    .eyebrow{display:inline-block;font-weight:600;font-size:1.5rem;color:var(--accent);rotate:-2deg}
-    .eyebrow::before{content:"→ "}
-
-
+    .eyebrow{display:inline-flex;align-items:center;gap:.55rem;font-weight:600;font-size:.8rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+    .eyebrow::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--accent)}
 
     /* Header */
-    .top{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1.8rem var(--pad)}
-    .logo{font-weight:700;font-size:2.4rem;rotate:-3deg;display:inline-block}
+    .top{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1.6rem var(--pad)}
+    .logo{font-size:1.9rem;line-height:1}
     .logo .dot{color:var(--accent)}
-    .top__mail{font-weight:700;font-size:1.35rem;border:2px solid var(--text);border-radius:var(--wobbly);padding:.2rem 1.2rem;rotate:2deg;transition:.3s}
+    .top__mail{font-weight:600;font-size:.9rem;border:2px solid var(--text);border-radius:100px;padding:.5rem 1.25rem;transition:.25s}
     .top__mail:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
 
     /* Hero */
     .hero{position:relative;overflow-x:clip;padding:clamp(4rem,9vw,8rem) var(--pad) var(--space)}
-    .note-wrap{order:1;position:relative}
-    .stain{position:absolute;left:calc(100% + .5rem);top:clamp(-1rem,1vw,2rem);width:clamp(150px,19vw,280px);pointer-events:none;rotate:14deg}
-    .hero__title{font-weight:400;font-size:clamp(4.2rem,16vw,17rem);line-height:.9}
-    .hero__title .l{display:block;width:max-content;max-width:100%}
-    .hero__title .l1{rotate:-5deg;transform-origin:left}
-    .hero__title .l2{margin-left:clamp(1.5rem,14vw,16rem);rotate:3deg;margin-top:-.05em}
-    .hero__title .l3{margin-left:clamp(.5rem,5vw,6rem);rotate:-2.5deg;margin-top:.02em}
-    .wd{display:inline-block;white-space:nowrap}
-    .ch{display:inline-block;rotate:var(--r);translate:0 var(--y)}
-    .hero__row{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:2rem 4rem;margin-top:clamp(2.5rem,5vw,5rem)}
-    .hero__title .o{color:var(--accent);background:var(--scrib) no-repeat 0 92%/100% .32em;padding-bottom:.08em}
-    .badge{position:absolute;right:var(--pad);top:clamp(3rem,7vw,6rem);width:clamp(130px,17vw,230px);aspect-ratio:1;pointer-events:none}
-    .badge svg{width:100%;height:100%;animation:spin 20s linear infinite}
-    .badge text{fill:var(--text);font-family:var(--hand);font-size:24px;letter-spacing:.5px}
-    .badge__p{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:Fraunces,serif;font-weight:900;font-size:clamp(2.2rem,3.6vw,3.6rem);color:var(--accent)}
+    .hero__title{font-size:clamp(3.4rem,11vw,11.5rem);line-height:.95;max-width:11ch}
+    .hero__title .o{color:var(--accent)}
+    .badge{position:absolute;right:var(--pad);top:clamp(3rem,7vw,6rem);width:clamp(130px,16vw,220px);aspect-ratio:1;pointer-events:none}
+    .badge svg{width:100%;height:100%;animation:spin 22s linear infinite}
+    .badge text{fill:var(--text);font-family:var(--body);font-weight:700;font-size:15px;letter-spacing:1.5px}
+    .badge__p{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:clamp(2.2rem,3.6vw,3.6rem);color:var(--accent)}
     @keyframes spin{to{transform:rotate(360deg)}}
-    .hero__sub{order:2;max-width:30ch;margin-left:auto;margin-right:clamp(0rem,6vw,8rem);font-size:clamp(1.8rem,3.3vw,3.2rem);line-height:1.2;color:var(--muted);rotate:3deg}
+    .hero__sub{max-width:38ch;margin-top:clamp(2rem,4vw,3rem);font-size:clamp(1.15rem,1.9vw,1.55rem);line-height:1.5;color:var(--muted)}
     .hero__sub b,.hero__sub em{color:var(--text);font-weight:700;font-style:normal}
-    .note{position:relative;z-index:1;display:inline-block;margin-top:clamp(0rem,8vw,9rem);max-width:18ch;font-size:clamp(1.7rem,2.8vw,2.6rem);line-height:1.2;color:var(--accent);rotate:-8deg}
 
     /* Texte qui s'écrit tout seul */
-    .ecrit .wc{opacity:0;filter:blur(2px)}
-    .ecrit.go .wc{animation:encre .35s ease-out forwards;animation-delay:calc(var(--i) * 38ms)}
-    @keyframes encre{to{opacity:1;filter:none}}
+    .wd{display:inline-block;white-space:nowrap}
+    .ecrit .wc{opacity:0}
+    .ecrit.go .wc{animation:encre .3s ease-out forwards;animation-delay:calc(var(--i) * 28ms)}
+    @keyframes encre{to{opacity:1}}
 
     /* Sections */
     .sec{padding:var(--space) var(--pad)}
     .sec + .sec{padding-top:0}
     .sec:has(+ .cta){padding-bottom:clamp(3rem,6vw,5rem)}
-    .sec h2{font-weight:700;font-size:clamp(2.6rem,6vw,4.4rem);margin-top:.4rem;line-height:1;rotate:-1.5deg;transform-origin:left}
+    .sec h2{font-size:clamp(2.2rem,5vw,4rem);margin-top:.9rem;line-height:1.02}
     .sec h2 .o{color:var(--accent)}
-    .sec .lead{color:var(--muted);margin-top:1.2rem;max-width:40ch;font-size:clamp(1.4rem,2.2vw,1.75rem);rotate:.8deg}
-    s{text-decoration-color:var(--accent);text-decoration-thickness:3px}
+    .sec .lead{color:var(--muted);margin-top:1rem;max-width:48ch;font-size:clamp(1.05rem,1.6vw,1.25rem)}
 
     /* Paparmanes qui tombent — pleine largeur */
-    .stage{position:relative;height:clamp(420px,62vh,660px);margin:clamp(2.5rem,5vw,4rem) calc(-1 * var(--pad)) 0;overflow:hidden;
-      }
+    .stage{position:relative;height:clamp(420px,62vh,660px);margin:clamp(2.5rem,5vw,4rem) calc(-1 * var(--pad)) 0;overflow:hidden}
     #drop{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:pan-y}
-    .stage__hint{position:absolute;left:50%;top:26px;translate:-50% 0;rotate:-2deg;font-size:clamp(1.5rem,2.4vw,2.1rem);max-width:calc(100% - 2rem);text-align:center;white-space:normal!important;color:var(--muted);pointer-events:none;white-space:nowrap}
+    .stage__hint{position:absolute;left:50%;top:26px;translate:-50% 0;max-width:calc(100% - 2rem);text-align:center;font-size:clamp(.95rem,1.5vw,1.15rem);font-weight:600;color:var(--muted);pointer-events:none}
 
     /* Liste clients */
-    .list{margin-top:clamp(3rem,6vw,4.5rem);background:var(--line1) no-repeat top/100% 10px}
-    .item{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:clamp(2rem,3.4vw,3rem) var(--pad);margin:0 calc(-1 * var(--pad));background:var(--line2) no-repeat bottom/100% 10px;transition:background-color .25s}
-    .item:nth-child(even){background-image:var(--line1)}
-    .item:last-child{background-image:none}
-    .item:hover{background-color:var(--accent);color:#fff}
-    .item__name{display:inline-block;font-weight:700;font-size:clamp(2rem,4.4vw,3rem);line-height:1;rotate:-1.2deg}
-    .item:nth-child(3n) .item__name{rotate:1deg}
-    .item:nth-child(4n+1) .item__name{rotate:-2deg}
-    .item__note{display:block;font-size:1.3rem;color:var(--muted);margin-top:.5rem;font-weight:400}
+    .list{margin-top:clamp(3rem,6vw,4.5rem);border-top:2px solid var(--text)}
+    .item{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:clamp(1.6rem,2.8vw,2.4rem) var(--pad);margin:0 calc(-1 * var(--pad));border-bottom:1px solid var(--line);transition:background-color .25s}
+    .item:hover{background-color:var(--accent);color:#fff;border-color:var(--accent)}
+    .item__name{font-size:clamp(1.5rem,3.2vw,2.3rem);line-height:1.05}
+    .item__note{display:block;font-family:var(--body);font-size:.88rem;color:var(--muted);margin-top:.45rem;letter-spacing:0}
     .item:hover .item__note{color:#fff;opacity:.9}
-    .item__right{display:flex;align-items:center;gap:1rem;color:var(--muted);font-size:1.5rem;white-space:nowrap;rotate:1.5deg}
+    .item__right{display:flex;align-items:center;gap:1rem;color:var(--muted);font-size:.95rem;white-space:nowrap}
     .item:hover .item__right{color:#fff}
-    .item__arrow{font-size:1.9rem;transition:translate .3s}
+    .item__arrow{font-size:1.4rem;transition:translate .3s}
     .item:hover .item__arrow{translate:4px -4px}
-    .item--soon:hover{background-color:transparent;color:inherit}
+    .item--soon:hover{background-color:transparent;color:inherit;border-color:var(--line)}
     .item--soon:hover .item__right,.item--soon:hover .item__note{color:var(--muted)}
-    .soon{font-weight:700;font-size:1.3rem;color:var(--accent);border:2px solid var(--accent);border-radius:var(--wobbly);padding:.1rem .9rem;rotate:-3deg;display:inline-block}
+    .soon{font-weight:600;font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:var(--accent);border:2px solid var(--accent);border-radius:100px;padding:.3rem .85rem}
 
-    /* CTA rouge */
-    .cta{text-align:center;padding:0 var(--pad) clamp(4rem,8vw,7rem)}
-    .cta h2{font-weight:700;font-size:clamp(3rem,8vw,5.6rem);line-height:.95;margin-bottom:2.2rem;rotate:-2deg}
-    .cta__mail{display:inline-block;font-weight:700;font-size:clamp(1.8rem,4.4vw,2.8rem);padding-bottom:.2rem;rotate:1.5deg;
-      background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 12' preserveAspectRatio='none'%3E%3Cpath d='M2 7 C 60 3, 130 11, 198 5' fill='none' stroke='%23e64015' stroke-width='3' stroke-linecap='round' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E") no-repeat bottom/100% 12px;color:var(--accent)}
-    .cta__mail:hover{opacity:.75}
+    /* Fin */
+    .cta{text-align:center;padding:clamp(1rem,3vw,2rem) var(--pad) clamp(4rem,8vw,7rem)}
+    .cta h2{font-size:clamp(2.4rem,6.5vw,5rem);line-height:1;margin-bottom:2rem}
     .cta .o{color:var(--accent)}
+    .cta__mail{display:inline-block;font-weight:700;font-size:clamp(1.2rem,3vw,1.8rem);color:var(--accent);border-bottom:3px solid var(--accent);padding-bottom:.15rem}
+    .cta__mail:hover{opacity:.75}
 
-    .foot{display:flex;flex-wrap:wrap;gap:.6rem 1.5rem;justify-content:space-between;padding:2.5rem var(--pad);color:var(--muted);font-size:1.3rem}
+    .foot{display:flex;flex-wrap:wrap;gap:.6rem 1.5rem;justify-content:space-between;padding:2.5rem var(--pad);color:var(--muted);font-size:.85rem;border-top:1px solid var(--line)}
 
     @media (max-width:720px){
-      .hero__sub{order:1}.note-wrap{order:2}
-      .badge{top:0;width:96px}.badge__p{font-size:1.7rem}
+      .hero{padding-top:1.5rem}
+      .badge{position:relative;right:auto;top:auto;width:100px;margin:0 0 1.5rem auto}.badge__p{font-size:1.7rem}
       .item__url{display:none}
-      .stain{left:calc(100% + .25rem);top:0;width:min(130px,28vw);opacity:.85}
     }
     @media (prefers-reduced-motion:reduce){
       .reveal{opacity:1;translate:none}
-      .ecrit .wc{opacity:1;filter:none;animation:none!important}
+      .ecrit .wc{opacity:1;animation:none!important}
       .badge svg{animation:none}
     }
   </style>
@@ -136,34 +115,12 @@
     <div class="badge" aria-hidden="true">
       <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
         <defs><path id="ring" d="M100,100 m-78,0 a78,78 0 1,1 156,0 a78,78 0 1,1 -156,0"/></defs>
-        <text><textPath href="#ring" startOffset="0" textLength="482">PAPARMANE • STUDIO CRÉATIF • DÉJÀ DEPUIS 2013 •</textPath></text>
+        <text><textPath href="#ring" startOffset="0">PAPARMANE • STUDIO CRÉATIF • DÉJÀ DEPUIS 2013 •</textPath></text>
       </svg>
       <span class="badge__p">P.</span>
     </div>
-    <h1 class="hero__title" aria-label="Désolée, mon site est vide."><span class="l l1">Désolée,</span><span class="l l2">mon site</span><span class="l l3">est <span class="o">vide.</span></span></h1>
-    <div class="hero__row">
-      <p class="hero__sub ecrit"><b>Je suis trop occupée sur vos projets.</b> Branding, sites web, infolettres, SEO &amp; GEO, etc. — <em>J'ai toujours du temps pour les autres.</em></p>
-      <div class="note-wrap">
-        <p class="note">(ce site a été fait sur le coin d'une table, entre deux clients ↗)</p>
-      <svg class="stain" viewBox="0 0 240 240" aria-hidden="true">
-        <defs>
-          <filter id="cafe" x="-20%" y="-20%" width="140%" height="140%">
-            <feTurbulence type="fractalNoise" baseFrequency=".03" numOctaves="3" seed="11"/>
-            <feDisplacementMap in="SourceGraphic" scale="16"/>
-            <feGaussianBlur stdDeviation=".7"/>
-          </filter>
-        </defs>
-        <g filter="url(#cafe)" fill="none" stroke="#6b3c17">
-          <circle cx="120" cy="120" r="84" fill="#8a5428" fill-opacity=".07" stroke="none"/>
-          <circle cx="120" cy="120" r="88" stroke-opacity=".6" stroke-width="3.5"/>
-          <circle cx="120" cy="120" r="85" stroke-opacity=".24" stroke-width="9" stroke-dasharray="330 25 120 60"/>
-          <circle cx="122" cy="118" r="78" stroke-opacity=".1" stroke-width="2" stroke-dasharray="200 80"/>
-          <ellipse cx="206" cy="196" rx="8" ry="6" fill="#6b3c17" fill-opacity=".22" stroke="none"/>
-          <circle cx="222" cy="176" r="3" fill="#6b3c17" fill-opacity=".2" stroke="none"/>
-        </g>
-      </svg>
-      </div>
-    </div>
+    <h1 class="hero__title">Désolée, mon site est <span class="o">vide.</span></h1>
+    <p class="hero__sub ecrit"><b>Je suis trop occupée sur vos projets.</b> Branding, sites web, infolettres, SEO &amp; GEO, etc. — <em>J'ai toujours du temps pour les autres.</em></p>
   </section>
 
   <section class="sec">
@@ -269,7 +226,7 @@
     </div>
     <div class="stage" id="stage">
       <canvas id="drop" role="img" aria-label="Services : Branding, sites web, infolettres, SEO, GEO, Astro, hébergement, TI, dév. app, Shopify, WordPress, photographie, e-commerce"></canvas>
-      <span class="stage__hint">Passe du temps sur mon site : attrape les paparmanes, lance-les!</span>
+      <span class="stage__hint">Passe du temps sur mon site : attrape les paparmanes, lance-les !</span>
     </div>
   </section>
 
@@ -289,35 +246,6 @@
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 
-    /* Lettres écrites tout croche */
-    let seed = 7;
-    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-    function croche(el, amp) {
-      const walk = node => {
-        [...node.childNodes].forEach(n => {
-          if (n.nodeType === 1) { if (!n.classList.contains('item__note')) walk(n); return; }
-          if (n.nodeType !== 3 || !n.textContent.trim()) return;
-          const frag = document.createDocumentFragment();
-          n.textContent.split(/(\s+)/).forEach(part => {
-            if (!part) return;
-            if (/^\s+$/.test(part)) { frag.appendChild(document.createTextNode(part)); return; }
-            const wd = document.createElement('span'); wd.className = 'wd';
-            for (const c of part) {
-              const ch = document.createElement('span'); ch.className = 'ch'; ch.textContent = c;
-              ch.style.setProperty('--r', ((rnd() - .5) * 2 * amp).toFixed(1) + 'deg');
-              ch.style.setProperty('--y', ((rnd() - .5) * amp * .016).toFixed(3) + 'em');
-              wd.appendChild(ch);
-            }
-            frag.appendChild(wd);
-          });
-          n.replaceWith(frag);
-        });
-      };
-      walk(el);
-    }
-    document.querySelectorAll('.hero__title .l').forEach(el => croche(el, 7));
-    document.querySelectorAll('.sec h2, .cta h2, .logo').forEach(el => croche(el, 6));
-    document.querySelectorAll('.item__name').forEach(el => croche(el, 5));
 
 
     /* Paragraphes qui s'écrivent comme à la main */
@@ -401,9 +329,9 @@
       return b;
     }
 
-    // Fraunces 900 arrondie (opsz 144, SOFT 100), chargée par la feuille Google Fonts
-    const COIN_FONT = 'Fraunces, serif';
-    const coinFont = document.fonts ? document.fonts.load('900 40px Fraunces').catch(() => {}) : Promise.resolve();
+    // même écriture ronde que les titres (Bagel Fat One)
+    const COIN_FONT = '"Bagel Fat One", system-ui, sans-serif';
+    const coinFont = document.fonts ? document.fonts.load('40px "Bagel Fat One"').catch(() => {}) : Promise.resolve();
 
     function red(f) { return `rgb(${Math.round(230 * f)},${Math.round(64 * f)},${Math.round(21 * f)})`; }
 
@@ -443,10 +371,10 @@
       c.translate(0, top);
       c.scale(1, ry / rx);
       let fs = rx * 0.44;
-      c.font = `900 ${fs}px ${COIN_FONT}`;
+      c.font = `400 ${fs}px ${COIN_FONT}`;
       const w = c.measureText(label).width;
       const max = rx * 1.55;
-      if (w > max) { fs *= max / w; c.font = `900 ${fs}px ${COIN_FONT}`; }
+      if (w > max) { fs *= max / w; c.font = `400 ${fs}px ${COIN_FONT}`; }
       c.fillStyle = '#fff';
       c.textAlign = 'center';
       c.textBaseline = 'middle';
