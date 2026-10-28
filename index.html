@@ -79,9 +79,6 @@
     .item:hover .item__right{color:#fff}
     .item__arrow{font-size:1.4rem;transition:translate .3s}
     .item:hover .item__arrow{translate:4px -4px}
-    .item--soon:hover{background-color:transparent;color:inherit;border-color:var(--line)}
-    .item--soon:hover .item__right,.item--soon:hover .item__note{color:var(--muted)}
-    .soon{font-weight:600;font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:var(--accent);border:2px solid var(--accent);border-radius:100px;padding:.3rem .85rem}
 
     /* Fin */
     .cta{text-align:center;padding:clamp(1rem,3vw,2rem) var(--pad) clamp(4rem,8vw,7rem)}
@@ -219,10 +216,14 @@
         <span class="item__name">Compresseurs Drummond<span class="item__note">Compresseurs industriels à Drummondville</span></span>
         <span class="item__right"><span class="item__url">compresseursdrummond.ca</span><span class="item__arrow">↗</span></span>
       </a>
-      <div class="item item--soon reveal">
-        <span class="item__name">Studio Vélo<span class="item__note">Boutique Shopify</span></span>
-        <span class="item__right"><span class="soon">Bientôt en ligne</span></span>
-      </div>
+      <a class="item reveal" href="https://www.studiovelo.ca" target="_blank" rel="noopener noreferrer">
+        <span class="item__name">Studio Vélo<span class="item__note">Boutique Shopify, vélos et atelier à Drummondville</span></span>
+        <span class="item__right"><span class="item__url">studiovelo.ca</span><span class="item__arrow">↗</span></span>
+      </a>
+      <a class="item reveal" href="https://aubalcon.ca" target="_blank" rel="noopener noreferrer">
+        <span class="item__name">Au Balcon<span class="item__note">Accompagnement des gestionnaires et formation en gestion</span></span>
+        <span class="item__right"><span class="item__url">aubalcon.ca</span><span class="item__arrow">↗</span></span>
+      </a>
     </div>
     <div class="stage" id="stage">
       <canvas id="drop" role="img" aria-label="Services : Branding, sites web, infolettres, SEO, GEO, Astro, hébergement, TI, dév. app, Shopify, WordPress, photographie, e-commerce"></canvas>
