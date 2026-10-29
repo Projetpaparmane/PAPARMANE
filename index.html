@@ -71,12 +71,13 @@
     /* Liste clients */
     .list{margin-top:clamp(3rem,6vw,4.5rem);border-top:2px solid var(--text)}
     .item{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:clamp(1.6rem,2.8vw,2.4rem) var(--pad);margin:0 calc(-1 * var(--pad));border-bottom:1px solid var(--line);transition:background-color .25s}
-    .item:hover{background-color:var(--accent);color:#fff;border-color:var(--accent)}
+    .item:hover{background-color:#e4d6bd}
+    .item__name{transition:color .25s}
+    .item:hover .item__name{color:var(--accent)}
     .item__name{font-size:clamp(1.5rem,3.2vw,2.3rem);line-height:1.05}
     .item__note{display:block;font-family:var(--body);font-size:.88rem;color:var(--muted);margin-top:.45rem;letter-spacing:0}
-    .item:hover .item__note{color:#fff;opacity:.9}
-    .item__right{display:flex;align-items:center;gap:1rem;color:var(--muted);font-size:.95rem;white-space:nowrap}
-    .item:hover .item__right{color:#fff}
+        .item__right{display:flex;align-items:center;gap:1rem;color:var(--muted);font-size:.95rem;white-space:nowrap}
+    .item:hover .item__right{color:var(--accent)}
     .item__arrow{font-size:1.4rem;transition:translate .3s}
     .item:hover .item__arrow{translate:4px -4px}
 
