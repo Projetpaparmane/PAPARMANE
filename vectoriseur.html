@@ -201,7 +201,10 @@
 
       <div class="exports">
         <h2>Exporter</h2>
-        <button class="btn" id="dlSvg">Télécharger le SVG</button>
+        <div class="row">
+          <button class="btn" id="dlSvg">SVG</button>
+          <button class="btn" id="dlEps" title="Pour Illustrator, InDesign, imprimeurs">EPS</button>
+        </div>
         <div class="row">
           <select id="pngScale" aria-label="Taille du PNG">
             <option value="1">PNG 1×</option>
@@ -328,7 +331,7 @@ function traceJob(job){
   var IT = ImageTracer;
   var ii = IT.colorquantization({ width:w, height:h, data:d }, IT.checkoptions({
     pal: pal.map(function(c){ return { r:c.r, g:c.g, b:c.b, a:c.a }; }), colorquantcycles: 1, blurradius: o.blur, blurdelta: 40 }));
-  var sc = o.outScale, segs = 0, layers = [];
+  var sc = o.outScale, scY = o.outScaleY, segs = 0, layers = [];
   for(k = 0; k < pal.length; k++){
     if(pal[k].a === 0){ layers.push([]); continue; }
     var paths = IT.internodes(IT.pathscan(IT.layeringstep(ii, k), o.pathomit), { rightangleenhance:false });
@@ -343,7 +346,8 @@ function traceJob(job){
   }
   return { layers: layers, palette: pal, counts: counts, bgIndex: bgIndex, segments: segs };
 
-  function fmt(v){ return Math.round(v * sc * 100) / 100; }
+  function fx(v){ return Math.round(v * sc * 100) / 100; }
+  function fy(v){ return Math.round(v * scY * 100) / 100; }
   function sub(a, b){ return { x:a.x-b.x, y:a.y-b.y }; }
   function norm(v){ var l = Math.hypot(v.x, v.y) || 1; return { x:v.x/l, y:v.y/l }; }
 
@@ -381,15 +385,13 @@ function traceJob(job){
       if(P[i].x < 0.6) P[i].x = 0; else if(P[i].x > w - 0.6) P[i].x = w;
       if(P[i].y < 0.6) P[i].y = 0; else if(P[i].y > h - 0.6) P[i].y = h;
     }
-    var out = [], start, pieces = [];
+    var out = [];
     if(nc === 0){
       // Boucle sans coin : un seul morceau, tangentes continues au point de jonction
-      var pts = P.concat([P[0]]), tj = norm(sub(P[1], P[n - 1]));
-      fitCubic(pts, tj, { x:-tj.x, y:-tj.y }, out);
-      start = P[0];
+      var tj = norm(sub(P[1], P[n - 1]));
+      fitPiece(P.concat([P[0]]), out, tj, { x:-tj.x, y:-tj.y });
     } else {
       var cs = []; for(i = 0; i < n; i++) if(corner[i]) cs.push(i);
-      start = P[cs[0]];
       for(var c = 0; c < cs.length; c++){
         var i0 = cs[c], i1 = cs[(c + 1) % cs.length], seg = [], q = i0;
         do { seg.push(P[q]); q = (q + 1) % n; } while(q !== i1);
@@ -397,21 +399,159 @@ function traceJob(job){
         fitPiece(seg, out);
       }
     }
-    var s = 'M' + fmt(start.x) + ' ' + fmt(start.y);
+    simplifySegments(out);
+    var span = 0; out.forEach(function(g){ span += Math.hypot(g[g.length - 1].x - g[0].x, g[g.length - 1].y - g[0].y); });
+    if(span < 2) return '';
+    joinSegments(out, nc > 0);
+    var s = 'M' + fx(out[0][0].x) + ' ' + fy(out[0][0].y);
     for(i = 0; i < out.length; i++){
       var g = out[i]; segs++;
-      s += g.length === 2 ? 'L' + fmt(g[1].x) + ' ' + fmt(g[1].y)
-        : 'C' + fmt(g[1].x) + ' ' + fmt(g[1].y) + ' ' + fmt(g[2].x) + ' ' + fmt(g[2].y) + ' ' + fmt(g[3].x) + ' ' + fmt(g[3].y);
+      s += g.length === 2 ? 'L' + fx(g[1].x) + ' ' + fy(g[1].y)
+        : 'C' + fx(g[1].x) + ' ' + fy(g[1].y) + ' ' + fx(g[2].x) + ' ' + fy(g[2].y) + ' ' + fx(g[3].x) + ' ' + fy(g[3].y);
     }
     return s + 'Z';
   }
 
-  // Morceau entre deux coins : droite si possible, sinon Bézier
-  function fitPiece(seg, out){
-    var m = seg.length, A0 = seg[0], B0 = seg[m - 1];
-    if(m <= 2 || isLine(seg, 0, m - 1)){ out.push([A0, B0]); return; }
-    var look = Math.min(m - 1, 3);
-    fitCubic(seg, norm(sub(seg[look], A0)), norm(sub(seg[m - 1 - look], B0)), out);
+  // Morceau entre deux coins : découpé en vraies droites (longues et sans courbure)
+  // et en zones courbes, chacune ajustée par des Béziers qui prolongent les droites voisines.
+  function fitPiece(seg, out, tIn, tOut){
+    var m = seg.length;
+    if(m <= 2){ out.push([cp(seg[0]), cp(seg[m - 1])]); return; }
+    var runs = []; splitRuns(seg, 0, m - 1, runs);
+    var chord = Math.hypot(seg[m - 1].x - seg[0].x, seg[m - 1].y - seg[0].y) || Infinity; // boucle fermée : pas de corde
+    var items = [];
+    runs.forEach(function(r){
+      // Entre deux coins, un morceau entièrement droit reste une droite quelle que soit sa longueur
+      var rl = Math.hypot(seg[r.b].x - seg[r.a].x, seg[r.b].y - seg[r.a].y);
+      var isL = r.line && (runs.length === 1 || rl >= o.minLine || rl >= 0.6 * chord);
+      var last = items[items.length - 1];
+      if(!isL && last && !last.line) last.b = r.b;
+      else items.push({ a:r.a, b:r.b, line:isL });
+    });
+    if(o.sharp) items.forEach(function(it, k){
+      if(it.line) return;
+      var near = (items[k - 1] && items[k - 1].line) || (items[k + 1] && items[k + 1].line);
+      if(near && Math.hypot(seg[it.b].x - seg[it.a].x, seg[it.b].y - seg[it.a].y) < o.joinDist) it.line = true;
+    });
+    if(items.length === 1 && !items[0].line && m <= 4){ out.push([cp(seg[0]), cp(seg[m - 1])]); return; }
+    items.forEach(function(it, k){
+      if(it.line){ out.push(lsLine(seg, it.a, it.b)); return; }
+      var pts = seg.slice(it.a, it.b + 1), np = pts.length, look = Math.min(np - 1, 3);
+      var prev = items[k - 1], next = items[k + 1];
+      var t1 = prev ? dirOf(seg, prev) : (tIn || norm(sub(pts[look], pts[0])));
+      var t2 = next ? neg(dirOf(seg, next)) : (tOut || norm(sub(pts[np - 1 - look], pts[np - 1])));
+      if(np === 2){ out.push([cp(pts[0]), cp(pts[1])]); return; }
+      // Coin manqué par la détection : la zone « courbe » est en fait deux droites
+      if(o.sharp && np >= 6){
+        var best = -1, bestErr = Infinity;
+        for(var c2 = 2; c2 < np - 2; c2++){
+          var e2 = Math.max(lineDev(pts, 0, c2), lineDev(pts, c2, np - 1));
+          if(e2 < bestErr){ bestErr = e2; best = c2; }
+        }
+        if(bestErr <= o.lineTol){
+          var u1 = norm(sub(pts[best], pts[0])), u2 = norm(sub(pts[np - 1], pts[best]));
+          if(u1.x * u2.x + u1.y * u2.y < 0.87){ out.push(lsLine(pts, 0, best)); out.push(lsLine(pts, best, np - 1)); return; }
+        }
+      }
+      fitCubic(pts.map(cp), t1, t2, out);
+    });
+  }
+  function lineDev(pts, a, b){
+    var A0 = pts[a], B0 = pts[b], dx = B0.x - A0.x, dy = B0.y - A0.y, L = Math.hypot(dx, dy) || 1e-9, mx = 0;
+    for(var t = a + 1; t < b; t++) mx = Math.max(mx, Math.abs((pts[t].x - A0.x) * dy - (pts[t].y - A0.y) * dx) / L);
+    return mx;
+  }
+  function cp(p){ return { x:p.x, y:p.y }; }
+  function neg(v){ return { x:-v.x, y:-v.y }; }
+  function dirOf(seg, it){ return norm(sub(seg[it.b], seg[it.a])); }
+  // Découpe récursive (Douglas-Peucker) en tronçons rectilignes
+  function splitRuns(pts, a, b, runs){
+    if(b - a <= 1){ runs.push({ a:a, b:b, line:false }); return; }
+    var A0 = pts[a], B0 = pts[b], dx = B0.x - A0.x, dy = B0.y - A0.y, L = Math.hypot(dx, dy);
+    if(L < 1e-6){
+      // Boucle fermée : on coupe au point le plus éloigné du départ
+      var far = a + 1, fd = -1;
+      for(var f = a + 1; f < b; f++){ var dd = Math.hypot(pts[f].x - A0.x, pts[f].y - A0.y); if(dd > fd){ fd = dd; far = f; } }
+      splitRuns(pts, a, far, runs); splitRuns(pts, far, b, runs); return;
+    }
+    var mx = -1, mi = a + 1, pos = 0, negc = 0, sumAbs = 0;
+    for(var t = a + 1; t < b; t++){
+      var dv = ((pts[t].x - A0.x) * dy - (pts[t].y - A0.y) * dx) / L, ad = Math.abs(dv);
+      if(ad > mx){ mx = ad; mi = t; }
+      if(dv > 0.05) pos++; else if(dv < -0.05) negc++;
+      sumAbs += ad;
+    }
+    var cnt = b - a - 1, oneSided = Math.max(pos, negc) / cnt > 0.85 && sumAbs / cnt > o.lineTol * 0.22;
+    if(mx <= o.lineTol && !oneSided){ runs.push({ a:a, b:b, line:true }); return; }
+    if(mx <= o.lineTol * 0.5 && cnt < 6){ runs.push({ a:a, b:b, line:false }); return; }
+    splitRuns(pts, a, mi, runs); splitRuns(pts, mi, b, runs);
+  }
+  // Droite des moindres carrés, extrémités projetées dessus
+  function lsLine(pts, a, b){
+    var n2 = b - a + 1, cx = 0, cy = 0, sxx = 0, syy = 0, sxy = 0, t;
+    for(t = a; t <= b; t++){ cx += pts[t].x; cy += pts[t].y; }
+    cx /= n2; cy /= n2;
+    for(t = a; t <= b; t++){ var ux = pts[t].x - cx, uy = pts[t].y - cy; sxx += ux*ux; syy += uy*uy; sxy += ux*uy; }
+    var ang = 0.5 * Math.atan2(2 * sxy, sxx - syy), vx = Math.cos(ang), vy = Math.sin(ang);
+    function pr(p){ var k = (p.x - cx) * vx + (p.y - cy) * vy; return { x:cx + vx*k, y:cy + vy*k }; }
+    return [pr(pts[a]), pr(pts[b])];
+  }
+  // Nettoyage : fusionne les droites alignées, supprime les minuscules chanfreins entre deux droites
+  function simplifySegments(out){
+    function isL(g){ return g && g.length === 2; }
+    function len(g){ var e = g[g.length - 1]; return Math.hypot(e.x - g[0].x, e.y - g[0].y); }
+    function cross(A, C){
+      var d1x = A[1].x - A[0].x, d1y = A[1].y - A[0].y, d2x = C[1].x - C[0].x, d2y = C[1].y - C[0].y;
+      var den = d1x * d2y - d1y * d2x; if(Math.abs(den) < 1e-9) return null;
+      var u = ((C[0].x - A[0].x) * d2y - (C[0].y - A[0].y) * d2x) / den;
+      return { x:A[0].x + d1x * u, y:A[0].y + d1y * u };
+    }
+    var changed = true, guard = 0;
+    while(changed && out.length > 2 && guard++ < 50){
+      changed = false;
+      for(var k = 0; k < out.length && out.length > 2; k++){
+        var L = out.length, A = out[k], B = out[(k + 1) % L], C = out[(k + 2) % L];
+        // Deux droites presque alignées -> une seule
+        if(isL(A) && isL(B)){
+          var a = norm(sub(A[1], A[0])), b = norm(sub(B[1], B[0]));
+          if(a.x * b.x + a.y * b.y > 0.9965){
+            var M = [A[0], B[1]], dx = M[1].x - M[0].x, dy = M[1].y - M[0].y, l = Math.hypot(dx, dy) || 1;
+            if(Math.abs((A[1].x - M[0].x) * dy - (A[1].y - M[0].y) * dx) / l < o.lineTol * 2){
+              out.splice(k, 1, M); out.splice((k + 1) % out.length, 1); changed = true; break;
+            }
+          }
+        }
+        // Droite – petit segment – droite : on prolonge les deux droites jusqu'à leur intersection
+        if(o.sharp && L > 3 && isL(A) && isL(C) && len(B) < o.joinDist && len(A) > len(B) && len(C) > len(B)){
+          var X = cross(A, C);
+          if(X && Math.hypot(X.x - B[0].x, X.y - B[0].y) < o.joinDist * 1.5 && Math.hypot(X.x - B[B.length - 1].x, X.y - B[B.length - 1].y) < o.joinDist * 1.5){
+            A[1] = X; C[0] = { x:X.x, y:X.y }; out.splice((k + 1) % L, 1); changed = true; break;
+          }
+        }
+      }
+    }
+  }
+
+  // Raccorde les segments : deux droites se rejoignent à leur intersection (coins nets),
+  // sinon le point commun est partagé et les poignées suivent.
+  function joinSegments(out, closedCorners){
+    var L = out.length;
+    for(var k = 0; k < L; k++){
+      var A = out[k], B = out[(k + 1) % L], ea = A[A.length - 1], sb = B[0], j = null;
+      if(A.length === 2 && B.length === 2){
+        var d1x = A[1].x - A[0].x, d1y = A[1].y - A[0].y, d2x = B[1].x - B[0].x, d2y = B[1].y - B[0].y;
+        var den = d1x * d2y - d1y * d2x, l1 = Math.hypot(d1x, d1y), l2 = Math.hypot(d2x, d2y);
+        if(Math.abs(den) > 0.05 * l1 * l2){
+          var u = ((sb.x - A[0].x) * d2y - (sb.y - A[0].y) * d2x) / den;
+          var ix = A[0].x + d1x * u, iy = A[0].y + d1y * u;
+          if(Math.hypot(ix - ea.x, iy - ea.y) < o.joinDist && Math.hypot(ix - sb.x, iy - sb.y) < o.joinDist) j = { x:ix, y:iy };
+        }
+      }
+      if(!j) j = A.length === 2 ? { x:ea.x, y:ea.y } : B.length === 2 ? { x:sb.x, y:sb.y } : { x:(ea.x + sb.x) / 2, y:(ea.y + sb.y) / 2 };
+      if(A.length === 4){ A[2].x += j.x - ea.x; A[2].y += j.y - ea.y; }
+      if(B.length === 4){ B[1].x += j.x - sb.x; B[1].y += j.y - sb.y; }
+      A[A.length - 1] = j; B[0] = { x:j.x, y:j.y };
+    }
   }
   function isLine(pts, a, b){
     var A0 = pts[a], B0 = pts[b], dx = B0.x - A0.x, dy = B0.y - A0.y, L = Math.hypot(dx, dy);
@@ -626,9 +766,9 @@ function retrace(){
     width: state.work.width, height: state.work.height, data: new Uint8ClampedArray(state.work.data),
     opts: { colors: +$('colors').value, gray: state.gray, merge: +$('colors').value <= 8 ? 700 : 160,
       pathomit: Math.round(noise * 2.2 * s), blur: smooth >= 3 ? smooth - 2 : 0,
-      tol: tol, lineTol: tol * 0.6, smoothIter: 2 + smooth * 2,
+      tol: tol, lineTol: 0.6 + 0.3 * Math.min(s, 2.5), minLine: 14 * s, joinDist: 5 * s, sharp: $('corners').checked, smoothIter: 1 + smooth * 2,
       cornerAngle: $('corners').checked ? 50 : 85, cornerSpan: 1 + 1.5 * s,
-      outScale: state.origW / state.work.width }
+      outScale: state.origW / state.work.width, outScaleY: state.origH / state.work.height }
   };
   var t0 = performance.now();
   runTrace(job, function(r){
@@ -676,6 +816,7 @@ function buildSvg(){
   });
   out.push('</svg>');
   state.svg = out.join('');
+  state.order = order; state.gap = gap;
   $('vec').innerHTML = state.svg;
   var kb = new Blob([state.svg]).size / 1024;
   var nCol = state.colors.filter(function(c){ return !c.transparent && c.visible && c.count; }).length;
@@ -780,6 +921,37 @@ $('dlPng').onclick = function(){
   };
   img.src = url;
 };
+// EPS (PostScript) : mêmes tracés que le SVG, axe vertical inversé
+function buildEps(){
+  var r = state.result, W = state.origW, H = state.origH;
+  var ps = ['%!PS-Adobe-3.0 EPSF-3.0', '%%BoundingBox: 0 0 ' + W + ' ' + H, '%%HiResBoundingBox: 0 0 ' + W + ' ' + H,
+    '%%Creator: PAPARMANE Vectoriseur', '%%Title: ' + state.name.replace(/[^\w .-]/g, ''), '%%EndComments',
+    '/m {moveto} bind def /l {lineto} bind def /c {curveto} bind def /h {closepath} bind def',
+    'gsave 0 ' + H + ' translate 1 -1 scale 1 setlinejoin'];
+  state.order.forEach(function(li){
+    var c = state.colors[li], layer = r.layers[li]; if(!c || c.transparent || !c.visible || !layer.length) return;
+    var rgb = [1, 3, 5].map(function(i){ return (parseInt(c.hex.substr(i, 2), 16) / 255).toFixed(4); });
+    ps.push(rgb.join(' ') + ' setrgbcolor');
+    layer.forEach(function(d){
+      var body = d.replace(/([MLCZ])/g, ' $1 ').trim().split(/\s+/), cmd = [], args = [];
+      ps.push('newpath');
+      body.forEach(function(t){
+        if(/^[MLCZ]$/.test(t)){ if(cmd.length) flush(); cmd = [t]; } else args.push(t);
+      });
+      flush();
+      function flush(){
+        var k = cmd[0], a = args.join(' '); args = [];
+        if(k === 'M') ps.push(a + ' m'); else if(k === 'L') ps.push(a + ' l');
+        else if(k === 'C') ps.push(a + ' c'); else if(k === 'Z') ps.push('h');
+        cmd = [];
+      }
+      ps.push(state.gap ? 'gsave eofill grestore ' + state.gap + ' setlinewidth stroke' : 'eofill');
+    });
+  });
+  ps.push('grestore', 'showpage', '%%EOF');
+  return ps.join('\n');
+}
+$('dlEps').onclick = function(){ if(state.svg) download(new Blob([buildEps()], { type:'application/postscript' }), state.name + '.eps'); };
 $('copySvg').onclick = function(){
   if(!state.svg) return;
   navigator.clipboard.writeText(state.svg).then(function(){ toast('Code SVG copié.'); }, function(){ toast('Copie impossible dans ce navigateur.'); });
