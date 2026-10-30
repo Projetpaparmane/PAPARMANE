@@ -191,6 +191,8 @@
         <label class="check"><input type="checkbox" id="corners" checked> Coins nets <small>(angles droits)</small></label>
         <label class="check"><input type="checkbox" id="removeBg"> Retirer le fond</label>
         <label class="check"><input type="checkbox" id="cleanBlend" checked> Ignorer les teintes de bord <small>(halos)</small></label>
+        <label class="check"><input type="checkbox" id="shapes" checked> Cercles et ellipses parfaits</label>
+        <label class="check"><input type="checkbox" id="stacked" checked> Formes empilées <small>(aucun liseré entre couleurs)</small></label>
         <label class="check"><input type="checkbox" id="gaps" checked> Boucher les interstices <small>(liserés blancs)</small></label>
       </div>
 
@@ -205,6 +207,7 @@
         <div class="row">
           <button class="btn" id="dlSvg">SVG</button>
           <button class="btn" id="dlEps" title="Pour Illustrator, InDesign, imprimeurs">EPS</button>
+          <button class="btn" id="dlPdf" title="PDF vectoriel">PDF</button>
         </div>
         <div class="row">
           <select id="pngScale" aria-label="Taille du PNG">
@@ -351,7 +354,7 @@ function traceJob(job){
   var IT = ImageTracer;
   var ii = IT.colorquantization({ width:w, height:h, data:d }, IT.checkoptions({
     pal: pal.map(function(c){ return { r:c.r, g:c.g, b:c.b, a:c.a }; }), colorquantcycles: 1, blurradius: o.blur, blurdelta: 40 }));
-  var sc = o.outScale, scY = o.outScaleY, segs = 0, layers = [];
+  var sc = o.outScale, scY = o.outScaleY, segs = 0, layers = [], ellipses = 0;
   for(k = 0; k < pal.length; k++){
     if(pal[k].a === 0){ layers.push([]); continue; }
     var paths = IT.internodes(IT.pathscan(IT.layeringstep(ii, k), o.pathomit), { rightangleenhance:false });
@@ -359,12 +362,77 @@ function traceJob(job){
     for(var pi = 0; pi < paths.length; pi++){
       if(paths[pi].isholepath) continue;
       var dstr = loopToPath(paths[pi].points);
-      for(var hc = 0; hc < paths[pi].holechildren.length; hc++) dstr += loopToPath(paths[paths[pi].holechildren[hc]].points);
-      if(dstr) ds.push(dstr);
+      if(!dstr) continue;
+      var holes = [];
+      for(var hc = 0; hc < paths[pi].holechildren.length; hc++){
+        var hp = paths[paths[pi].holechildren[hc]].points, hd = loopToPath(hp);
+        if(hd) holes.push({ d: hd, inside: insideLayers(hp) });
+      }
+      ds.push({ d: dstr, holes: holes });
     }
     layers.push(ds);
   }
-  return { layers: layers, palette: pal, counts: counts, bgIndex: bgIndex, segments: segs };
+  return { layers: layers, palette: pal, counts: counts, bgIndex: bgIndex, segments: segs, ellipses: ellipses };
+
+  // Couleurs présentes à l'intérieur d'un trou (remplissage par balayage de lignes)
+  function insideLayers(pts){
+    var n2 = pts.length, y0 = Infinity, y1 = -Infinity, seen = {}, res = [], xs, y, e;
+    for(e = 0; e < n2; e++){ if(pts[e].y < y0) y0 = pts[e].y; if(pts[e].y > y1) y1 = pts[e].y; }
+    for(y = Math.max(0, Math.floor(y0)); y < Math.min(h, Math.ceil(y1)); y++){
+      var yc = y + 0.5; xs = [];
+      for(e = 0; e < n2; e++){
+        var A = pts[e], B = pts[(e + 1) % n2];
+        if((A.y <= yc) !== (B.y <= yc)) xs.push(A.x + (yc - A.y) / (B.y - A.y) * (B.x - A.x));
+      }
+      xs.sort(function(a, b){ return a - b; });
+      var row = ii.array[y + 1];
+      for(e = 0; e + 1 < xs.length; e += 2){
+        for(var x = Math.max(0, Math.ceil(xs[e] - 0.5)); x + 0.5 < xs[e + 1] && x < w; x++){
+          var v = row[x + 1]; if(!seen[v]){ seen[v] = 1; res.push(v); }
+        }
+      }
+    }
+    return res;
+  }
+
+  // Cercle / ellipse : si le contour (sans coin) colle à une ellipse, on la dessine parfaite (4 arcs)
+  function fitEllipse(P){
+    var n2 = P.length, cx = 0, cy = 0, sxx = 0, syy = 0, sxy = 0, i2;
+    if(n2 < 16) return null;
+    for(i2 = 0; i2 < n2; i2++){ cx += P[i2].x; cy += P[i2].y; } cx /= n2; cy /= n2;
+    for(i2 = 0; i2 < n2; i2++){ var ux = P[i2].x - cx, uy = P[i2].y - cy; sxx += ux*ux; syy += uy*uy; sxy += ux*uy; }
+    sxx /= n2; syy /= n2; sxy /= n2;
+    var th = 0.5 * Math.atan2(2 * sxy, sxx - syy), ct = Math.cos(th), st = Math.sin(th);
+    var U = [], V = [], a = 0, b = 0, iter, sa, ca, sb, cb;
+    for(i2 = 0; i2 < n2; i2++){ var dx = P[i2].x - cx, dy = P[i2].y - cy; U.push(dx*ct + dy*st); V.push(-dx*st + dy*ct); }
+    for(i2 = 0; i2 < n2; i2++){ a = Math.max(a, Math.abs(U[i2])); b = Math.max(b, Math.abs(V[i2])); }
+    if(a < 1.5 || b < 1.5 || a / b > 12 || b / a > 12) return null;
+    for(iter = 0; iter < 6; iter++){
+      sa = ca = sb = cb = 0;
+      for(i2 = 0; i2 < n2; i2++){
+        var ph = Math.atan2(V[i2] / b, U[i2] / a), c1 = Math.cos(ph), s1 = Math.sin(ph);
+        sa += U[i2] * c1; ca += c1 * c1; sb += V[i2] * s1; cb += s1 * s1;
+      }
+      a = sa / ca; b = sb / cb;
+    }
+    if(Math.abs(a - b) / Math.max(a, b) < 0.03){ a = b = (a + b) / 2; }
+    var mx = 0, mean = 0;
+    for(i2 = 0; i2 < n2; i2++){
+      var ph2 = Math.atan2(V[i2] / b, U[i2] / a), ex = a * Math.cos(ph2), ey = b * Math.sin(ph2);
+      var er = Math.abs(Math.hypot(U[i2], V[i2]) - Math.hypot(ex, ey)); mx = Math.max(mx, er); mean += er;
+    }
+    mean /= n2;
+    if(mx > o.tol * 1.3 || mean > o.tol * 0.35) return null;
+    var K = 0.5522847498, out2 = [];
+    function pt(ph){ var u = a * Math.cos(ph), v = b * Math.sin(ph); return { x: cx + u*ct - v*st, y: cy + u*st + v*ct }; }
+    function dv(ph){ var u = -a * Math.sin(ph), v = b * Math.cos(ph); return { x: u*ct - v*st, y: u*st + v*ct }; }
+    for(var q2 = 0; q2 < 4; q2++){
+      var p0 = q2 * Math.PI / 2, p1 = p0 + Math.PI / 2, A0 = pt(p0), A1 = pt(p1), D0 = dv(p0), D1 = dv(p1);
+      out2.push([A0, { x: A0.x + K*D0.x, y: A0.y + K*D0.y }, { x: A1.x - K*D1.x, y: A1.y - K*D1.y }, A1]);
+    }
+    ellipses++;
+    return out2;
+  }
 
   function fx(v){ return Math.round(v * sc * 100) / 100; }
   function fy(v){ return Math.round(v * scY * 100) / 100; }
@@ -405,8 +473,10 @@ function traceJob(job){
       if(P[i].x < 0.6) P[i].x = 0; else if(P[i].x > w - 0.6) P[i].x = w;
       if(P[i].y < 0.6) P[i].y = 0; else if(P[i].y > h - 0.6) P[i].y = h;
     }
-    var out = [];
-    if(nc === 0){
+    var out = [], ell = nc === 0 && o.shapes ? fitEllipse(P) : null;
+    if(ell){
+      out = ell;
+    } else if(nc === 0){
       // Boucle sans coin : un seul morceau, tangentes continues au point de jonction
       var tj = norm(sub(P[1], P[n - 1]));
       fitPiece(P.concat([P[0]]), out, tj, { x:-tj.x, y:-tj.y });
@@ -419,7 +489,7 @@ function traceJob(job){
         fitPiece(seg, out);
       }
     }
-    simplifySegments(out);
+    if(!ell) simplifySegments(out);
     var span = 0; out.forEach(function(g){ span += Math.hypot(g[g.length - 1].x - g[0].x, g[g.length - 1].y - g[0].y); });
     if(span < 2) return '';
     joinSegments(out, nc > 0);
@@ -771,6 +841,8 @@ var debounce;
 });
 $('corners').addEventListener('change', retrace);
 $('cleanBlend').addEventListener('change', retrace);
+$('shapes').addEventListener('change', retrace);
+$('stacked').addEventListener('change', buildSvg);
 $('removeBg').addEventListener('change', function(){
   var on = $('removeBg').checked;
   state.colors.forEach(function(c){ if(c.isBg) c.visible = !on; });
@@ -786,7 +858,7 @@ function retrace(){
   var smooth = +$('smooth').value, tol = (1.9 - detail * 0.17) * s;
   var job = {
     width: state.work.width, height: state.work.height, data: new Uint8ClampedArray(state.work.data),
-    opts: { colors: +$('colors').value, gray: state.gray, dropBlend: $('cleanBlend').checked, merge: +$('colors').value <= 8 ? 700 : 160,
+    opts: { colors: +$('colors').value, gray: state.gray, dropBlend: $('cleanBlend').checked, merge: +$('colors').value <= 8 ? 700 : 160, shapes: $('shapes').checked,
       pathomit: Math.round(noise * 2.2 * s), blur: smooth >= 3 ? smooth - 2 : 0,
       tol: tol, lineTol: 0.6 + 0.3 * Math.min(s, 2.5), minLine: 14 * s, joinDist: 5 * s, sharp: $('corners').checked, smoothIter: 1 + smooth * 2,
       cornerAngle: $('corners').checked ? 50 : 85, cornerSpan: 1 + 1.5 * s,
@@ -830,7 +902,19 @@ function buildSvg(){
   var out = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '">'];
   var shapes = 0, nodes = 0;
   var vis = order.filter(function(li){ var c = state.colors[li]; return c && !c.transparent && c.visible && r.layers[li].length; });
-  function paths(li){ return r.layers[li].map(function(d){ return '<path d="' + d + '"/>'; }).join(''); }
+  // Mode empilé : un trou est bouché quand tout ce qu'il contient est dessiné par-dessus
+  // (la couleur du dessous continue sous les formes : aucun liseré possible).
+  var rank = {}; vis.forEach(function(li, i){ rank[li] = i; });
+  var stacked = $('stacked').checked;
+  state.ds = {};
+  vis.forEach(function(li){
+    state.ds[li] = r.layers[li].map(function(sh){
+      return sh.d + sh.holes.filter(function(hl){
+        return !(stacked && hl.inside.every(function(v){ return v === li || rank[v] > rank[li]; }));
+      }).map(function(hl){ return hl.d; }).join('');
+    });
+  });
+  function paths(li){ return state.ds[li].map(function(d){ return '<path d="' + d + '"/>'; }).join(''); }
   // Interstices : un contour posé SOUS toutes les formes (jamais sur la couleur du dessus),
   // les aplats le recouvrent, il ne reste visible que dans les liserés entre deux couleurs.
   if(gap && vis.length > 1){
@@ -839,7 +923,7 @@ function buildSvg(){
     out.push('</g>');
   }
   vis.forEach(function(li){
-    var layer = r.layers[li];
+    var layer = state.ds[li];
     shapes += layer.length;
     for(var p = 0; p < layer.length; p++) nodes += (layer[p].match(/[LC]/g) || []).length;
     out.push('<g fill="' + state.colors[li].hex + '" fill-rule="evenodd">' + paths(li) + '</g>');
@@ -959,7 +1043,7 @@ function buildEps(){
     '/m {moveto} bind def /l {lineto} bind def /c {curveto} bind def /h {closepath} bind def',
     'gsave 0 ' + H + ' translate 1 -1 scale 1 setlinejoin'];
   function emit(li, op){
-    var c = state.colors[li], layer = r.layers[li];
+    var c = state.colors[li], layer = state.ds[li];
     var rgb = [1, 3, 5].map(function(i){ return (parseInt(c.hex.substr(i, 2), 16) / 255).toFixed(4); });
     ps.push(rgb.join(' ') + ' setrgbcolor');
     layer.forEach(function(d){
@@ -986,6 +1070,39 @@ function buildEps(){
   ps.push('grestore', 'showpage', '%%EOF');
   return ps.join('\n');
 }
+// PDF vectoriel (une page, mêmes tracés, couleurs RVB)
+function buildPdf(){
+  var W = state.origW, H = state.origH, ops = ['1 0 0 -1 0 ' + H + ' cm', '1 j'];
+  function pathOps(d){
+    var t = d.replace(/([MLCZ])/g, ' $1 ').trim().split(/\s+/), res = [], cmd = null, args = [];
+    function flush(){
+      if(cmd === 'M') res.push(args.join(' ') + ' m'); else if(cmd === 'L') res.push(args.join(' ') + ' l');
+      else if(cmd === 'C') res.push(args.join(' ') + ' c'); else if(cmd === 'Z') res.push('h');
+      args = [];
+    }
+    t.forEach(function(x){ if(/^[MLCZ]$/.test(x)){ if(cmd) flush(); cmd = x; } else args.push(x); });
+    if(cmd) flush();
+    return res.join('\n');
+  }
+  function rgb(hex){ return [1, 3, 5].map(function(i){ return (parseInt(hex.substr(i, 2), 16) / 255).toFixed(4); }).join(' '); }
+  if(state.gap && state.vis.length > 1){
+    ops.push(state.gap + ' w');
+    state.vis.slice(0, -1).forEach(function(li){ ops.push(rgb(state.colors[li].hex) + ' RG'); state.ds[li].forEach(function(d){ ops.push(pathOps(d), 'S'); }); });
+  }
+  state.vis.forEach(function(li){ ops.push(rgb(state.colors[li].hex) + ' rg'); state.ds[li].forEach(function(d){ ops.push(pathOps(d), 'f*'); }); });
+  var content = ops.join('\n');
+  var objs = ['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + W + ' ' + H + '] /Contents 4 0 R /Resources << >> >>',
+    '<< /Length ' + content.length + ' >>\nstream\n' + content + '\nendstream',
+    '<< /Producer (PAPARMANE Vectoriseur) >>'];
+  var pdf = '%PDF-1.4\n', offs = [];
+  objs.forEach(function(ob, i){ offs.push(pdf.length); pdf += (i + 1) + ' 0 obj\n' + ob + '\nendobj\n'; });
+  var xref = pdf.length;
+  pdf += 'xref\n0 ' + (objs.length + 1) + '\n0000000000 65535 f \n' + offs.map(function(o){ return ('000000000' + o).slice(-10) + ' 00000 n \n'; }).join('');
+  pdf += 'trailer\n<< /Size ' + (objs.length + 1) + ' /Root 1 0 R /Info 5 0 R >>\nstartxref\n' + xref + '\n%%EOF\n';
+  return pdf;
+}
+$('dlPdf').onclick = function(){ if(state.svg) download(new Blob([buildPdf()], { type:'application/pdf' }), state.name + '.pdf'); };
 $('dlEps').onclick = function(){ if(state.svg) download(new Blob([buildEps()], { type:'application/postscript' }), state.name + '.eps'); };
 $('copySvg').onclick = function(){
   if(!state.svg) return;
