@@ -753,7 +753,17 @@ vp.addEventListener('pointercancel', function(){ drag = null; vp.classList.remov
 
 /* ---------- Export ---------- */
 
+// Dans la visionneuse claude.ai, les téléchargements passent par la capacité « downloads » ;
+// ailleurs (site en ligne, fichier local), simple lien de téléchargement.
+var dlApi = null;
+if(window.claude && window.claude.use) window.claude.use('downloads').then(function(d){ dlApi = d; }, function(){});
 function download(blob, name){
+  if(dlApi){
+    dlApi.save({ filename: name, data: blob }).then(function(){ toast('Fichier enregistré.'); }, function(e){
+      if(e && e.code !== 'declined') toast('Téléchargement impossible ici.');
+    });
+    return;
+  }
   var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
 }
