@@ -11,34 +11,33 @@
   <link href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     :root{
-      --bg:#efe5d3; --text:#2a1f18; --muted:#5a4a3e; --line:#d3c4ac; --accent:#e64015;
+      --bg:#1a00a8; --bg2:#13007f; --text:#ffffff; --muted:#d2ccf7; --line:#3d27c2; --accent:#ff3535;
       --display:"Bagel Fat One","Arial Rounded MT Bold",system-ui,sans-serif;
       --body:"Inter",system-ui,sans-serif;
       --pad:clamp(1.25rem,5vw,5rem);
       --space:clamp(5rem,10vw,9rem);
-      --grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35  0 0 0 0 .25  0 0 0 0 .15  0 0 0 .2 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     }
     *{margin:0;padding:0;box-sizing:border-box}
     html{scroll-behavior:smooth;overflow-x:clip}
-    body{background:var(--grain) repeat,var(--bg);background-size:220px 220px,auto;color:var(--text);font-family:var(--body);font-size:1.05rem;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+    body{background:var(--bg);color:var(--text);font-family:var(--body);font-size:1.05rem;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
     a{color:inherit;text-decoration:none}
     ::selection{background:var(--accent);color:#fff}
     h1,h2,.logo,.item__name{font-family:var(--display);font-weight:400;letter-spacing:-.01em}
 
     .reveal{opacity:0;translate:0 26px;transition:opacity .9s cubic-bezier(.16,1,.3,1),translate .9s cubic-bezier(.16,1,.3,1)}
     .reveal.in{opacity:1;translate:0 0}
-    .eyebrow{display:inline-flex;align-items:center;gap:.55rem;font-weight:600;font-size:.8rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+    .eyebrow{display:inline-flex;align-items:center;gap:.55rem;font-weight:600;font-size:.8rem;letter-spacing:.14em;text-transform:uppercase;color:var(--text)}
     .eyebrow::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--accent)}
 
     /* Header */
-    .top{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1.6rem var(--pad);background:var(--grain) repeat,#e4d6bd;background-size:220px 220px,auto}
+    .top{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1.6rem var(--pad);background:var(--bg2)}
     .logo{font-size:1.9rem;line-height:1}
     .logo .dot{color:var(--accent)}
     .top__mail{font-weight:600;font-size:.9rem;border:2px solid var(--text);border-radius:100px;padding:.5rem 1.25rem;transition:.25s}
     .top__mail:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
 
     /* Hero */
-    .hero{position:relative;overflow-x:clip;background:var(--grain) repeat,#e4d6bd;background-size:220px 220px,auto;padding:clamp(4rem,9vw,8rem) var(--pad) var(--space)}
+    .hero{position:relative;overflow-x:clip;background:var(--bg2);padding:clamp(4rem,9vw,8rem) var(--pad) var(--space)}
     .hero__title{font-size:clamp(3.4rem,11vw,11.5rem);line-height:.95;max-width:11ch}
     .hero__title .o{color:var(--accent)}
     .badge{position:absolute;right:var(--pad);top:clamp(3rem,7vw,6rem);width:clamp(130px,16vw,220px);aspect-ratio:1;pointer-events:none}
@@ -71,7 +70,7 @@
     /* Liste clients */
     .list{margin-top:clamp(3rem,6vw,4.5rem);border-top:2px solid var(--text)}
     .item{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:clamp(1.6rem,2.8vw,2.4rem) var(--pad);margin:0 calc(-1 * var(--pad));border-bottom:1px solid var(--line);transition:background-color .25s}
-    .item:hover{background-color:#e4d6bd}
+    .item:hover{background-color:var(--bg2)}
     .item__name{transition:color .25s}
     .item:hover .item__name{color:var(--accent)}
     .item__name{font-size:clamp(1.5rem,3.2vw,2.3rem);line-height:1.05}
@@ -335,7 +334,7 @@
     const COIN_FONT = '"Bagel Fat One", system-ui, sans-serif';
     const coinFont = document.fonts ? document.fonts.load('40px "Bagel Fat One"').catch(() => {}) : Promise.resolve();
 
-    function red(f) { return `rgb(${Math.round(230 * f)},${Math.round(64 * f)},${Math.round(21 * f)})`; }
+    function red(f) { return `rgb(${Math.round(255 * f)},${Math.round(53 * f)},${Math.round(53 * f)})`; }
 
     function drawCoin(b, c = ctx) {
       const { label, rx, ry, depth } = b.coin;
@@ -348,7 +347,7 @@
       const steps = Math.max(6, Math.round(depth / 1.2));
       for (let i = steps; i >= 0; i--) {
         const y = top + (bottom - top) * (i / steps);
-        if (i === steps) { c.shadowColor = 'rgba(90,40,15,.35)'; c.shadowBlur = rx * 0.35; c.shadowOffsetY = rx * 0.14; }
+        if (i === steps) { c.shadowColor = 'rgba(8,0,50,.5)'; c.shadowBlur = rx * 0.35; c.shadowOffsetY = rx * 0.14; }
         c.beginPath();
         c.ellipse(0, y, rx, ry, 0, 0, Math.PI * 2);
         c.fillStyle = red(0.5 + 0.14 * (1 - i / steps));
@@ -357,8 +356,8 @@
       }
       // face — rouge plein
       const g = c.createLinearGradient(0, top - ry, 0, top + ry);
-      g.addColorStop(0, '#ee4a1d');
-      g.addColorStop(1, '#de3d13');
+      g.addColorStop(0, '#ff4a4a');
+      g.addColorStop(1, '#f02c2c');
       c.beginPath();
       c.ellipse(0, top, rx, ry, 0, 0, Math.PI * 2);
       c.fillStyle = g;
@@ -366,7 +365,7 @@
       c.beginPath();
       c.ellipse(0, top, rx * 0.97, ry * 0.94, 0, Math.PI * 1.08, Math.PI * 1.92);
       c.lineWidth = Math.max(1, rx * 0.035);
-      c.strokeStyle = 'rgba(255,170,140,.45)';
+      c.strokeStyle = 'rgba(255,190,190,.5)';
       c.stroke();
 
       // texte blanc posé sur la face
