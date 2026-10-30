@@ -190,6 +190,7 @@
         <h2>Options</h2>
         <label class="check"><input type="checkbox" id="corners" checked> Coins nets <small>(angles droits)</small></label>
         <label class="check"><input type="checkbox" id="removeBg"> Retirer le fond</label>
+        <label class="check"><input type="checkbox" id="cleanBlend" checked> Ignorer les teintes de bord <small>(halos)</small></label>
         <label class="check"><input type="checkbox" id="gaps" checked> Boucher les interstices <small>(liserés blancs)</small></label>
       </div>
 
@@ -305,8 +306,27 @@ function traceJob(job){
   }
 
   // 3. Fusion des teintes quasi identiques (évite de couper un aplat en deux)
+  // + suppression des teintes de transition (anticrénelage) : une couleur peu présente qui se situe
+  //   sur le segment entre deux couleurs plus présentes n'est qu'un mélange de bord
+  var blend = [];
+  if(o.dropBlend && ns > 0){
+    var nk = C.length / 3;
+    for(k = 0; k < nk; k++){
+      var shk = tot[k] / ns; if(shk > 0.12) continue;
+      for(var a1 = 0; a1 < nk && !blend[k]; a1++) for(var b1 = a1 + 1; b1 < nk && !blend[k]; b1++){
+        if(a1 === k || b1 === k || tot[a1] <= tot[k] || tot[b1] <= tot[k]) continue;
+        var ex = C[b1*3]-C[a1*3], ey = C[b1*3+1]-C[a1*3+1], ez = C[b1*3+2]-C[a1*3+2], el = ex*ex + ey*ey + ez*ez;
+        if(el < 900) continue;
+        var px = C[k*3]-C[a1*3], py = C[k*3+1]-C[a1*3+1], pz = C[k*3+2]-C[a1*3+2], tt = (px*ex + py*ey + pz*ez) / el;
+        if(tt < 0.1 || tt > 0.9) continue;
+        var rx = px - tt*ex, ry = py - tt*ey, rz = pz - tt*ez;
+        if(Math.sqrt(rx*rx + ry*ry + rz*rz) < 24) blend[k] = true;
+      }
+    }
+  }
   var pal = [];
   for(k = 0; k < C.length/3; k++){
+    if(blend[k]) continue;
     var cr = Math.round(C[k*3]), cg = Math.round(C[k*3+1]), cb = Math.round(C[k*3+2]), dup = false;
     for(var m = 0; m < pal.length; m++) if(dist(cr,cg,cb,pal[m].r,pal[m].g,pal[m].b) < o.merge){ dup = true; break; }
     if(!dup) pal.push({ r:cr, g:cg, b:cb, a:255 });
@@ -654,7 +674,7 @@ var $ = function(id){ return document.getElementById(id); };
 var PRESETS = {
   logo:   { colors:6,  detail:7, noise:4, smooth:1, corners:true },
   illu:   { colors:16, detail:7, noise:3, smooth:1, corners:true },
-  photo:  { colors:32, detail:5, noise:3, smooth:3, corners:false },
+  photo:  { colors:32, detail:5, noise:3, smooth:3, corners:false, blend:false },
   bw:     { colors:2,  detail:7, noise:4, smooth:1, corners:true, gray:true },
   sketch: { colors:3,  detail:9, noise:1, smooth:0, corners:false, gray:true }
 };
@@ -691,8 +711,8 @@ function prepare(img, url){
   state.origW = w; state.origH = h;
   // Agrandit les petites images (courbes plus douces) et réduit les très grandes (vitesse)
   var long = Math.max(w, h), s = 1;
-  if(long < 1200) s = Math.min(4, 1200 / long);
-  if(w * s * h * s > 2400000) s = Math.sqrt(2400000 / (w * h));
+  if(long < 3200) s = Math.min(4, 3200 / long);
+  if(w * s * h * s > 3000000) s = Math.sqrt(3000000 / (w * h));
   var ww = Math.max(1, Math.round(w * s)), hh = Math.max(1, Math.round(h * s));
   var c = document.createElement('canvas'); c.width = ww; c.height = hh;
   var ctx = c.getContext('2d', { willReadFrequently:true });
@@ -724,15 +744,16 @@ function autoSettings(){
     if(!reps.some(function(q){ return Math.abs(q[0]-r) + Math.abs(q[1]-g) + Math.abs(q[2]-b) <= 3; })) reps.push([r, g, b]);
   });
   var colors = Math.max(2, Math.min(32, reps.length + (tot < n / step * 0.98 ? 1 : 0)));
-  return { colors:colors, detail: colors <= 8 ? 7 : 6, noise: colors <= 8 ? 4 : 3, smooth: colors > 20 ? 2 : 1, corners: colors <= 12, gray:false };
+  return { colors:colors, detail: colors <= 8 ? 7 : 6, noise: colors <= 8 ? 4 : 3, smooth: colors > 20 ? 2 : 1, corners: colors <= 12, gray:false, blend: colors <= 12 };
 }
 
 function applyPreset(name, trace){
   state.preset = name;
   document.querySelectorAll('#presets button').forEach(function(b){ b.classList.toggle('on', b.dataset.p === name); });
   var p = name === 'auto' ? (state.work ? autoSettings() : PRESETS.illu) : PRESETS[name];
+  if(name === 'logo' && state.work) p = Object.assign({}, p, { colors: Math.min(8, autoSettings().colors) });
   $('colors').value = p.colors; $('detail').value = p.detail; $('noise').value = p.noise; $('smooth').value = p.smooth;
-  $('corners').checked = p.corners; state.gray = !!p.gray;
+  $('corners').checked = p.corners; $('cleanBlend').checked = p.blend !== false; state.gray = !!p.gray;
   syncOutputs();
   if(trace !== false) retrace();
 }
@@ -749,6 +770,7 @@ var debounce;
   $(id).addEventListener('input', function(){ syncOutputs(); clearTimeout(debounce); debounce = setTimeout(retrace, 350); });
 });
 $('corners').addEventListener('change', retrace);
+$('cleanBlend').addEventListener('change', retrace);
 $('removeBg').addEventListener('change', function(){
   var on = $('removeBg').checked;
   state.colors.forEach(function(c){ if(c.isBg) c.visible = !on; });
@@ -764,7 +786,7 @@ function retrace(){
   var smooth = +$('smooth').value, tol = (1.9 - detail * 0.17) * s;
   var job = {
     width: state.work.width, height: state.work.height, data: new Uint8ClampedArray(state.work.data),
-    opts: { colors: +$('colors').value, gray: state.gray, merge: +$('colors').value <= 8 ? 700 : 160,
+    opts: { colors: +$('colors').value, gray: state.gray, dropBlend: $('cleanBlend').checked, merge: +$('colors').value <= 8 ? 700 : 160,
       pathomit: Math.round(noise * 2.2 * s), blur: smooth >= 3 ? smooth - 2 : 0,
       tol: tol, lineTol: 0.6 + 0.3 * Math.min(s, 2.5), minLine: 14 * s, joinDist: 5 * s, sharp: $('corners').checked, smoothIter: 1 + smooth * 2,
       cornerAngle: $('corners').checked ? 50 : 85, cornerSpan: 1 + 1.5 * s,
@@ -807,16 +829,24 @@ function buildSvg(){
   var order = r.layers.map(function(_, i){ return i; }).sort(function(a, b){ return r.counts[b] - r.counts[a]; });
   var out = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '">'];
   var shapes = 0, nodes = 0;
-  order.forEach(function(li){
-    var c = state.colors[li], layer = r.layers[li]; if(!c || c.transparent || !c.visible || !layer.length) return;
+  var vis = order.filter(function(li){ var c = state.colors[li]; return c && !c.transparent && c.visible && r.layers[li].length; });
+  function paths(li){ return r.layers[li].map(function(d){ return '<path d="' + d + '"/>'; }).join(''); }
+  // Interstices : un contour posé SOUS toutes les formes (jamais sur la couleur du dessus),
+  // les aplats le recouvrent, il ne reste visible que dans les liserés entre deux couleurs.
+  if(gap && vis.length > 1){
+    out.push('<g fill="none" stroke-width="' + gap + '" stroke-linejoin="round">');
+    vis.slice(0, -1).forEach(function(li){ out.push('<g stroke="' + state.colors[li].hex + '">' + paths(li) + '</g>'); });
+    out.push('</g>');
+  }
+  vis.forEach(function(li){
+    var layer = r.layers[li];
     shapes += layer.length;
     for(var p = 0; p < layer.length; p++) nodes += (layer[p].match(/[LC]/g) || []).length;
-    out.push('<g fill="' + c.hex + '" fill-rule="evenodd"' + (gap ? ' stroke="' + c.hex + '" stroke-width="' + gap + '" stroke-linejoin="round"' : '') + '>' +
-      layer.map(function(d){ return '<path d="' + d + '"/>'; }).join('') + '</g>');
+    out.push('<g fill="' + state.colors[li].hex + '" fill-rule="evenodd">' + paths(li) + '</g>');
   });
   out.push('</svg>');
   state.svg = out.join('');
-  state.order = order; state.gap = gap;
+  state.vis = vis; state.gap = gap;
   $('vec').innerHTML = state.svg;
   var kb = new Blob([state.svg]).size / 1024;
   var nCol = state.colors.filter(function(c){ return !c.transparent && c.visible && c.count; }).length;
@@ -928,8 +958,8 @@ function buildEps(){
     '%%Creator: PAPARMANE Vectoriseur', '%%Title: ' + state.name.replace(/[^\w .-]/g, ''), '%%EndComments',
     '/m {moveto} bind def /l {lineto} bind def /c {curveto} bind def /h {closepath} bind def',
     'gsave 0 ' + H + ' translate 1 -1 scale 1 setlinejoin'];
-  state.order.forEach(function(li){
-    var c = state.colors[li], layer = r.layers[li]; if(!c || c.transparent || !c.visible || !layer.length) return;
+  function emit(li, op){
+    var c = state.colors[li], layer = r.layers[li];
     var rgb = [1, 3, 5].map(function(i){ return (parseInt(c.hex.substr(i, 2), 16) / 255).toFixed(4); });
     ps.push(rgb.join(' ') + ' setrgbcolor');
     layer.forEach(function(d){
@@ -945,9 +975,14 @@ function buildEps(){
         else if(k === 'C') ps.push(a + ' c'); else if(k === 'Z') ps.push('h');
         cmd = [];
       }
-      ps.push(state.gap ? 'gsave eofill grestore ' + state.gap + ' setlinewidth stroke' : 'eofill');
+      ps.push(op);
     });
-  });
+  }
+  if(state.gap && state.vis.length > 1){
+    ps.push(state.gap + ' setlinewidth');
+    state.vis.slice(0, -1).forEach(function(li){ emit(li, 'stroke'); });
+  }
+  state.vis.forEach(function(li){ emit(li, 'eofill'); });
   ps.push('grestore', 'showpage', '%%EOF');
   return ps.join('\n');
 }
