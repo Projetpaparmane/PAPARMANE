@@ -112,6 +112,63 @@
   select{background:var(--surface-2);border:1px solid var(--line);border-radius:9px;color:var(--ink);font:13px var(--sans);padding:8px 10px}
   .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--surface-3);color:var(--ink);padding:10px 16px;border-radius:10px;box-shadow:var(--shadow);font-size:13px;z-index:20}
   .foot{margin-top:28px;font-size:11.5px;color:var(--ink-faint)}
+  /* Fenêtre de téléchargement */
+  .btn.big{width:100%;padding:14px 22px;font-size:15px}
+  .dlg{position:fixed;inset:0;z-index:30;background:rgba(10,10,12,.72);backdrop-filter:blur(3px);overflow-y:auto;padding:clamp(12px,4vw,40px) 16px}
+  .dlg-card{max-width:1080px;margin:0 auto;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:clamp(16px,3vw,32px);box-shadow:var(--shadow)}
+  .dlg-head{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+  .dlg-thumb{width:96px;height:40px;background:#fff;border-radius:6px;padding:3px;flex:none}
+  .dlg-thumb svg{width:100%;height:100%;display:block}
+  .dlg-hbody{flex:1;min-width:200px}
+  .dlg-hbody h2{margin:0;font-family:var(--serif);font-size:26px}
+  .dlg-hbody p{margin:2px 0 0;color:var(--ink-soft);font-size:13.5px;word-break:break-word}
+  .dlg-x{background:none;border:none;color:var(--ink-faint);font-size:28px;cursor:pointer;line-height:1;padding:4px 8px}
+  .dlg-go{padding:13px 26px;font-size:15px}
+  .dlg-h{margin:18px 0 10px;font-size:14px;font-weight:700}
+  .dlg-formats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+  .dlg-presets{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+  @media (max-width:820px){.dlg-formats{grid-template-columns:repeat(3,minmax(0,1fr))}.dlg-presets{grid-template-columns:1fr 1fr}}
+  @media (max-width:520px){.dlg-formats,.dlg-presets{grid-template-columns:1fr 1fr}}
+  .card{position:relative;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;color:var(--ink);font-family:var(--sans);padding:16px 12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;transition:border-color .15s,background .15s}
+  .card:hover{border-color:#55575d}
+  .card b{font-size:16px}
+  .card small{color:var(--ink-faint);font-size:12px;line-height:1.45}
+  .card.left{align-items:flex-start;text-align:left;padding:16px 18px}
+  .card.left b{font-size:14.5px;margin-bottom:4px}
+  .card.on{border-color:var(--accent);background:var(--accent-soft)}
+  .card.on b{color:var(--accent-hi)}
+  .card.on::after{content:"✓";position:absolute;top:-10px;right:-10px;width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;font-size:13px;font-weight:800;display:grid;place-items:center}
+  .ico{font-style:normal;font-size:9px;font-weight:900;letter-spacing:.04em;color:#fff;background:var(--c);border-radius:4px;padding:6px 5px;margin-bottom:4px}
+  .dlg-help{color:var(--ink-faint);font-size:12.5px;margin:8px 0 0}
+  .dlg-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:12px}
+  .lbl{font-size:13px;color:var(--ink-soft)}
+  .seg{display:inline-flex;flex-wrap:wrap;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
+  .seg button{background:none;border:none;color:var(--ink-soft);font:600 12.5px var(--sans);padding:7px 12px;border-radius:7px;cursor:pointer}
+  .seg button.on{background:var(--accent);color:#fff}
+  .seg.sm button{padding:5px 9px}
+  .num{width:84px;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;color:var(--ink);font:13px var(--sans);padding:7px 9px}
+  .fld{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-soft);margin:8px 14px 0 0}
+  .tog{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink-soft);cursor:pointer;margin-top:10px}
+  .tog small{color:var(--ink-faint)}
+  .tog input{position:absolute;opacity:0;width:0;height:0}
+  .tog span{width:34px;height:20px;border-radius:20px;background:var(--surface-3);position:relative;flex:none;transition:background .15s}
+  .tog span::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .15s}
+  .tog input:checked + span{background:var(--accent)}
+  .tog input:checked + span::after{transform:translateX(14px)}
+  .tog input:focus-visible + span{outline:2px solid var(--accent-hi);outline-offset:2px}
+  .dlg-adv{margin-top:20px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2)}
+  .dlg-adv summary{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:14px 18px;cursor:pointer;list-style:none}
+  .dlg-adv summary::-webkit-details-marker{display:none}
+  .dlg-adv .chev{font-size:11px;transition:transform .15s}
+  .dlg-adv[open] .chev{transform:rotate(90deg)}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-left:auto;justify-content:flex-end}
+  .chips span{font-size:11.5px;color:var(--ink-soft);background:var(--surface-3);border-radius:20px;padding:4px 10px}
+  .adv-body{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:22px 30px;padding:6px 18px 20px}
+  .adv-body h4{margin:0 0 8px;font-size:13px}
+  .dlg-foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;margin-top:22px;font-size:14px}
+  .dlg-actions{display:flex;align-items:center;gap:18px}
+  .linkbtn{background:none;border:none;color:var(--accent-hi);font:600 14px var(--sans);cursor:pointer}
+
 </style>
 </head>
 <body>
@@ -192,8 +249,6 @@
         <label class="check"><input type="checkbox" id="removeBg"> Retirer le fond</label>
         <label class="check"><input type="checkbox" id="cleanBlend" checked> Ignorer les teintes de bord <small>(halos)</small></label>
         <label class="check"><input type="checkbox" id="shapes" checked> Cercles et ellipses parfaits</label>
-        <label class="check"><input type="checkbox" id="stacked" checked> Formes empilées <small>(aucun liseré entre couleurs)</small></label>
-        <label class="check"><input type="checkbox" id="gaps" checked> Boucher les interstices <small>(liserés blancs)</small></label>
       </div>
 
       <div>
@@ -203,21 +258,7 @@
       </div>
 
       <div class="exports">
-        <h2>Exporter</h2>
-        <div class="row">
-          <button class="btn" id="dlSvg">SVG</button>
-          <button class="btn" id="dlEps" title="Pour Illustrator, InDesign, imprimeurs">EPS</button>
-          <button class="btn" id="dlPdf" title="PDF vectoriel">PDF</button>
-        </div>
-        <div class="row">
-          <select id="pngScale" aria-label="Taille du PNG">
-            <option value="1">PNG 1×</option>
-            <option value="2" selected>PNG 2×</option>
-            <option value="4">PNG 4×</option>
-            <option value="8">PNG 8×</option>
-          </select>
-          <button class="btn ghost sm" id="dlPng">Télécharger PNG</button>
-        </div>
+        <button class="btn big" id="openDl">Télécharger</button>
         <div class="row">
           <button class="btn ghost sm" id="copySvg">Copier le code SVG</button>
           <button class="btn ghost sm" id="newImg">Nouvelle image</button>
@@ -227,6 +268,128 @@
   </section>
 
   <p class="foot">Moteur : quantification des couleurs k-means, contours ImageTracer (domaine public), lissage et courbes de Bézier (Schneider). Astuce : pour un logo, pars d'une image d'au moins 500 px de large et réduis le nombre de couleurs au minimum.</p>
+</div>
+
+<div class="dlg" id="dlg" hidden role="dialog" aria-modal="true" aria-labelledby="dlTitle">
+  <div class="dlg-card">
+    <header class="dlg-head">
+      <div class="dlg-thumb" id="dlThumb"></div>
+      <div class="dlg-hbody">
+        <h2 id="dlTitle">Télécharger</h2>
+        <p id="dlMeta"></p>
+      </div>
+      <button class="btn dlg-go" id="dlGoTop">⤓ Télécharger</button>
+      <button class="dlg-x" id="dlClose" aria-label="Fermer">×</button>
+    </header>
+
+    <h3 class="dlg-h">Format de fichier</h3>
+    <div class="dlg-formats">
+      <button class="card" data-opt="format" data-val="svg"><i class="ico" style="--c:#f2a900">SVG</i><b>SVG</b><small>Web et applications</small></button>
+      <button class="card" data-opt="format" data-val="pdf"><i class="ico" style="--c:#e5463d">PDF</i><b>PDF</b><small>Documents</small></button>
+      <button class="card" data-opt="format" data-val="dxf"><i class="ico" style="--c:#d33a5a">DXF</i><b>DXF</b><small>CAO et CNC</small></button>
+      <button class="card" data-opt="format" data-val="eps"><i class="ico" style="--c:#f08a24">EPS</i><b>EPS</b><small>Impression traditionnelle</small></button>
+      <button class="card" data-opt="format" data-val="png"><i class="ico" style="--c:#6d8cff">PNG</i><b>PNG</b><small>Bitmap épuré</small></button>
+    </div>
+
+    <h3 class="dlg-h">Optimiser pour</h3>
+    <div class="dlg-presets">
+      <button class="card left" data-opt="preset" data-val="general"><b>Usage général (par défaut)</b><small>Formes pleines regroupées selon les couleurs d'origine. Fonctionne bien dans la plupart des logiciels de création et d'édition.</small></button>
+      <button class="card left" data-opt="preset" data-val="editing"><b>Modifications faciles</b><small>Formes empilées et regroupées par couleur : tu sélectionnes, recolores ou supprimes une couleur entière d'un seul geste.</small></button>
+      <button class="card left" data-opt="preset" data-val="cutting"><b>Découpe et gravure</b><small>Contours seulement, en traits fins, prêts pour la découpe laser, le vinyle et la gravure.</small></button>
+      <button class="card left" data-opt="preset" data-val="custom"><b>Personnalisé</b><small>Ta propre combinaison de tracé, d'empilement et de regroupement, réglée dans les options avancées.</small></button>
+    </div>
+    <p class="dlg-help">Les préréglages définissent le style de tracé, l'empilement et le regroupement des formes. Tu peux les modifier dans les options avancées.</p>
+
+    <div class="dlg-row" data-show="format=svg">
+      <label class="tog"><input type="checkbox" data-input="svgFixed"><span></span>Taille fixe <small>(largeur et hauteur inscrites dans le fichier)</small></label>
+    </div>
+    <div class="dlg-row" data-show="format=dxf">
+      <span class="lbl">Compatibilité DXF</span>
+      <div class="seg"><button data-opt="dxf" data-val="lines">Lignes uniquement</button><button data-opt="dxf" data-val="arcs">Lignes et cercles</button></div>
+    </div>
+
+    <details class="dlg-adv" id="dlAdv">
+      <summary><span class="chev">▶</span><b>Avancé</b><span class="chips" id="dlChips"></span></summary>
+      <div class="adv-body">
+        <section>
+          <h4>Taille du résultat</h4>
+          <div class="seg"><button data-opt="sizeMode" data-val="same">Inchangée</button><button data-opt="sizeMode" data-val="custom">Personnalisée</button><button data-opt="sizeMode" data-val="scale">Mise à l'échelle</button></div>
+          <div class="dlg-row" data-show="sizeMode=scale">
+            <input type="number" min="1" step="any" data-input="scale" class="num"> %
+            <div class="seg sm"><button data-opt="scale" data-val="100">1×</button><button data-opt="scale" data-val="200">2×</button><button data-opt="scale" data-val="400">4×</button><button data-opt="scale" data-val="800">8×</button></div>
+          </div>
+          <div class="dlg-row" data-show="sizeMode=custom">
+            <label class="fld">Largeur <input type="number" min="0" step="any" data-input="width" class="num" placeholder="auto"></label>
+            <label class="fld">Hauteur <input type="number" min="0" step="any" data-input="height" class="num" placeholder="auto"></label>
+            <div class="seg sm"><button data-opt="unit" data-val="px">px</button><button data-opt="unit" data-val="in">in</button><button data-opt="unit" data-val="cm">cm</button><button data-opt="unit" data-val="mm">mm</button><button data-opt="unit" data-val="pt">pt</button></div>
+          </div>
+          <p class="dlg-help" data-show="sizeMode=custom">Laisse un champ vide pour garder les proportions. Avec les deux, l'image tient dans le cadre.</p>
+          <div class="dlg-row" data-show="sizeMode=same">
+            <p class="dlg-help" data-show="format=svg|pdf|dxf|eps">Les formats vectoriels gardent la taille d'origine et s'agrandissent sans perte.</p>
+            <span data-show="format=png" class="lbl">Résolution PNG</span>
+            <div class="seg sm" data-show="format=png"><button data-opt="pngScale" data-val="1">1×</button><button data-opt="pngScale" data-val="2">2×</button><button data-opt="pngScale" data-val="4">4×</button><button data-opt="pngScale" data-val="8">8×</button></div>
+          </div>
+        </section>
+        <section>
+          <h4>Style de tracé</h4>
+          <div class="seg"><button data-opt="draw" data-val="fill">Formes remplies</button><button data-opt="draw" data-val="stroke">Contours tracés</button><button data-opt="draw" data-val="edges">Contours uniques</button></div>
+          <p class="dlg-help" data-show="draw=fill">Chaque forme est remplie de sa couleur unie.</p>
+          <p class="dlg-help" data-show="draw=stroke">Le contour de chaque forme est tracé au lieu d'être rempli.</p>
+          <p class="dlg-help" data-show="draw=edges">Contours des formes sans retracer le fond : idéal pour la découpe et la gravure.</p>
+        </section>
+        <section>
+          <h4>Empilement des formes</h4>
+          <div class="seg"><button data-opt="stacking" data-val="cutouts">Découpes</button><button data-opt="stacking" data-val="stacked">Empilement</button></div>
+          <p class="dlg-help" data-show="stacking=cutouts">Les formes sont découpées dans celles du dessous : les couleurs ne se chevauchent pas.</p>
+          <p class="dlg-help" data-show="stacking=stacked">Les formes sont posées les unes sur les autres, souvent plus simple à modifier.</p>
+        </section>
+        <section>
+          <h4>Regrouper par</h4>
+          <div class="seg"><button data-opt="group" data-val="none">Aucun</button><button data-opt="group" data-val="color">Couleur</button></div>
+          <p class="dlg-help" data-show="group=none">Chaque forme est indépendante.</p>
+          <p class="dlg-help" data-show="group=color">Un groupe par couleur (SVG) : sélectionne ou recolore une couleur entière d'un coup.</p>
+        </section>
+        <section>
+          <h4>Formes simples</h4>
+          <label class="tog"><input type="checkbox" data-input="shapes"><span></span>Exporter les cercles et ellipses comme formes natives</label>
+          <p class="dlg-help">Désactivé, les formes détectées deviennent des courbes ordinaires.</p>
+        </section>
+        <section>
+          <h4>Types de courbes</h4>
+          <div class="seg"><button data-opt="curves" data-val="all">Lignes et courbes de Bézier</button><button data-opt="curves" data-val="lines">Lignes uniquement</button></div>
+        </section>
+        <section>
+          <h4>Ajustement des lignes</h4>
+          <div class="seg"><button data-opt="lineFit" data-val="0.3">Gros</button><button data-opt="lineFit" data-val="0.1">Moyen</button><button data-opt="lineFit" data-val="0.03">Fin</button><button data-opt="lineFit" data-val="0.01">Très fin</button></div>
+          <p class="dlg-help">Quand des courbes sont converties en droites (DXF, « Lignes uniquement »), écart maximal entre la courbe et les droites : 0,3 / 0,1 / 0,03 / 0,01 px.</p>
+        </section>
+        <section data-show="draw=fill">
+          <h4>Comblement des espaces</h4>
+          <p class="dlg-help">Trace de fins contours sous les formes pour masquer les liserés blancs que certains logiciels affichent entre deux couleurs.</p>
+          <label class="tog"><input type="checkbox" data-input="gap"><span></span>Combler les espaces</label>
+          <label class="fld">Épaisseur <input type="number" min="0" max="5" step="0.1" data-input="gapWidth" class="num"> px</label>
+          <label class="tog"><input type="checkbox" data-input="gapNonScaling"><span></span>Épaisseur constante au zoom <small>(SVG)</small></label>
+        </section>
+        <section data-show="draw=stroke|edges">
+          <h4>Style de contour</h4>
+          <label class="fld">Épaisseur <input type="number" min="0" max="5" step="0.1" data-input="strokeWidth" class="num"> px</label>
+          <label class="tog"><input type="checkbox" data-input="strokeOverride"><span></span>Une seule couleur pour tous les contours</label>
+          <label class="fld" data-show="strokeOverride=true">Couleur <input type="color" data-input="strokeColor"></label>
+        </section>
+      </div>
+    </details>
+
+    <footer class="dlg-foot">
+      <div>
+        <div>Tu obtiendras <b id="dlName"></b></div>
+        <div class="dlg-help" id="dlSummary"></div>
+      </div>
+      <div class="dlg-actions">
+        <button class="linkbtn" id="dlReset">Réinitialiser</button>
+        <button class="btn dlg-go" id="dlGo">⤓ Télécharger</button>
+      </div>
+    </footer>
+  </div>
 </div>
 
 <div class="toast" id="toast" hidden></div>
@@ -354,21 +517,22 @@ function traceJob(job){
   var IT = ImageTracer;
   var ii = IT.colorquantization({ width:w, height:h, data:d }, IT.checkoptions({
     pal: pal.map(function(c){ return { r:c.r, g:c.g, b:c.b, a:c.a }; }), colorquantcycles: 1, blurradius: o.blur, blurdelta: 40 }));
-  var sc = o.outScale, scY = o.outScaleY, segs = 0, layers = [], ellipses = 0;
+  var sc = o.outScale, scY = o.outScaleY, segs = 0, layers = [], ellipses = 0, lastEllipse = null;
   for(k = 0; k < pal.length; k++){
     if(pal[k].a === 0){ layers.push([]); continue; }
     var paths = IT.internodes(IT.pathscan(IT.layeringstep(ii, k), o.pathomit), { rightangleenhance:false });
     var ds = [];
     for(var pi = 0; pi < paths.length; pi++){
       if(paths[pi].isholepath) continue;
-      var dstr = loopToPath(paths[pi].points);
+      lastEllipse = null;
+      var dstr = loopToPath(paths[pi].points), shEll = lastEllipse;
       if(!dstr) continue;
       var holes = [];
       for(var hc = 0; hc < paths[pi].holechildren.length; hc++){
         var hp = paths[paths[pi].holechildren[hc]].points, hd = loopToPath(hp);
         if(hd) holes.push({ d: hd, inside: insideLayers(hp) });
       }
-      ds.push({ d: dstr, holes: holes });
+      ds.push({ d: dstr, holes: holes, ellipse: shEll });
     }
     layers.push(ds);
   }
@@ -431,6 +595,9 @@ function traceJob(job){
       out2.push([A0, { x: A0.x + K*D0.x, y: A0.y + K*D0.y }, { x: A1.x - K*D1.x, y: A1.y - K*D1.y }, A1]);
     }
     ellipses++;
+    // Paramètres de l'ellipse (coordonnées de sortie) pour l'export en forme native
+    lastEllipse = { cx: Math.round(cx * sc * 100) / 100, cy: Math.round(cy * scY * 100) / 100,
+      rx: Math.round(a * sc * 100) / 100, ry: Math.round(b * scY * 100) / 100, rot: Math.round(th * 18000 / Math.PI) / 100 };
     return out2;
   }
 
@@ -842,13 +1009,13 @@ var debounce;
 $('corners').addEventListener('change', retrace);
 $('cleanBlend').addEventListener('change', retrace);
 $('shapes').addEventListener('change', retrace);
-$('stacked').addEventListener('change', buildSvg);
+
 $('removeBg').addEventListener('change', function(){
   var on = $('removeBg').checked;
   state.colors.forEach(function(c){ if(c.isBg) c.visible = !on; });
   if(state.result){ renderPalette(); buildSvg(); }
 });
-$('gaps').addEventListener('change', buildSvg);
+
 
 function retrace(){
   if(!state.work) return;
@@ -896,7 +1063,7 @@ function renderPalette(){
 function buildSvg(){
   var r = state.result; if(!r) return;
   var W = state.origW, H = state.origH;
-  var gap = $('gaps').checked ? Math.max(0.3, Math.min(1.2, W / 900)).toFixed(2) : 0;
+  var gap = Math.max(0.3, Math.min(1.2, W / 900)).toFixed(2);
   // Grandes zones dessous, petits détails dessus
   var order = r.layers.map(function(_, i){ return i; }).sort(function(a, b){ return r.counts[b] - r.counts[a]; });
   var out = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '">'];
@@ -905,7 +1072,7 @@ function buildSvg(){
   // Mode empilé : un trou est bouché quand tout ce qu'il contient est dessiné par-dessus
   // (la couleur du dessous continue sous les formes : aucun liseré possible).
   var rank = {}; vis.forEach(function(li, i){ rank[li] = i; });
-  var stacked = $('stacked').checked;
+  var stacked = true;
   state.ds = {};
   vis.forEach(function(li){
     state.ds[li] = r.layers[li].map(function(sh){
@@ -930,7 +1097,7 @@ function buildSvg(){
   });
   out.push('</svg>');
   state.svg = out.join('');
-  state.vis = vis; state.gap = gap;
+  state.vis = vis; state.gap = gap; state.order = order;
   $('vec').innerHTML = state.svg;
   var kb = new Blob([state.svg]).size / 1024;
   var nCol = state.colors.filter(function(c){ return !c.transparent && c.visible && c.count; }).length;
@@ -1022,79 +1189,164 @@ function download(blob, name){
   var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
 }
-$('dlSvg').onclick = function(){ if(state.svg) download(new Blob([state.svg], { type:'image/svg+xml' }), state.name + '.svg'); };
-$('dlPng').onclick = function(){
-  if(!state.svg) return;
-  var k = +$('pngScale').value, W = Math.round(state.origW * k), H = Math.round(state.origH * k);
-  if(W * H > 120e6){ toast('PNG trop grand : choisis une taille plus petite.'); return; }
-  var img = new Image(), url = URL.createObjectURL(new Blob([state.svg], { type:'image/svg+xml' }));
-  img.onload = function(){
-    var c = document.createElement('canvas'); c.width = W; c.height = H;
-    c.getContext('2d').drawImage(img, 0, 0, W, H); URL.revokeObjectURL(url);
-    c.toBlob(function(b){ download(b, state.name + '@' + k + 'x.png'); }, 'image/png');
-  };
-  img.src = url;
+/* Options d'export (mémorisées dans le navigateur) */
+var EXPORT_DEFAULTS = { format:'svg', preset:'general', sizeMode:'same', scale:100, width:'', height:'', unit:'px', draw:'fill', stacking:'cutouts',
+  group:'none', shapes:true, curves:'all', lineFit:0.1, gap:true, gapWidth:2, gapNonScaling:true, strokeWidth:1, strokeOverride:false,
+  strokeColor:'#000000', svgFixed:true, dxf:'lines', pngScale:4 };
+var PRESETS_EXPORT = {
+  general: { draw:'fill', stacking:'cutouts', group:'none', gap:true },
+  editing: { draw:'fill', stacking:'stacked', group:'color', gap:true },
+  cutting: { draw:'edges', stacking:'cutouts', group:'none', gap:false, strokeWidth:1 }
 };
-// EPS (PostScript) : mêmes tracés que le SVG, axe vertical inversé
-function buildEps(){
-  var r = state.result, W = state.origW, H = state.origH;
-  var ps = ['%!PS-Adobe-3.0 EPSF-3.0', '%%BoundingBox: 0 0 ' + W + ' ' + H, '%%HiResBoundingBox: 0 0 ' + W + ' ' + H,
-    '%%Creator: PAPARMANE Vectoriseur', '%%Title: ' + state.name.replace(/[^\w .-]/g, ''), '%%EndComments',
-    '/m {moveto} bind def /l {lineto} bind def /c {curveto} bind def /h {closepath} bind def',
-    'gsave 0 ' + H + ' translate 1 -1 scale 1 setlinejoin'];
-  function emit(li, op){
-    var c = state.colors[li], layer = state.ds[li];
-    var rgb = [1, 3, 5].map(function(i){ return (parseInt(c.hex.substr(i, 2), 16) / 255).toFixed(4); });
-    ps.push(rgb.join(' ') + ' setrgbcolor');
-    layer.forEach(function(d){
-      var body = d.replace(/([MLCZ])/g, ' $1 ').trim().split(/\s+/), cmd = [], args = [];
-      ps.push('newpath');
-      body.forEach(function(t){
-        if(/^[MLCZ]$/.test(t)){ if(cmd.length) flush(); cmd = [t]; } else args.push(t);
+var xo = Object.assign({}, EXPORT_DEFAULTS);
+try { Object.assign(xo, JSON.parse(localStorage.getItem('vz-export') || '{}')); } catch(e){}
+function saveXo(){ try { localStorage.setItem('vz-export', JSON.stringify(xo)); } catch(e){} }
+
+var UNIT_PT = { px:1, pt:1, in:72, cm:72 / 2.54, mm:72 / 25.4 }; // 1 px = 1 pt (72 ppp)
+
+/* Géométrie à exporter : formes dans l'ordre de dessin, selon l'empilement choisi */
+function exportGeometry(){
+  var r = state.result, vis = state.vis, rank = {}, stacked = xo.stacking === 'stacked';
+  vis.forEach(function(li, i){ rank[li] = i; });
+  var layers = vis.map(function(li){
+    return { li: li, hex: state.colors[li].hex, shapes: r.layers[li].map(function(sh){
+      var kept = sh.holes.filter(function(hl){
+        return !(stacked && hl.inside.every(function(v){ return v === li || rank[v] > rank[li]; }));
       });
-      flush();
-      function flush(){
-        var k = cmd[0], a = args.join(' '); args = [];
-        if(k === 'M') ps.push(a + ' m'); else if(k === 'L') ps.push(a + ' l');
-        else if(k === 'C') ps.push(a + ' c'); else if(k === 'Z') ps.push('h');
-        cmd = [];
+      return { d: sh.d + kept.map(function(hl){ return hl.d; }).join(''), ellipse: kept.length ? null : sh.ellipse };
+    }) };
+  });
+  return layers;
+}
+
+/* Taille de sortie en points (72 ppp) */
+function outputSize(){
+  var W = state.origW, H = state.origH, k = 1, u = xo.unit;
+  if(xo.sizeMode === 'scale') k = Math.max(0.01, (+xo.scale || 100) / 100);
+  else if(xo.sizeMode === 'custom'){
+    var w = parseFloat(xo.width) * UNIT_PT[u], h = parseFloat(xo.height) * UNIT_PT[u];
+    if(w > 0 && h > 0) k = Math.min(w / W, h / H); else if(w > 0) k = w / W; else if(h > 0) k = h / H;
+  }
+  return { k: k, w: W * k, h: H * k, unit: xo.sizeMode === 'custom' ? u : 'px' };
+}
+
+/* Analyse d'un attribut d : sous-chemins de segments L / C */
+function parseD(d){
+  var t = d.match(/[MLCZ]|-?\d*\.?\d+(?:e-?\d+)?/g) || [], subs = [], cur = null, i = 0;
+  while(i < t.length){
+    var c = t[i++];
+    if(c === 'M'){ cur = { x: +t[i], y: +t[i+1], segs: [] }; subs.push(cur); i += 2; }
+    else if(c === 'L'){ cur.segs.push({ t:'L', p:[+t[i], +t[i+1]] }); i += 2; }
+    else if(c === 'C'){ cur.segs.push({ t:'C', p:[+t[i], +t[i+1], +t[i+2], +t[i+3], +t[i+4], +t[i+5]] }); i += 6; }
+  }
+  return subs;
+}
+// Aplatissement des courbes en droites (tolérance en px)
+function flattenSubs(subs, tol){
+  return subs.map(function(sp){
+    var out = { x: sp.x, y: sp.y, segs: [] }, x0 = sp.x, y0 = sp.y;
+    sp.segs.forEach(function(g){
+      if(g.t === 'L'){ out.segs.push(g); x0 = g.p[0]; y0 = g.p[1]; return; }
+      var p = g.p, dd = Math.hypot(p[0]-x0, p[1]-y0) + Math.hypot(p[2]-p[0], p[3]-p[1]) + Math.hypot(p[4]-p[2], p[5]-p[3]);
+      var n = Math.max(2, Math.min(200, Math.ceil(Math.sqrt(dd / (8 * Math.max(tol, 0.005))))));
+      for(var j = 1; j <= n; j++){
+        var u = j / n, m = 1 - u, a = m*m*m, b = 3*u*m*m, c2 = 3*u*u*m, e = u*u*u;
+        out.segs.push({ t:'L', p:[ a*x0 + b*p[0] + c2*p[2] + e*p[4], a*y0 + b*p[1] + c2*p[3] + e*p[5] ] });
       }
-      ps.push(op);
+      x0 = p[4]; y0 = p[5];
+    });
+    return out;
+  });
+}
+function subsToD(subs){
+  var f = function(v){ return Math.round(v * 100) / 100; };
+  return subs.map(function(sp){
+    return 'M' + f(sp.x) + ' ' + f(sp.y) + sp.segs.map(function(g){ return g.t + g.p.map(f).join(' '); }).join('') + 'Z';
+  }).join('');
+}
+function shapeD(sh){ return xo.curves === 'lines' ? subsToD(flattenSubs(parseD(sh.d), xo.lineFit)) : sh.d; }
+function hexRgb(hex){ return [1, 3, 5].map(function(i){ return parseInt(hex.substr(i, 2), 16); }); }
+
+/* SVG */
+function exportSvg(forPng){
+  var L = exportGeometry(), sz = outputSize(), W = state.origW, H = state.origH;
+  var nss = xo.gapNonScaling ? ' vector-effect="non-scaling-stroke"' : '';
+  var sw = xo.draw === 'fill' ? 0 : xo.strokeWidth;
+  var dim = xo.svgFixed || forPng ? ' width="' + +(sz.w / UNIT_PT[sz.unit]).toFixed(3) + (sz.unit === 'px' ? '' : sz.unit) + '" height="' + +(sz.h / UNIT_PT[sz.unit]).toFixed(3) + (sz.unit === 'px' ? '' : sz.unit) + '"' : '';
+  var out = ['<?xml version="1.0" encoding="UTF-8"?>', '<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 ' + W + ' ' + H + '"' + dim + '>'];
+  function el(sh, attrs){
+    var e = sh.ellipse;
+    if(e && xo.shapes){
+      var tr = Math.abs(e.rot) > 0.01 && Math.abs(e.rx - e.ry) > 0.01 ? ' transform="rotate(' + e.rot + ' ' + e.cx + ' ' + e.cy + ')"' : '';
+      return Math.abs(e.rx - e.ry) <= 0.01 ? '<circle cx="' + e.cx + '" cy="' + e.cy + '" r="' + e.rx + '"' + attrs + '/>'
+        : '<ellipse cx="' + e.cx + '" cy="' + e.cy + '" rx="' + e.rx + '" ry="' + e.ry + '"' + tr + attrs + '/>';
+    }
+    return '<path d="' + shapeD(sh) + '"' + attrs + '/>';
+  }
+  var drawn = xo.draw === 'edges' && L.length > 1 ? L.slice(1) : L;  // Contours uniques : le fond n'est pas retracé
+  if(xo.draw === 'fill'){
+    if(xo.gap && L.length > 1){
+      // Comblement : contours sous toutes les formes, recouverts par les aplats
+      out.push('<g fill="none" stroke-linejoin="round" stroke-width="' + (xo.gapNonScaling ? xo.gapWidth : xo.gapWidth / sz.k) + '">');
+      L.slice(0, -1).forEach(function(l){ out.push('<g stroke="' + l.hex + '">' + l.shapes.map(function(sh){ return el(sh, nss); }).join('') + '</g>'); });
+      out.push('</g>');
+    }
+    L.forEach(function(l){
+      if(xo.group === 'none') l.shapes.forEach(function(sh){ out.push(el(sh, ' fill="' + l.hex + '" fill-rule="evenodd"')); });
+      else out.push('<g id="couleur-' + l.hex.slice(1) + '" fill="' + l.hex + '" fill-rule="evenodd">' + l.shapes.map(function(sh){ return el(sh, ''); }).join('') + '</g>');
+    });
+  } else {
+    var sAttr = ' fill="none" stroke-width="' + (xo.gapNonScaling ? sw : sw / sz.k) + '" stroke-linejoin="round"' + nss;
+    drawn.forEach(function(l){
+      var col = xo.strokeOverride ? xo.strokeColor : l.hex;
+      if(xo.group === 'none') l.shapes.forEach(function(sh){ out.push(el(sh, sAttr + ' stroke="' + col + '"')); });
+      else out.push('<g stroke="' + col + '">' + l.shapes.map(function(sh){ return el(sh, sAttr); }).join('') + '</g>');
     });
   }
-  if(state.gap && state.vis.length > 1){
-    ps.push(state.gap + ' setlinewidth');
-    state.vis.slice(0, -1).forEach(function(li){ emit(li, 'stroke'); });
-  }
-  state.vis.forEach(function(li){ emit(li, 'eofill'); });
-  ps.push('grestore', 'showpage', '%%EOF');
-  return ps.join('\n');
+  out.push('</svg>');
+  return out.join('\n');
 }
-// PDF vectoriel (une page, mêmes tracés, couleurs RVB)
-function buildPdf(){
-  var W = state.origW, H = state.origH, ops = ['1 0 0 -1 0 ' + H + ' cm', '1 j'];
-  function pathOps(d){
-    var t = d.replace(/([MLCZ])/g, ' $1 ').trim().split(/\s+/), res = [], cmd = null, args = [];
-    function flush(){
-      if(cmd === 'M') res.push(args.join(' ') + ' m'); else if(cmd === 'L') res.push(args.join(' ') + ' l');
-      else if(cmd === 'C') res.push(args.join(' ') + ' c'); else if(cmd === 'Z') res.push('h');
-      args = [];
+
+/* Tracés pour PDF / EPS : coordonnées en points, axe vertical inversé par la matrice */
+function psPaths(sh, k, ops){
+  var subs = parseD(shapeD(sh)), f = function(v){ return (Math.round(v * k * 1000) / 1000); };
+  if(ops.np) ops.out.push('newpath');
+  subs.forEach(function(sp){
+    var o = [f(sp.x) + ' ' + f(sp.y) + ' ' + ops.m];
+    sp.segs.forEach(function(g){ o.push(g.p.map(f).join(' ') + ' ' + (g.t === 'L' ? ops.l : ops.c)); });
+    o.push(ops.h);
+    ops.out.push(o.join('\n'));
+  });
+}
+function vectorOps(ops){
+  var L = exportGeometry(), sz = outputSize(), k = sz.k;
+  var rgb = function(hex){ return hexRgb(hex).map(function(v){ return (v / 255).toFixed(4); }).join(' '); };
+  if(xo.draw === 'fill'){
+    if(xo.gap && L.length > 1){
+      ops.out.push(ops.lw(xo.gapWidth));
+      L.slice(0, -1).forEach(function(l){ ops.out.push(ops.strokeColor(rgb(l.hex))); l.shapes.forEach(function(sh){ psPaths(sh, k, ops); ops.out.push(ops.stroke); }); });
     }
-    t.forEach(function(x){ if(/^[MLCZ]$/.test(x)){ if(cmd) flush(); cmd = x; } else args.push(x); });
-    if(cmd) flush();
-    return res.join('\n');
+    L.forEach(function(l){ ops.out.push(ops.fillColor(rgb(l.hex))); l.shapes.forEach(function(sh){ psPaths(sh, k, ops); ops.out.push(ops.fill); }); });
+  } else {
+    ops.out.push(ops.lw(xo.strokeWidth));
+    (xo.draw === 'edges' && L.length > 1 ? L.slice(1) : L).forEach(function(l){
+      ops.out.push(ops.strokeColor(rgb(xo.strokeOverride ? xo.strokeColor : l.hex)));
+      l.shapes.forEach(function(sh){ psPaths(sh, k, ops); ops.out.push(ops.stroke); });
+    });
   }
-  function rgb(hex){ return [1, 3, 5].map(function(i){ return (parseInt(hex.substr(i, 2), 16) / 255).toFixed(4); }).join(' '); }
-  if(state.gap && state.vis.length > 1){
-    ops.push(state.gap + ' w');
-    state.vis.slice(0, -1).forEach(function(li){ ops.push(rgb(state.colors[li].hex) + ' RG'); state.ds[li].forEach(function(d){ ops.push(pathOps(d), 'S'); }); });
-  }
-  state.vis.forEach(function(li){ ops.push(rgb(state.colors[li].hex) + ' rg'); state.ds[li].forEach(function(d){ ops.push(pathOps(d), 'f*'); }); });
-  var content = ops.join('\n');
+  return sz;
+}
+function exportPdf(){
+  var ops = { m:'m', l:'l', c:'c', h:'h', fill:'f*', stroke:'S', out:[],
+    lw: function(w){ return w + ' w'; }, fillColor: function(c){ return c + ' rg'; }, strokeColor: function(c){ return c + ' RG'; } };
+  var sz = outputSize(), W = +sz.w.toFixed(3), H = +sz.h.toFixed(3);
+  ops.out.push('1 0 0 -1 0 ' + H + ' cm', '1 j');
+  vectorOps(ops);
+  var content = ops.out.join('\n');
   var objs = ['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
     '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + W + ' ' + H + '] /Contents 4 0 R /Resources << >> >>',
     '<< /Length ' + content.length + ' >>\nstream\n' + content + '\nendstream',
-    '<< /Producer (PAPARMANE Vectoriseur) >>'];
+    '<< /Producer (PAPARMANE Vectoriseur) /Title (' + state.name.replace(/[()\\]/g, '') + ') >>'];
   var pdf = '%PDF-1.4\n', offs = [];
   objs.forEach(function(ob, i){ offs.push(pdf.length); pdf += (i + 1) + ' 0 obj\n' + ob + '\nendobj\n'; });
   var xref = pdf.length;
@@ -1102,11 +1354,149 @@ function buildPdf(){
   pdf += 'trailer\n<< /Size ' + (objs.length + 1) + ' /Root 1 0 R /Info 5 0 R >>\nstartxref\n' + xref + '\n%%EOF\n';
   return pdf;
 }
-$('dlPdf').onclick = function(){ if(state.svg) download(new Blob([buildPdf()], { type:'application/pdf' }), state.name + '.pdf'); };
-$('dlEps').onclick = function(){ if(state.svg) download(new Blob([buildEps()], { type:'application/postscript' }), state.name + '.eps'); };
+function exportEps(){
+  var ops = { m:'m', l:'l', c:'c', h:'h', fill:'eofill', stroke:'stroke', out:[], np:true,
+    lw: function(w){ return w + ' setlinewidth'; }, fillColor: function(c){ return c + ' setrgbcolor'; }, strokeColor: function(c){ return c + ' setrgbcolor'; } };
+  var sz = outputSize(), W = +sz.w.toFixed(3), H = +sz.h.toFixed(3);
+  ops.out.push('gsave 0 ' + H + ' translate 1 -1 scale 1 setlinejoin');
+  vectorOps(ops);
+  var o = ops.out;
+  return ['%!PS-Adobe-3.0 EPSF-3.0', '%%BoundingBox: 0 0 ' + Math.ceil(W) + ' ' + Math.ceil(H), '%%HiResBoundingBox: 0 0 ' + W + ' ' + H,
+    '%%Creator: PAPARMANE Vectoriseur', '%%Title: ' + state.name.replace(/[^\w .-]/g, ''), '%%EndComments',
+    '/m {moveto} bind def /l {lineto} bind def /c {curveto} bind def /h {closepath} bind def']
+    .concat(o, ['grestore', 'showpage', '%%EOF']).join('\n');
+}
+
+/* DXF (R12, compatible avec presque tous les logiciels de CAO / découpe) */
+function exportDxf(){
+  var L = exportGeometry(), sz = outputSize(), u = sz.unit, k = sz.k / UNIT_PT[u], Hh = state.origH;
+  var f = function(v){ return (Math.round(v * 10000) / 10000).toString(); };
+  var ent = [];
+  function aci(hex){ // couleur AutoCAD la plus proche (palette de base)
+    var base = [[1,255,0,0],[2,255,255,0],[3,0,255,0],[4,0,255,255],[5,0,0,255],[6,255,0,255],[7,0,0,0],[8,128,128,128],[9,192,192,192]];
+    var c = hexRgb(hex), best = 7, bd = Infinity;
+    base.forEach(function(b){ var dd = Math.pow(b[1]-c[0], 2) + Math.pow(b[2]-c[1], 2) + Math.pow(b[3]-c[2], 2); if(dd < bd){ bd = dd; best = b[0]; } });
+    return best;
+  }
+  var tol = Math.max(0.01, xo.lineFit);
+  var list = xo.draw === 'edges' && L.length > 1 ? L.slice(1) : L;
+  list.forEach(function(l, li){
+    var layer = 'COULEUR_' + l.hex.slice(1).toUpperCase(), col = aci(xo.strokeOverride ? xo.strokeColor : l.hex);
+    l.shapes.forEach(function(sh){
+      var e = sh.ellipse;
+      if(e && xo.dxf === 'arcs' && Math.abs(e.rx - e.ry) <= 0.01){
+        ent.push('0','CIRCLE','8',layer,'62',col,'10',f(e.cx * k),'20',f((Hh - e.cy) * k),'30','0','40',f(e.rx * k));
+        return;
+      }
+      flattenSubs(parseD(sh.d), tol).forEach(function(sp){
+        ent.push('0','POLYLINE','8',layer,'62',col,'66','1','70','1','10','0','20','0','30','0');
+        ent.push('0','VERTEX','8',layer,'10',f(sp.x * k),'20',f((Hh - sp.y) * k),'30','0');
+        sp.segs.forEach(function(g, gi){ if(gi === sp.segs.length - 1) return; ent.push('0','VERTEX','8',layer,'10',f(g.p[0] * k),'20',f((Hh - g.p[1]) * k),'30','0'); });
+        ent.push('0','SEQEND','8',layer);
+      });
+    });
+  });
+  var units = { px:0, pt:0, in:1, cm:5, mm:4 }[u];
+  return ['0','SECTION','2','HEADER','9','$ACADVER','1','AC1009','9','$INSUNITS','70',String(units),'0','ENDSEC',
+    '0','SECTION','2','ENTITIES'].concat(ent, ['0','ENDSEC','0','EOF']).join('\n');
+}
+
+/* PNG : rendu du SVG exporté */
+function exportPng(done){
+  var sz = outputSize(), k = xo.sizeMode === 'same' ? xo.pngScale : (sz.unit === 'px' ? 1 : 300 / 72);
+  var Wp = Math.round(sz.w * k), Hp = Math.round(sz.h * k);
+  if(Wp * Hp > 120e6){ toast('PNG trop grand : choisis une taille plus petite.'); return; }
+  var img = new Image(), url = URL.createObjectURL(new Blob([exportSvg(true)], { type:'image/svg+xml' }));
+  img.onload = function(){
+    var c = document.createElement('canvas'); c.width = Wp; c.height = Hp;
+    c.getContext('2d').drawImage(img, 0, 0, Wp, Hp); URL.revokeObjectURL(url);
+    c.toBlob(function(b){ done(b); }, 'image/png');
+  };
+  img.src = url;
+}
+
+/* Fenêtre de téléchargement */
+var FORMATS = { svg:'Web et applications', pdf:'Documents', dxf:'CAO et CNC', eps:'Impression traditionnelle', png:'Bitmap épuré' };
+var dlg = $('dlg');
+function openDlg(){
+  if(!state.svg) return;
+  $('dlThumb').innerHTML = state.svg;
+  $('dlMeta').textContent = state.name + ' · ' + state.origW + ' × ' + state.origH + ' px (' + (state.origW * state.origH).toLocaleString('fr-CA') + ' pixels) · ' + state.vis.length + ' couleur' + (state.vis.length > 1 ? 's' : '');
+  syncDlg(); dlg.hidden = false; document.body.style.overflow = 'hidden';
+}
+function closeDlg(){ dlg.hidden = true; document.body.style.overflow = ''; }
+$('openDl').onclick = openDlg;
+$('dlClose').onclick = closeDlg;
+dlg.addEventListener('click', function(e){ if(e.target === dlg) closeDlg(); });
+document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && !dlg.hidden) closeDlg(); });
+
+function setOpt(key, val, fromPreset){
+  xo[key] = val;
+  if(!fromPreset && PRESET_KEYS.indexOf(key) >= 0) xo.preset = matchPreset();
+  saveXo(); syncDlg();
+}
+var PRESET_KEYS = ['draw', 'stacking', 'group', 'gap'];
+function matchPreset(){
+  for(var p in PRESETS_EXPORT){ var ok = true; for(var k2 in PRESETS_EXPORT[p]) if(PRESET_KEYS.indexOf(k2) >= 0 && xo[k2] !== PRESETS_EXPORT[p][k2]) ok = false; if(ok) return p; }
+  return 'custom';
+}
+dlg.addEventListener('click', function(e){
+  var b = e.target.closest('[data-opt]'); if(!b) return;
+  var key = b.dataset.opt, v = b.dataset.val;
+  if(key === 'preset'){
+    xo.preset = v;
+    if(PRESETS_EXPORT[v]) Object.keys(PRESETS_EXPORT[v]).forEach(function(k2){ xo[k2] = PRESETS_EXPORT[v][k2]; });
+    else $('dlAdv').open = true;
+    saveXo(); syncDlg(); return;
+  }
+  if(key === 'scale'){ xo.sizeMode = 'scale'; }
+  setOpt(key, v === 'true' ? true : v === 'false' ? false : isNaN(+v) || key === 'unit' ? v : +v);
+});
+dlg.addEventListener('change', function(e){
+  var t = e.target, key = t.dataset.input; if(!key) return;
+  setOpt(key, t.type === 'checkbox' ? t.checked : t.type === 'number' ? (t.value === '' ? '' : +t.value) : t.value);
+});
+$('dlReset').onclick = function(){ xo = Object.assign({}, EXPORT_DEFAULTS); saveXo(); syncDlg(); };
+
+function syncDlg(){
+  dlg.querySelectorAll('[data-opt]').forEach(function(b){ b.classList.toggle('on', String(xo[b.dataset.opt]) === b.dataset.val); });
+  dlg.querySelectorAll('[data-input]').forEach(function(i){ var v = xo[i.dataset.input]; if(i.type === 'checkbox') i.checked = !!v; else if(document.activeElement !== i) i.value = v; });
+  dlg.querySelectorAll('[data-show]').forEach(function(el){
+    var cond = el.dataset.show.split('='), vals = cond[1].split('|');
+    el.hidden = vals.indexOf(String(xo[cond[0]])) < 0;
+  });
+  var sz = outputSize();
+  $('dlName').textContent = state.name + '.' + xo.format;
+  var sizeTxt = xo.sizeMode === 'same' ? (xo.format === 'png' ? xo.pngScale + '× (' + Math.round(state.origW * xo.pngScale) + ' × ' + Math.round(state.origH * xo.pngScale) + ' px)' : 'Inchangée')
+    : (+(sz.w / UNIT_PT[sz.unit]).toFixed(2)) + ' × ' + (+(sz.h / UNIT_PT[sz.unit]).toFixed(2)) + ' ' + sz.unit;
+  var chips = [
+    'Taille : ' + sizeTxt,
+    'Tracé : ' + { fill:'Rempli', stroke:'Contours', edges:'Contours uniques' }[xo.draw],
+    'Empilement : ' + (xo.stacking === 'stacked' ? 'Superposé' : 'Découpes'),
+    'Regrouper par : ' + { none:'Aucun', color:'Couleur' }[xo.group],
+    'Formes : ' + (xo.shapes ? 'Natives' : 'Aplanies'),
+    'Courbes : ' + (xo.curves === 'all' ? 'Toutes' : 'Lignes'),
+    'Ajustement des lignes : ' + { 0.3:'Gros', 0.1:'Moyen', 0.03:'Fin', 0.01:'Très fin' }[xo.lineFit],
+    xo.draw === 'fill' ? 'Comblement ' + (xo.gap ? 'activé' : 'désactivé') : 'Contour : ' + xo.strokeWidth + ' px'
+  ];
+  $('dlChips').innerHTML = chips.map(function(c){ return '<span>' + c + '</span>'; }).join('');
+  var pName = { general:'Usage général', editing:'Modifications faciles', cutting:'Découpe et gravure', custom:'Personnalisé' }[xo.preset];
+  $('dlSummary').textContent = pName + ' · ' + FORMATS[xo.format] + ' · ' + (xo.draw === 'fill' ? 'comblement ' + (xo.gap ? 'activé' : 'désactivé') : 'contours ' + xo.strokeWidth + ' px') + ' · ' + sizeTxt.toLowerCase();
+}
+
+function doDownload(){
+  var n = state.name, f = xo.format;
+  if(f === 'svg') download(new Blob([exportSvg()], { type:'image/svg+xml' }), n + '.svg');
+  else if(f === 'pdf') download(new Blob([exportPdf()], { type:'application/pdf' }), n + '.pdf');
+  else if(f === 'eps') download(new Blob([exportEps()], { type:'application/postscript' }), n + '.eps');
+  else if(f === 'dxf') download(new Blob([exportDxf()], { type:'application/dxf' }), n + '.dxf');
+  else exportPng(function(b){ download(b, n + '.png'); });
+}
+$('dlGo').onclick = doDownload; $('dlGoTop').onclick = doDownload;
+
 $('copySvg').onclick = function(){
   if(!state.svg) return;
-  navigator.clipboard.writeText(state.svg).then(function(){ toast('Code SVG copié.'); }, function(){ toast('Copie impossible dans ce navigateur.'); });
+  navigator.clipboard.writeText(exportSvg()).then(function(){ toast('Code SVG copié.'); }, function(){ toast('Copie impossible dans ce navigateur.'); });
 };
 $('newImg').onclick = function(){ file.click(); };
 
