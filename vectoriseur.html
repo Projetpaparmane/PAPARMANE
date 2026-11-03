@@ -112,6 +112,10 @@
   select{background:var(--surface-2);border:1px solid var(--line);border-radius:9px;color:var(--ink);font:13px var(--sans);padding:8px 10px}
   .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--surface-3);color:var(--ink);padding:10px 16px;border-radius:10px;box-shadow:var(--shadow);font-size:13px;z-index:20}
   .foot{margin-top:28px;font-size:11.5px;color:var(--ink-faint)}
+  #localCtl{display:grid;gap:18px}
+  .seg.eng{display:flex}.seg.eng button{flex:1}
+  .eng-note{font-size:11.5px;color:var(--ink-faint);margin-top:8px;line-height:1.5}
+  .eng-note b{color:var(--ink-soft)}
   /* Fenêtre de téléchargement */
   .btn.big{width:100%;padding:14px 22px;font-size:15px}
   .dlg{position:fixed;inset:0;z-index:30;background:rgba(10,10,12,.72);backdrop-filter:blur(3px);overflow-y:auto;padding:clamp(12px,4vw,40px) 16px}
@@ -223,6 +227,26 @@
     </div>
 
     <aside class="panel side">
+      <div id="engineBox" hidden>
+        <h2>Moteur de vectorisation</h2>
+        <div class="seg eng" id="engine"><button data-e="ai">IA Vectorizer.ai</button><button data-e="local">Local (gratuit)</button></div>
+        <div class="eng-note" id="engNote"></div>
+      </div>
+
+      <div id="aiCtl" hidden>
+        <h2>Couleurs</h2>
+        <div class="dlg-row" style="margin-top:0">
+          <select id="aiColors" aria-label="Nombre maximal de couleurs">
+            <option value="0">Automatique</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
+            <option value="6">6</option><option value="8">8</option><option value="12">12</option><option value="16">16</option>
+            <option value="24">24</option><option value="32">32</option><option value="64">64</option>
+          </select>
+          <button class="btn ghost sm" id="aiRun">Relancer</button>
+        </div>
+        <p class="pal-hint">Chaque lancement utilise des crédits Vectorizer.ai.</p>
+      </div>
+
+      <div id="localCtl">
       <div>
         <h2>Type d'image</h2>
         <div class="presets" id="presets">
@@ -255,6 +279,8 @@
         <h2>Palette</h2>
         <div class="palette" id="palette"></div>
         <div class="pal-hint">Clic : changer la couleur · Alt + clic : masquer / afficher</div>
+      </div>
+
       </div>
 
       <div class="exports">
@@ -954,6 +980,7 @@ document.addEventListener('paste', function(e){
 function loadFile(f){
   if(!f || !/^image\//.test(f.type)){ toast('Ce fichier n’est pas une image.'); return; }
   state.name = (f.name || 'image').replace(/\.[^.]+$/, '') || 'image';
+  state.file = f;
   var url = URL.createObjectURL(f), img = new Image();
   img.onload = function(){ prepare(img, url); };
   img.onerror = function(){ toast('Impossible de lire cette image.'); };
@@ -979,7 +1006,8 @@ function prepare(img, url){
   $('stage').classList.toggle('pixels', long < 300);
   $('intro').hidden = true; $('work').hidden = false;
   if(state.preset === 'auto') applyPreset('auto', false);
-  fit(); retrace();
+  fit(); state.ai = null;
+  if(state.engine === 'ai') aiVectorize(); else retrace();
 }
 
 // Estimation automatique du nombre de couleurs
@@ -1438,7 +1466,7 @@ var dlg = $('dlg');
 function openDlg(){
   if(!state.svg) return;
   $('dlThumb').innerHTML = state.svg;
-  $('dlMeta').textContent = state.name + ' · ' + state.origW + ' × ' + state.origH + ' px (' + (state.origW * state.origH).toLocaleString('fr-CA') + ' pixels) · ' + state.vis.length + ' couleur' + (state.vis.length > 1 ? 's' : '');
+  $('dlMeta').textContent = state.name + ' · ' + state.origW + ' × ' + state.origH + ' px (' + (state.origW * state.origH).toLocaleString('fr-CA') + ' pixels) · ' + (state.ai ? 'moteur IA Vectorizer.ai' : state.vis.length + ' couleur' + (state.vis.length > 1 ? 's' : ''));
   syncDlg(); dlg.hidden = false; document.body.style.overflow = 'hidden';
 }
 function closeDlg(){ dlg.hidden = true; document.body.style.overflow = ''; }
@@ -1502,6 +1530,7 @@ function syncDlg(){
 }
 
 function doDownload(){
+  if(state.ai) return aiDownload();
   var n = state.name, f = xo.format;
   if(f === 'svg') download(new Blob([exportSvg()], { type:'image/svg+xml' }), n + '.svg');
   else if(f === 'pdf') download(new Blob([exportPdf()], { type:'application/pdf' }), n + '.pdf');
@@ -1513,9 +1542,106 @@ $('dlGo').onclick = doDownload; $('dlGoTop').onclick = doDownload;
 
 $('copySvg').onclick = function(){
   if(!state.svg) return;
-  navigator.clipboard.writeText(exportSvg()).then(function(){ toast('Code SVG copié.'); }, function(){ toast('Copie impossible dans ce navigateur.'); });
+  navigator.clipboard.writeText(state.ai ? state.ai.svg : exportSvg()).then(function(){ toast('Code SVG copié.'); }, function(){ toast('Copie impossible dans ce navigateur.'); });
 };
 $('newImg').onclick = function(){ file.click(); };
+
+/* ---------- Moteur IA : Vectorizer.ai (via la fonction Netlify /api/vectoriser) ---------- */
+
+var AI_URL = '/api/vectoriser';
+state.engine = 'local'; state.ai = null;
+function aiKey(){ try { return localStorage.getItem('pap_vz_key') || ''; } catch(e){ return ''; } }
+function setAiKey(v){ try { if(v) localStorage.setItem('pap_vz_key', v); else localStorage.removeItem('pap_vz_key'); } catch(e){} }
+function aiPost(body){
+  return fetch(AI_URL, { method:'POST', headers:{ 'Content-Type':'application/json', 'X-Paparmane-Key': aiKey() }, body: JSON.stringify(body) })
+    .then(function(r){ return r.json().catch(function(){ return { error:'Réponse illisible du serveur.' }; }).then(function(j){ j.status = r.status; return j; }); });
+}
+function askKey(){
+  var v = window.prompt('Mot de passe PAPARMANE (le même que pour l’outil SEO) :', '');
+  if(v) setAiKey(v.trim());
+  return !!v;
+}
+function setEngine(e, run){
+  state.engine = e;
+  try { localStorage.setItem('vz-engine', e); } catch(err){}
+  document.querySelectorAll('#engine button').forEach(function(b){ b.classList.toggle('on', b.dataset.e === e); });
+  $('localCtl').hidden = e === 'ai'; $('aiCtl').hidden = e !== 'ai';
+  if(run && state.work){ if(e === 'ai') aiVectorize(); else { state.ai = null; retrace(); } }
+}
+$('engine').addEventListener('click', function(ev){ var b = ev.target.closest('button'); if(b) setEngine(b.dataset.e, true); });
+$('aiRun').onclick = function(){ aiVectorize(); };
+
+// Au chargement : le moteur IA n'est proposé que si le site est configuré
+function refreshStatus(){
+  return aiPost({ action:'status' }).then(function(st){
+    if(!st || !st.configured) return;
+    $('engineBox').hidden = false;
+    var note = st.mode && st.mode.indexOf('test') === 0 ? '<b>Mode test</b> : résultats gratuits avec filigrane. ' : '';
+    var cr = '';
+    if(st.account && st.account.credits !== undefined) cr = 'Crédits restants : <b>' + st.account.credits + '</b>. ';
+    $('engNote').innerHTML = note + cr + 'L’IA donne le même tracé que vectorizer.ai et utilise les crédits de ton compte ; le moteur local est gratuit.';
+    var pref = 'ai'; try { pref = localStorage.getItem('vz-engine') || 'ai'; } catch(e){}
+    if(!state.work) setEngine(pref, false);
+  }).catch(function(){ /* pas de fonction (fichier local, aperçu) : moteur local seulement */ });
+}
+refreshStatus();
+
+// Image à envoyer : fichier d'origine si possible, sinon PNG ré-encodé (4 Mo maximum)
+function aiImage(){
+  var f = state.file, ok = f && /^image\/(png|jpeg|gif|bmp|tiff)$/.test(f.type) && f.size <= 3.9 * 1024 * 1024;
+  function toB64(blob){ return new Promise(function(res){ var r = new FileReader(); r.onload = function(){ res(String(r.result).split(',')[1]); }; r.readAsDataURL(blob); }); }
+  if(ok) return toB64(f).then(function(b){ return { image:b, type:f.type, filename:f.name }; });
+  return new Promise(function(res){
+    var img = $('orig'), w = img.naturalWidth, h = img.naturalHeight, k = Math.min(1, Math.sqrt(3e6 / (w * h)));
+    var c = document.createElement('canvas'); c.width = Math.round(w * k); c.height = Math.round(h * k);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    c.toBlob(function(b){
+      if(b.size <= 3.9 * 1024 * 1024) return toB64(b).then(function(x){ res({ image:x, type:'image/png', filename:state.name + '.png' }); });
+      c.toBlob(function(b2){ toB64(b2).then(function(x){ res({ image:x, type:'image/jpeg', filename:state.name + '.jpg' }); }); }, 'image/jpeg', 0.92);
+    }, 'image/png');
+  });
+}
+
+function aiVectorize(retried){
+  if(!state.work) return;
+  if(!aiKey() && !askKey()){ setEngine('local', true); return; }
+  $('busy').hidden = false; $('busyTxt').textContent = 'Vectorisation par l’IA…';
+  var t0 = performance.now();
+  aiImage().then(function(im){
+    im.action = 'vectorize'; im.maxColors = +$('aiColors').value;
+    return aiPost(im);
+  }).then(function(r){
+    $('busy').hidden = true;
+    if(r.status === 401 && !retried){ setAiKey(''); toast('Mot de passe incorrect.'); if(askKey()) aiVectorize(true); else setEngine('local', true); return; }
+    if(r.error || !r.svg){ toast(r.error || 'La vectorisation IA a échoué.'); return; }
+    state.ai = r; state.svg = r.svg; state.ms = performance.now() - t0;
+    $('vec').innerHTML = r.svg;
+    var svgEl = $('vec').querySelector('svg');
+    if(svgEl){ svgEl.removeAttribute('width'); svgEl.removeAttribute('height'); svgEl.setAttribute('preserveAspectRatio', 'none'); }
+    var n = (r.svg.match(/<(path|circle|ellipse|rect|polygon)\b/g) || []).length, kb = new Blob([r.svg]).size / 1024;
+    $('stats').innerHTML = '<span>Moteur <b>IA Vectorizer.ai' + (r.mode && r.mode.indexOf('test') === 0 ? ' (test)' : '') + '</b></span>' +
+      '<span>Formes <b class="tnum">' + n.toLocaleString('fr-CA') + '</b></span>' +
+      '<span>Poids SVG <b class="tnum">' + (kb < 1024 ? kb.toFixed(0) + ' Ko' : (kb / 1024).toFixed(1) + ' Mo') + '</b></span>' +
+      (r.credits ? '<span>Crédits utilisés <b class="tnum">' + r.credits + '</b></span>' : '') +
+      '<span>Taille <b class="tnum">' + state.origW + ' × ' + state.origH + ' px</b></span>' +
+      '<span>Calcul <b class="tnum">' + (state.ms / 1000).toFixed(1) + ' s</b></span>';
+    applyView();
+    refreshStatus();
+  }).catch(function(){ $('busy').hidden = true; toast('Serveur injoignable : passe au moteur local.'); });
+}
+
+// Téléchargement d'un résultat IA : Vectorizer.ai produit le fichier avec les options choisies
+function aiDownload(){
+  var go = [$('dlGo'), $('dlGoTop')]; go.forEach(function(b){ b.disabled = true; });
+  toast('Préparation du fichier par Vectorizer.ai…');
+  aiPost({ action:'download', token: state.ai.token, receipt: state.ai.receipt, options: xo }).then(function(r){
+    go.forEach(function(b){ b.disabled = false; });
+    if(r.error || !r.file){ toast(r.error || 'Téléchargement impossible.'); return; }
+    var bin = atob(r.file), u8 = new Uint8Array(bin.length);
+    for(var i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    download(new Blob([u8], { type: r.contentType }), state.name + '.' + r.format);
+  }).catch(function(){ go.forEach(function(b){ b.disabled = false; }); toast('Serveur injoignable.'); });
+}
 
 syncOutputs();
 applyPreset('auto', false);
