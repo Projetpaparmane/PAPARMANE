@@ -67,8 +67,11 @@
     .avancement__barre{height:clamp(20px,2.6vw,28px);border-radius:100px;background:rgba(255,255,255,.12);overflow:hidden}
     .avancement__fill{display:block;height:100%;width:3%;border-radius:inherit;background:repeating-linear-gradient(-45deg,#ff3535 0 14px,#ff6262 14px 28px);background-size:40px 40px;animation:rayures 2.4s linear infinite;transition:width 1.1s cubic-bezier(.4,0,.2,1)}
     @keyframes rayures{to{background-position:40px 0}}
-    .avancement__bas{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem 1rem;min-height:2.6rem;margin-top:1rem}
-    .avancement__msg{display:inline-flex;align-items:center;padding:.45rem 1rem;border-radius:100px;background:var(--accent);color:#fff;font-weight:700;font-size:clamp(.95rem,1.6vw,1.1rem);transition:opacity .4s,transform .4s}
+    .avancement__bas{display:grid;align-items:center;margin-top:1rem}
+    .avancement__bas > *{grid-area:1/1}
+    .avancement__note{transition:opacity .4s}
+    .avancement__bas.oups .avancement__note{opacity:0}
+    .avancement__msg{justify-self:start;padding:.4rem .95rem;border-radius:16px;line-height:1.3;background:var(--accent);color:#fff;font-weight:700;font-size:clamp(.95rem,1.6vw,1.1rem);transition:opacity .4s,transform .4s}
     .avancement__msg.fade{opacity:0;transform:translateY(6px)}
     .avancement__note{font-size:.85rem;color:var(--muted)}
     .avancement.secousse{animation:secousse .55s ease-in-out}
@@ -192,7 +195,7 @@
       .avancement__label{font-size:1.15rem}
       .avancement__pct{font-size:2.4rem}
       .avancement__barre{height:18px}
-      .avancement__bas{margin-top:.8rem;min-height:2.2rem}
+      .avancement__bas{margin-top:.8rem}
       .avancement__msg{font-size:.9rem;padding:.35rem .85rem}
       .avancement__note{font-size:.8rem}
       .badge{width:clamp(120px,11vw,170px)}
@@ -579,22 +582,35 @@
         '✏️ Oups : « juste un petit changement » à faire.', '☕ Oups : pause café obligatoire.',
         '⏰ Oups : un client veut son site pour hier.', '🙋 Oups : j\'ai encore dit oui à un projet.'];
       const boite = document.querySelector('.avancement');
+      const bas = document.querySelector('.avancement__bas');
+      // hauteur fixe = le plus long message : la boîte ne change jamais de taille
+      const fixeHauteur = () => {
+        const avant = msg.textContent; let h = 0;
+        bas.style.minHeight = '';
+        for (const t of oups) { msg.textContent = t; h = Math.max(h, msg.offsetHeight); }
+        msg.textContent = avant;
+        bas.style.minHeight = h + 'px';
+      };
+      fixeHauteur(); addEventListener('resize', fixeHauteur);
+      if (document.fonts) document.fonts.ready.then(fixeHauteur);
+      let cacheT;
+      const montreMsg = t => { clearTimeout(cacheT); msg.textContent = t; msg.classList.remove('fade'); bas.classList.add('oups'); cacheT = setTimeout(cacheMsg, 3800); };
+      const cacheMsg = () => { msg.classList.add('fade'); bas.classList.remove('oups'); };
       let pct = 3, cible = 0, o = 0;
       const pose = v => { pct = v; fill.style.width = v + '%'; pctEl.textContent = v + ' %'; barre.setAttribute('aria-valuenow', v); };
       const nouvelleCible = () => { cible = 12 + Math.floor(Math.random() * 13); };
       nouvelleCible(); pose(3);
-      if (reduce) { pose(12); msg.textContent = oups[0]; msg.classList.remove('fade'); }
+      if (reduce) { pose(12); montreMsg(oups[0]); clearTimeout(cacheT); }
       else setInterval(() => {
         if (document.hidden) return;
         if (pct < cible) {
           pose(pct + 1);
           if (pct === cible) setTimeout(() => {
-            msg.classList.add('fade');
-            setTimeout(() => { msg.textContent = oups[o++ % oups.length]; msg.classList.remove('fade'); }, 400);
+            cacheMsg();
+            setTimeout(() => montreMsg(oups[o++ % oups.length]), 400);
             pose(2 + Math.floor(Math.random() * 3));
             boite.classList.remove('secousse'); void boite.offsetWidth; boite.classList.add('secousse');
             nouvelleCible();
-            setTimeout(() => msg.classList.add('fade'), 4200);
           }, 700);
         }
       }, 280);
