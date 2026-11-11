@@ -126,6 +126,28 @@
     .stage__compte{min-height:1.4em;font-size:.88em;color:var(--text);font-variant-numeric:tabular-nums}
     .pluie{position:fixed;inset:0;width:100%;height:100%;z-index:60;pointer-events:none}
 
+    /* Réalisations en grille */
+    .projets{margin-top:clamp(2.5rem,5vw,3.5rem)}
+    .filtres{display:flex;flex-wrap:wrap;gap:.6rem}
+    .filtre{font:inherit;font-weight:700;font-size:.95rem;color:var(--text);background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:100px;padding:.6rem 1.15rem;cursor:pointer;transition:background-color .2s,border-color .2s}
+    .filtre span{display:inline-flex;align-items:center;justify-content:center;min-width:1.7em;height:1.7em;margin-left:.35rem;padding:0 .4em;border-radius:100px;background:rgba(255,255,255,.14);font-size:.78em}
+    .filtre:hover{background:rgba(255,255,255,.12)}
+    .filtre.actif{background:var(--accent);border-color:var(--accent)}
+    .filtre.actif span{background:rgba(255,255,255,.25)}
+    .grille{list-style:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:.9rem;margin-top:1.4rem}
+    .projet[hidden]{display:none}
+    .projet a{height:100%;display:flex;flex-direction:column;gap:.35rem;padding:1.05rem 1.2rem 1.15rem;border-radius:18px;background:rgba(255,255,255,.06);border:1px solid var(--line);transition:background-color .25s,transform .35s cubic-bezier(.34,1.56,.64,1)}
+    .projet a:hover{background:var(--bg2);transform:translateY(-4px)}
+    .projet__haut{display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem}
+    .projet__tag{font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+    .projet__nom{font-family:var(--display);font-size:clamp(1.2rem,1.7vw,1.4rem);line-height:1.1;transition:color .25s}
+    .projet a:hover .projet__nom{color:var(--accent)}
+    .projet a:hover .item__dot{transform:scale(1.9)}
+    .projet__note{font-size:.85rem;line-height:1.4;color:var(--muted)}
+    .projet__url{margin-top:auto;padding-top:.5rem;font-size:.82rem;font-weight:600;color:var(--text);opacity:.8}
+    .voir-plus{display:block;margin:1.6rem auto 0;font:inherit;font-weight:700;color:#fff;background:none;border:2px solid var(--text);border-radius:100px;padding:.75rem 1.5rem;cursor:pointer;transition:background-color .2s,border-color .2s}
+    .voir-plus:hover{background:var(--accent);border-color:var(--accent)}
+
     /* Liste clients */
     .macron{position:relative}
     .macron::after{content:"";position:absolute;left:.1em;right:.1em;top:.32em;height:.1em;border-radius:1em;background:currentColor}
@@ -155,6 +177,15 @@
 
     .foot{display:flex;flex-wrap:wrap;gap:.6rem 1.5rem;justify-content:space-between;padding:2.5rem var(--pad);color:var(--muted);font-size:.85rem;border-top:1px solid var(--line)}
 
+    @media (max-width:560px){
+      .grille{grid-template-columns:1fr 1fr;gap:.6rem}
+      .projet a{padding:.85rem .9rem .95rem}
+      .projet__note{display:none}
+      .projet__nom{font-size:1.05rem}
+      .projet__tag{font-size:.6rem}
+      .projet__url{font-size:.7rem;overflow-wrap:anywhere}
+      .filtre{font-size:.85rem;padding:.5rem .9rem}
+    }
     @media (max-width:720px){
       .hero{padding-top:1.5rem}
       .badge{position:relative;right:auto;top:auto;width:100px;margin:0 0 1.5rem auto}.badge__p{font-size:1.7rem}
@@ -230,128 +261,178 @@
     <h2 class="reveal">Ce que j'ai <span class="o">bâti.</span></h2>
     <p class="lead ecrit">Des vrais sites, en ligne, pour de vrais clients. Clique, va voir.</p>
 
-    <div class="group">
-      <h3 class="group__title">Sites WordPress <span class="group__count">21</span></h3>
-      <div class="list">
-        <a class="item reveal" href="https://pacini.com" target="_blank" rel="noopener noreferrer">
-          <span class="item__name">Pacini<span class="item__note">+ le réseau de restaurants Pacini (ex. granby.pacini.com)</span></span>
-          <span class="item__right"><span class="item__url">pacini.com</span><span class="item__dot" aria-hidden="true"></span></span>
-        </a>
-        <a class="item reveal" href="https://jecoursdmv.ca" target="_blank" rel="noopener noreferrer">
-          <span class="item__name">Je Cours DMV</span>
-          <span class="item__right"><span class="item__url">jecoursdmv.ca</span><span class="item__dot" aria-hidden="true"></span></span>
-        </a>
-        <a class="item reveal" href="https://aubalcon.ca" target="_blank" rel="noopener noreferrer">
-          <span class="item__name">Au Balcon<span class="item__note">Accompagnement des gestionnaires et formation en gestion</span></span>
-          <span class="item__right"><span class="item__url">aubalcon.ca</span><span class="item__dot" aria-hidden="true"></span></span>
-        </a>
-        <a class="item reveal" href="https://metiersdavenir.ca" target="_blank" rel="noopener noreferrer">
-          <span class="item__name">Métiers d'avenir<span class="item__note">L'industrie manufacturière autrement</span></span>
-          <span class="item__right"><span class="item__url">metiersdavenir.ca</span><span class="item__dot" aria-hidden="true"></span></span>
-        </a>
-        <a class="item reveal" href="https://taxicentral.ca" target="_blank" rel="noopener noreferrer">
-          <span class="item__name">Taxi Central<span class="item__note">Site web &amp; photographie</span></span>
-          <span class="item__right"><span class="item__url">taxicentral.ca</span><span class="item__dot" aria-hidden="true"></span></span>
-        </a>
-        <a class="item reveal" href="https://coteauxmissisquoi.com" target="_blank" rel="noopener noreferrer">
-          <span class="item__name">Coteaux Missisquoi</span>
-          <span class="item__right"><span class="item__url">coteauxmissisquoi.com</span><span class="item__dot" aria-hidden="true"></span></span>
-        </a>
-        <a class="item reveal" href="https://frettsolutions.com" target="_blank" rel="noopener noreferrer">
-          <span class="item__name">Frett Solutions</span>
-          <span class="item__right"><span class="item__url">frettsolutions.com</span><span class="item__dot" aria-hidden="true"></span></span>
-        </a>
-        <a class="item reveal" href="https://goyeti.ca" target="_blank" rel="noopener noreferrer">
-          <span class="item__name">Go Yeti</span>
-          <span class="item__right"><span class="item__url">goyeti.ca</span><span class="item__dot" aria-hidden="true"></span></span>
-        </a>
-        <a class="item reveal" href="https://excavationwstg.com" target="_blank" rel="noopener noreferrer">
-          <span class="item__name">Excavation WSTG</span>
-          <span class="item__right"><span class="item__url">excavationwstg.com</span><span class="item__dot" aria-hidden="true"></span></span>
-        </a>
-        <a class="item reveal" href="https://lepaniersante.com" target="_blank" rel="noopener noreferrer">
-          <span class="item__name">Le Panier Santé<span class="item__note">Site WordPress avec produits Shopify</span></span>
-          <span class="item__right"><span class="item__url">lepaniersante.com</span><span class="item__dot" aria-hidden="true"></span></span>
-        </a>
-        <a class="item reveal" href="https://cimetieresdrummond.ca" target="_blank" rel="noopener noreferrer">
-          <span class="item__name">Cimetières Drummond</span>
-          <span class="item__right"><span class="item__url">cimetieresdrummond.ca</span><span class="item__dot" aria-hidden="true"></span></span>
-        </a>
-        <a class="item reveal" href="https://www.locationlamarche.ca/" target="_blank" rel="noopener noreferrer">
-          <span class="item__name">Location Lamarche<span class="item__note">Location d'outils à Drummondville</span></span>
-          <span class="item__right"><span class="item__url">locationlamarche.ca</span><span class="item__dot" aria-hidden="true"></span></span>
-        </a>
-        <a class="item reveal" href="https://rackaventure.com" target="_blank" rel="noopener noreferrer">
-          <span class="item__name">Rack Aventure<span class="item__note">Boutique en ligne d'équipements de transport</span></span>
-          <span class="item__right"><span class="item__url">rackaventure.com</span><span class="item__dot" aria-hidden="true"></span></span>
-        </a>
-        <a class="item reveal" href="https://lescomplicesatable.ca" target="_blank" rel="noopener noreferrer">
-          <span class="item__name">Les Complices à Table<span class="item__note">La cuisine comme complicité</span></span>
-          <span class="item__right"><span class="item__url">lescomplicesatable.ca</span><span class="item__dot" aria-hidden="true"></span></span>
-        </a>
-        <a class="item reveal" href="https://www.lalanguefourchue.ca" target="_blank" rel="noopener noreferrer">
-          <span class="item__name">La Langue Fourchue<span class="item__note">Service traiteur à Drummondville</span></span>
-          <span class="item__right"><span class="item__url">lalanguefourchue.ca</span><span class="item__dot" aria-hidden="true"></span></span>
-        </a>
-        <a class="item reveal" href="https://steclotildehorton.ca" target="_blank" rel="noopener noreferrer">
-          <span class="item__name">Sainte-Clotilde-de-Horton<span class="item__note">Site de la municipalité</span></span>
-          <span class="item__right"><span class="item__url">steclotildehorton.ca</span><span class="item__dot" aria-hidden="true"></span></span>
-        </a>
-        <a class="item reveal" href="https://saineshabitudesdeviecdq.ca" target="_blank" rel="noopener noreferrer">
-          <span class="item__name">Saines habitudes de vie CDQ<span class="item__note">Centre-du-Québec</span></span>
-          <span class="item__right"><span class="item__url">saineshabitudesdeviecdq.ca</span><span class="item__dot" aria-hidden="true"></span></span>
-        </a>
-        <a class="item reveal" href="https://pieux360.com" target="_blank" rel="noopener noreferrer">
-          <span class="item__name">Pieux360<span class="item__note">Installation de pieux vissés</span></span>
-          <span class="item__right"><span class="item__url">pieux360.com</span><span class="item__dot" aria-hidden="true"></span></span>
-        </a>
-        <a class="item reveal" href="https://autonomiesante.ca" target="_blank" rel="noopener noreferrer">
-          <span class="item__name">Autonomie Santé<span class="item__note">Soins à domicile à Magog (+ autonomieadomicile.ca)</span></span>
-          <span class="item__right"><span class="item__url">autonomiesante.ca</span><span class="item__dot" aria-hidden="true"></span></span>
-        </a>
-        <a class="item reveal" href="https://industriesrainville.com" target="_blank" rel="noopener noreferrer">
-          <span class="item__name">Industries Rainville<span class="item__note">Usinage et ingénierie sur mesure</span></span>
-          <span class="item__right"><span class="item__url">industriesrainville.com</span><span class="item__dot" aria-hidden="true"></span></span>
-        </a>
-        <a class="item reveal" href="https://compresseursdrummond.ca" target="_blank" rel="noopener noreferrer">
-          <span class="item__name">Compresseurs Drummond<span class="item__note">Compresseurs industriels à Drummondville</span></span>
-          <span class="item__right"><span class="item__url">compresseursdrummond.ca</span><span class="item__dot" aria-hidden="true"></span></span>
-        </a>
+    <div class="projets reveal">
+      <div class="filtres" role="group" aria-label="Filtrer les réalisations">
+        <button type="button" class="filtre actif" data-f="tout" aria-pressed="true">Tout <span>27</span></button>
+        <button type="button" class="filtre" data-f="WordPress" aria-pressed="false">WordPress <span>21</span></button>
+        <button type="button" class="filtre" data-f="Shopify" aria-pressed="false">Shopify <span>3</span></button>
+        <button type="button" class="filtre" data-f="Odoo" aria-pressed="false">Odoo <span>3</span></button>
       </div>
-    </div>
-    <div class="group">
-      <h3 class="group__title">Boutiques Shopify <span class="group__count">3</span></h3>
-      <div class="list">
-        <a class="item reveal" href="https://www.studiovelo.ca" target="_blank" rel="noopener noreferrer">
-          <span class="item__name">Studio Vélo<span class="item__note">Vélos et atelier à Drummondville</span></span>
-          <span class="item__right"><span class="item__url">studiovelo.ca</span><span class="item__dot" aria-hidden="true"></span></span>
-        </a>
-        <a class="item reveal" href="https://boutique.lanke.ca" target="_blank" rel="noopener noreferrer">
-          <span class="item__name" aria-label="Länkē">Länk<span class="macron">e</span><span class="item__note">Produits naturels pour chiens</span></span>
-          <span class="item__right"><span class="item__url">boutique.lanke.ca</span><span class="item__dot" aria-hidden="true"></span></span>
-        </a>
-        <a class="item reveal" href="https://eossaunas.com" target="_blank" rel="noopener noreferrer">
-          <span class="item__name">EOS Saunas<span class="item__note">Saunas et accessoires</span></span>
-          <span class="item__right"><span class="item__url">eossaunas.com</span><span class="item__dot" aria-hidden="true"></span></span>
-        </a>
-      </div>
-    </div>
-    <div class="group">
-      <h3 class="group__title">Sites Odoo <span class="group__count">3</span></h3>
-      <div class="list">
-        <a class="item reveal" href="https://www.plancherchauffant.com" target="_blank" rel="noopener noreferrer">
-          <span class="item__name">Plancher Chauffant HCW<span class="item__note">Plancher chauffant hydronique, site bilingue</span></span>
-          <span class="item__right"><span class="item__url">plancherchauffant.com</span><span class="item__dot" aria-hidden="true"></span></span>
-        </a>
-        <a class="item reveal" href="https://aquio.ca" target="_blank" rel="noopener noreferrer">
-          <span class="item__name">Aquio<span class="item__note">Thermopompes de piscine</span></span>
-          <span class="item__right"><span class="item__url">aquio.ca</span><span class="item__dot" aria-hidden="true"></span></span>
-        </a>
-        <a class="item reveal" href="https://www.hcwsystems.com" target="_blank" rel="noopener noreferrer">
-          <span class="item__name">HCW Systèmes<span class="item__note">Site corporatif</span></span>
-          <span class="item__right"><span class="item__url">hcwsystems.com</span><span class="item__dot" aria-hidden="true"></span></span>
-        </a>
-      </div>
+      <ul class="grille">
+        <li class="projet" data-p="WordPress"><a href="https://pacini.com" target="_blank" rel="noopener noreferrer">
+          <span class="projet__haut"><span class="projet__tag">WordPress</span><span class="item__dot" aria-hidden="true"></span></span>
+          <span class="projet__nom">Pacini</span>
+          <span class="projet__note">+ le réseau de restaurants Pacini (ex. granby.pacini.com)</span>
+          <span class="projet__url">pacini.com</span>
+        </a></li>
+        <li class="projet" data-p="WordPress"><a href="https://jecoursdmv.ca" target="_blank" rel="noopener noreferrer">
+          <span class="projet__haut"><span class="projet__tag">WordPress</span><span class="item__dot" aria-hidden="true"></span></span>
+          <span class="projet__nom">Je Cours DMV</span>
+          
+          <span class="projet__url">jecoursdmv.ca</span>
+        </a></li>
+        <li class="projet" data-p="WordPress"><a href="https://aubalcon.ca" target="_blank" rel="noopener noreferrer">
+          <span class="projet__haut"><span class="projet__tag">WordPress</span><span class="item__dot" aria-hidden="true"></span></span>
+          <span class="projet__nom">Au Balcon</span>
+          <span class="projet__note">Accompagnement des gestionnaires et formation en gestion</span>
+          <span class="projet__url">aubalcon.ca</span>
+        </a></li>
+        <li class="projet" data-p="WordPress"><a href="https://metiersdavenir.ca" target="_blank" rel="noopener noreferrer">
+          <span class="projet__haut"><span class="projet__tag">WordPress</span><span class="item__dot" aria-hidden="true"></span></span>
+          <span class="projet__nom">Métiers d'avenir</span>
+          <span class="projet__note">L'industrie manufacturière autrement</span>
+          <span class="projet__url">metiersdavenir.ca</span>
+        </a></li>
+        <li class="projet" data-p="WordPress"><a href="https://taxicentral.ca" target="_blank" rel="noopener noreferrer">
+          <span class="projet__haut"><span class="projet__tag">WordPress</span><span class="item__dot" aria-hidden="true"></span></span>
+          <span class="projet__nom">Taxi Central</span>
+          <span class="projet__note">Site web &amp; photographie</span>
+          <span class="projet__url">taxicentral.ca</span>
+        </a></li>
+        <li class="projet" data-p="WordPress"><a href="https://coteauxmissisquoi.com" target="_blank" rel="noopener noreferrer">
+          <span class="projet__haut"><span class="projet__tag">WordPress</span><span class="item__dot" aria-hidden="true"></span></span>
+          <span class="projet__nom">Coteaux Missisquoi</span>
+          
+          <span class="projet__url">coteauxmissisquoi.com</span>
+        </a></li>
+        <li class="projet" data-p="WordPress"><a href="https://frettsolutions.com" target="_blank" rel="noopener noreferrer">
+          <span class="projet__haut"><span class="projet__tag">WordPress</span><span class="item__dot" aria-hidden="true"></span></span>
+          <span class="projet__nom">Frett Solutions</span>
+          
+          <span class="projet__url">frettsolutions.com</span>
+        </a></li>
+        <li class="projet" data-p="WordPress"><a href="https://goyeti.ca" target="_blank" rel="noopener noreferrer">
+          <span class="projet__haut"><span class="projet__tag">WordPress</span><span class="item__dot" aria-hidden="true"></span></span>
+          <span class="projet__nom">Go Yeti</span>
+          
+          <span class="projet__url">goyeti.ca</span>
+        </a></li>
+        <li class="projet" data-p="WordPress"><a href="https://excavationwstg.com" target="_blank" rel="noopener noreferrer">
+          <span class="projet__haut"><span class="projet__tag">WordPress</span><span class="item__dot" aria-hidden="true"></span></span>
+          <span class="projet__nom">Excavation WSTG</span>
+          
+          <span class="projet__url">excavationwstg.com</span>
+        </a></li>
+        <li class="projet" data-p="WordPress"><a href="https://lepaniersante.com" target="_blank" rel="noopener noreferrer">
+          <span class="projet__haut"><span class="projet__tag">WordPress</span><span class="item__dot" aria-hidden="true"></span></span>
+          <span class="projet__nom">Le Panier Santé</span>
+          <span class="projet__note">Site WordPress avec produits Shopify</span>
+          <span class="projet__url">lepaniersante.com</span>
+        </a></li>
+        <li class="projet" data-p="WordPress"><a href="https://cimetieresdrummond.ca" target="_blank" rel="noopener noreferrer">
+          <span class="projet__haut"><span class="projet__tag">WordPress</span><span class="item__dot" aria-hidden="true"></span></span>
+          <span class="projet__nom">Cimetières Drummond</span>
+          
+          <span class="projet__url">cimetieresdrummond.ca</span>
+        </a></li>
+        <li class="projet" data-p="WordPress"><a href="https://www.locationlamarche.ca/" target="_blank" rel="noopener noreferrer">
+          <span class="projet__haut"><span class="projet__tag">WordPress</span><span class="item__dot" aria-hidden="true"></span></span>
+          <span class="projet__nom">Location Lamarche</span>
+          <span class="projet__note">Location d'outils à Drummondville</span>
+          <span class="projet__url">locationlamarche.ca</span>
+        </a></li>
+        <li class="projet" data-p="WordPress"><a href="https://rackaventure.com" target="_blank" rel="noopener noreferrer">
+          <span class="projet__haut"><span class="projet__tag">WordPress</span><span class="item__dot" aria-hidden="true"></span></span>
+          <span class="projet__nom">Rack Aventure</span>
+          <span class="projet__note">Boutique en ligne d'équipements de transport</span>
+          <span class="projet__url">rackaventure.com</span>
+        </a></li>
+        <li class="projet" data-p="WordPress"><a href="https://lescomplicesatable.ca" target="_blank" rel="noopener noreferrer">
+          <span class="projet__haut"><span class="projet__tag">WordPress</span><span class="item__dot" aria-hidden="true"></span></span>
+          <span class="projet__nom">Les Complices à Table</span>
+          <span class="projet__note">La cuisine comme complicité</span>
+          <span class="projet__url">lescomplicesatable.ca</span>
+        </a></li>
+        <li class="projet" data-p="WordPress"><a href="https://www.lalanguefourchue.ca" target="_blank" rel="noopener noreferrer">
+          <span class="projet__haut"><span class="projet__tag">WordPress</span><span class="item__dot" aria-hidden="true"></span></span>
+          <span class="projet__nom">La Langue Fourchue</span>
+          <span class="projet__note">Service traiteur à Drummondville</span>
+          <span class="projet__url">lalanguefourchue.ca</span>
+        </a></li>
+        <li class="projet" data-p="WordPress"><a href="https://steclotildehorton.ca" target="_blank" rel="noopener noreferrer">
+          <span class="projet__haut"><span class="projet__tag">WordPress</span><span class="item__dot" aria-hidden="true"></span></span>
+          <span class="projet__nom">Sainte-Clotilde-de-Horton</span>
+          <span class="projet__note">Site de la municipalité</span>
+          <span class="projet__url">steclotildehorton.ca</span>
+        </a></li>
+        <li class="projet" data-p="WordPress"><a href="https://saineshabitudesdeviecdq.ca" target="_blank" rel="noopener noreferrer">
+          <span class="projet__haut"><span class="projet__tag">WordPress</span><span class="item__dot" aria-hidden="true"></span></span>
+          <span class="projet__nom">Saines habitudes de vie CDQ</span>
+          <span class="projet__note">Centre-du-Québec</span>
+          <span class="projet__url">saineshabitudesdeviecdq.ca</span>
+        </a></li>
+        <li class="projet" data-p="WordPress"><a href="https://pieux360.com" target="_blank" rel="noopener noreferrer">
+          <span class="projet__haut"><span class="projet__tag">WordPress</span><span class="item__dot" aria-hidden="true"></span></span>
+          <span class="projet__nom">Pieux360</span>
+          <span class="projet__note">Installation de pieux vissés</span>
+          <span class="projet__url">pieux360.com</span>
+        </a></li>
+        <li class="projet" data-p="WordPress"><a href="https://autonomiesante.ca" target="_blank" rel="noopener noreferrer">
+          <span class="projet__haut"><span class="projet__tag">WordPress</span><span class="item__dot" aria-hidden="true"></span></span>
+          <span class="projet__nom">Autonomie Santé</span>
+          <span class="projet__note">Soins à domicile à Magog (+ autonomieadomicile.ca)</span>
+          <span class="projet__url">autonomiesante.ca</span>
+        </a></li>
+        <li class="projet" data-p="WordPress"><a href="https://industriesrainville.com" target="_blank" rel="noopener noreferrer">
+          <span class="projet__haut"><span class="projet__tag">WordPress</span><span class="item__dot" aria-hidden="true"></span></span>
+          <span class="projet__nom">Industries Rainville</span>
+          <span class="projet__note">Usinage et ingénierie sur mesure</span>
+          <span class="projet__url">industriesrainville.com</span>
+        </a></li>
+        <li class="projet" data-p="WordPress"><a href="https://compresseursdrummond.ca" target="_blank" rel="noopener noreferrer">
+          <span class="projet__haut"><span class="projet__tag">WordPress</span><span class="item__dot" aria-hidden="true"></span></span>
+          <span class="projet__nom">Compresseurs Drummond</span>
+          <span class="projet__note">Compresseurs industriels à Drummondville</span>
+          <span class="projet__url">compresseursdrummond.ca</span>
+        </a></li>
+        <li class="projet" data-p="Shopify"><a href="https://www.studiovelo.ca" target="_blank" rel="noopener noreferrer">
+          <span class="projet__haut"><span class="projet__tag">Shopify</span><span class="item__dot" aria-hidden="true"></span></span>
+          <span class="projet__nom">Studio Vélo</span>
+          <span class="projet__note">Vélos et atelier à Drummondville</span>
+          <span class="projet__url">studiovelo.ca</span>
+        </a></li>
+        <li class="projet" data-p="Shopify"><a href="https://boutique.lanke.ca" target="_blank" rel="noopener noreferrer">
+          <span class="projet__haut"><span class="projet__tag">Shopify</span><span class="item__dot" aria-hidden="true"></span></span>
+          <span class="projet__nom" aria-label="Länkē">Länk<span class="macron">e</span></span>
+          <span class="projet__note">Produits naturels pour chiens</span>
+          <span class="projet__url">boutique.lanke.ca</span>
+        </a></li>
+        <li class="projet" data-p="Shopify"><a href="https://eossaunas.com" target="_blank" rel="noopener noreferrer">
+          <span class="projet__haut"><span class="projet__tag">Shopify</span><span class="item__dot" aria-hidden="true"></span></span>
+          <span class="projet__nom">EOS Saunas</span>
+          <span class="projet__note">Saunas et accessoires</span>
+          <span class="projet__url">eossaunas.com</span>
+        </a></li>
+        <li class="projet" data-p="Odoo"><a href="https://www.plancherchauffant.com" target="_blank" rel="noopener noreferrer">
+          <span class="projet__haut"><span class="projet__tag">Odoo</span><span class="item__dot" aria-hidden="true"></span></span>
+          <span class="projet__nom">Plancher Chauffant HCW</span>
+          <span class="projet__note">Plancher chauffant hydronique, site bilingue</span>
+          <span class="projet__url">plancherchauffant.com</span>
+        </a></li>
+        <li class="projet" data-p="Odoo"><a href="https://aquio.ca" target="_blank" rel="noopener noreferrer">
+          <span class="projet__haut"><span class="projet__tag">Odoo</span><span class="item__dot" aria-hidden="true"></span></span>
+          <span class="projet__nom">Aquio</span>
+          <span class="projet__note">Thermopompes de piscine</span>
+          <span class="projet__url">aquio.ca</span>
+        </a></li>
+        <li class="projet" data-p="Odoo"><a href="https://www.hcwsystems.com" target="_blank" rel="noopener noreferrer">
+          <span class="projet__haut"><span class="projet__tag">Odoo</span><span class="item__dot" aria-hidden="true"></span></span>
+          <span class="projet__nom">HCW Systèmes</span>
+          <span class="projet__note">Site corporatif</span>
+          <span class="projet__url">hcwsystems.com</span>
+        </a></li>
+      </ul>
+      <button type="button" class="voir-plus" hidden>Voir les autres</button>
     </div>
     <div class="stage" id="stage">
       <canvas id="drop" role="img" aria-label="Services : branding, sites web, infolettres, SEO, GEO, Astro, hébergement, TI, développement d'applications, Shopify, WordPress, Odoo, Loi 25, photographie, e-commerce"></canvas>
@@ -526,6 +607,32 @@
     else {
       const io2 = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('go'); io2.unobserve(e.target); } }), { threshold: .5 });
       ecrits.forEach(el => io2.observe(el));
+    }
+
+
+    /* Réalisations : filtres + « Voir les autres » */
+    const projets = [...document.querySelectorAll('.projet')];
+    if (projets.length) {
+      const plus = document.querySelector('.voir-plus');
+      let filtre = 'tout', ouvert = false;
+      const LIMITE = window.matchMedia('(max-width: 560px)').matches ? 6 : 9;
+      const affiche = () => {
+        const visibles = projets.filter(p => filtre === 'tout' || p.dataset.p === filtre);
+        projets.forEach(p => p.hidden = true);
+        visibles.forEach((p, k) => p.hidden = !ouvert && k >= LIMITE);
+        const caches = visibles.length - LIMITE;
+        plus.hidden = caches <= 0;
+        plus.textContent = ouvert ? 'Voir moins' : `Voir les ${caches} autres`;
+      };
+      document.querySelectorAll('.filtre').forEach(b => b.addEventListener('click', () => {
+        document.querySelectorAll('.filtre').forEach(x => { x.classList.toggle('actif', x === b); x.setAttribute('aria-pressed', x === b); });
+        filtre = b.dataset.f; ouvert = false; affiche();
+      }));
+      plus.addEventListener('click', () => {
+        ouvert = !ouvert; affiche();
+        if (!ouvert) document.querySelector('.filtres').scrollIntoView({ block: 'start', behavior: reduce ? 'auto' : 'smooth' });
+      });
+      affiche();
     }
 
     /* Apparitions au scroll */
