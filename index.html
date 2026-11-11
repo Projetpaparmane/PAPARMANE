@@ -123,7 +123,12 @@
     .stage{position:relative;height:clamp(420px,62vh,660px);margin:clamp(2.5rem,5vw,4rem) calc(-1 * var(--pad)) 0;overflow:hidden}
     #drop{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:pan-y}
     .stage__hint{position:absolute;left:50%;top:26px;translate:-50% 0;width:max-content;max-width:calc(100% - 2rem);display:flex;flex-direction:column;align-items:center;gap:.4rem;text-align:center;font-size:clamp(.95rem,1.5vw,1.15rem);font-weight:600;color:var(--muted);pointer-events:none}
-    .stage__compte{min-height:1.4em;font-size:.88em;color:var(--text);font-variant-numeric:tabular-nums}
+    .stage__compte{min-height:1.4em;font-size:1.05em;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums}
+    .stage__joke{position:absolute;left:50%;top:clamp(110px,15vh,140px);z-index:2;width:max-content;max-width:min(760px,calc(100% - 2rem));translate:-50% 0;padding:.75em 1.15em;border-radius:22px;background:rgba(19,0,127,.92);border:3px solid var(--accent);box-shadow:0 14px 40px rgba(8,0,50,.45);font-family:var(--display);font-size:clamp(1.35rem,3.2vw,2.5rem);line-height:1.15;text-align:center;color:var(--text);pointer-events:none;opacity:0;transform:scale(.85) rotate(-2deg);transition:opacity .3s,transform .45s cubic-bezier(.3,1.5,.5,1)}
+    .stage__joke.on{opacity:1;transform:scale(1) rotate(-1deg)}
+    .stage__joke.palier{background:var(--accent);border-color:#fff}
+    .stage__joke small{display:block;margin-bottom:.3em;font-family:var(--body);font-size:.42em;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+    .stage__joke.palier small{color:#fff}
     .pluie{position:fixed;inset:0;width:100%;height:100%;z-index:60;pointer-events:none}
 
     /* Réalisations en grille */
@@ -215,6 +220,7 @@
       .statut__dot{animation:none}
       .avancement__fill{transition:none;animation:none}
       .avancement.secousse{animation:none}
+      .stage__joke,.stage__joke.on{transform:none;transition:opacity .3s}
     }
   </style>
 </head>
@@ -451,7 +457,8 @@
     </div>
     <div class="stage" id="stage">
       <canvas id="drop" role="img" aria-label="Services : branding, sites web, infolettres, SEO, GEO, Astro, hébergement, TI, développement d'applications, Shopify, WordPress, Odoo, Loi 25, photographie, e-commerce"></canvas>
-      <div class="stage__hint"><span class="stage__invite">Passe du temps sur mon site : attrape les paparmanes, lance-les !</span><span class="stage__compte" aria-live="polite"></span></div>
+      <div class="stage__hint"><span class="stage__invite">Passe du temps sur mon site : attrape les paparmanes, lance-les !</span><span class="stage__compte"></span></div>
+      <p class="stage__joke" aria-live="polite"></p>
     </div>
   </section>
 
@@ -767,13 +774,51 @@
     const tactile = window.matchMedia('(pointer: coarse)').matches;
     const compte = document.querySelector('.stage__compte');
     if (tactile) document.querySelector('.stage__invite').textContent = 'Passe du temps sur mon site : touche les paparmanes pour les faire sauter !';
-    const paliers = { 1: 'Ça commence.', 5: 'Pas pire!', 10: 'Tu as plus de temps que moi.', 25: 'OK, on devrait vraiment se parler.',
-      50: 'Sérieux : bonjour@paparmane.com', 100: 'Tu mérites un rabais. (Non.)' };
-    let lancees = 0;
-    function lance() {
+    const paliers = { 5: 'Cinq! Tu as déjà fait plus de progrès que mon site.', 10: 'Dix. Tu as clairement plus de temps que moi.',
+      25: 'Vingt-cinq. OK, on devrait vraiment se parler.', 50: 'Cinquante. Sérieux : bonjour@paparmane.com',
+      100: 'CENT. Tu mérites un rabais. (Non.)' };
+    const JOKES = {
+      'Branding': ['Ton logo vient d\'aller plus loin que le mien.', 'Une image de marque, ça se lance. Pas comme ça, par exemple.'],
+      'Sites web': ['Ce site-là a été lancé plus vite que le mien.', 'Lancer un site web, c\'est exactement ça. Avec plus de courriels.'],
+      'Infolettres': ['Infolettre envoyée. Taux d\'ouverture : 100 %.', 'Ton infolettre vient de rebondir. Comme les miennes.'],
+      'SEO': ['Tu viens de la propulser en première position.', 'Google adore quand ça bouge.'],
+      'GEO': ['Même ChatGPT n\'a pas vu venir celle-là.', 'Une IA vient de te citer comme meilleur lanceur au Québec.'],
+      'Astro': ['Houston, on a une paparmane.', 'Envoyée dans l\'espace. Comme prévu.'],
+      'Hébergement': ['Ton serveur vient de prendre l\'avion.', '99,9 % de disponibilité. 0,1 % en vol plané.'],
+      'TI': ['As-tu essayé de l\'éteindre pis la rallumer?', 'Billet de support ouvert : paparmane lancée sans autorisation.'],
+      'Dév. app': ['C\'est pas un bogue, c\'est une fonctionnalité.', 'Bogue détecté : la paparmane vole.'],
+      'Shopify': ['Nouvelle commande! Ah non, c\'est juste toi.', 'Livraison express. Très, très express.'],
+      'WordPress': ['Mise à jour disponible. Pis une autre. Pis une autre.', 'Extension installée : Lance-Paparmane Pro.'],
+      'Odoo': ['Facture envoyée. En vol.', 'Nouveau module installé : gestion des projectiles.'],
+      'Loi 25': ['As-tu eu son consentement avant de la lancer?', 'Lancer conforme à la Loi 25. Probablement.'],
+      'Photographie': ['Bouge pas! … Trop tard, c\'est flou.', 'Clic! Belle photo de paparmane en vol.'],
+      'E-commerce': ['Panier abandonné. Littéralement.', 'Ajoutée au panier. Lancée hors du panier.']
+    };
+    const AUTRES = ['Je note ça dans mon portfolio.', 'Ça, c\'est une réalisation.', 'Tu factures à l\'heure pour ça?',
+      'Si mon site avançait aussi vite…', 'Un client vient de te voir faire. Il veut la même chose.',
+      'Mon site est vide, mais toi, t\'es plein d\'énergie.', 'Ça compte comme du cardio.'];
+    const joke = document.querySelector('.stage__joke');
+    let lancees = 0, derniere = '', jokeT;
+    function montre(texte, petit, palier) {
+      joke.classList.remove('on');
+      joke.classList.toggle('palier', !!palier);
+      joke.innerHTML = '';
+      const s = document.createElement('small'); s.textContent = petit;
+      joke.append(s, document.createTextNode(texte));
+      void joke.offsetWidth;
+      joke.classList.add('on');
+      clearTimeout(jokeT);
+      jokeT = setTimeout(() => joke.classList.remove('on'), palier ? 4500 : 3200);
+    }
+    function lance(b) {
       lancees++;
-      const p = paliers[lancees];
-      compte.textContent = `${lancees} paparmane${lancees > 1 ? 's' : ''} lancée${lancees > 1 ? 's' : ''}` + (p ? ` · ${p}` : '');
+      compte.textContent = `${lancees} paparmane${lancees > 1 ? 's' : ''} lancée${lancees > 1 ? 's' : ''}`;
+      const label = b && b.coin ? b.coin.label : '';
+      if (paliers[lancees]) return montre(paliers[lancees], 'Bravo!', true);
+      const choix = (JOKES[label] || []).concat(Math.random() < .35 ? AUTRES : []);
+      const pool = (choix.length ? choix : AUTRES).filter(t => t !== derniere);
+      derniere = pool[Math.floor(Math.random() * pool.length)];
+      montre(derniere, label || 'Paparmane');
     }
 
     /* Sur cellulaire : une petite tape fait sauter la paparmane */
@@ -783,7 +828,7 @@
       if (!hit) return;
       Body.setVelocity(hit, { x: (Math.random() - .5) * 8, y: -15 });
       Body.setAngularVelocity(hit, (Math.random() - .5) * .35);
-      lance();
+      lance(hit);
     });
 
     /* Surprise : une pluie de paparmanes (clic sur le badge, ou taper « paparmane ») */
@@ -839,7 +884,7 @@
       } catch (e) {}
       cv.style.cursor = 'grab';
       Events.on(mc, 'startdrag', () => cv.style.cursor = 'grabbing');
-      Events.on(mc, 'enddrag', () => { cv.style.cursor = 'grab'; lance(); });
+      Events.on(mc, 'enddrag', e => { cv.style.cursor = 'grab'; lance(e.body); });
     }
 
     function addAll(stagger) {
