@@ -88,6 +88,37 @@
     .sec h2 .o{color:var(--accent)}
     .sec .lead{color:var(--muted);margin-top:1rem;max-width:48ch;font-size:clamp(1.05rem,1.6vw,1.25rem)}
 
+    /* Services */
+    .services{margin-top:clamp(3rem,6vw,4.5rem)}
+    .services__titre{font-family:var(--display);font-size:clamp(2.4rem,6vw,4.6rem);line-height:1}
+    .services__titre .o{color:var(--accent)}
+    .services__grille{list-style:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem;margin-top:clamp(1.8rem,3.5vw,2.6rem)}
+    .service{padding:1.35rem 1.4rem 1.5rem;border-radius:20px;background:rgba(255,255,255,.06);border:1px solid var(--line);transition:transform .4s cubic-bezier(.34,1.56,.64,1),background-color .25s,opacity .9s cubic-bezier(.16,1,.3,1),translate .9s cubic-bezier(.16,1,.3,1)}
+    .service:hover{transform:translateY(-6px) rotate(-1.2deg);background-color:rgba(255,255,255,.11)}
+    .service:nth-child(even):hover{transform:translateY(-6px) rotate(1.2deg)}
+    .service__n{font-size:.78rem;font-weight:700;letter-spacing:.1em;color:var(--accent)}
+    .service h3{font-family:var(--display);font-weight:400;font-size:clamp(1.35rem,2vw,1.6rem);line-height:1.1;margin:.45rem 0 .4rem}
+    .service p{color:var(--muted);font-size:.95rem;line-height:1.5}
+    .service--fin{background:var(--accent);border-color:var(--accent)}
+    .service--fin:hover{background-color:#ff4a4a}
+    .service--fin .service__n,.service--fin p{color:#fff}
+
+    /* « vide. » qui se vide */
+    .hero__title .o{cursor:pointer}
+    .v{display:inline-block}
+    .vider .v{animation:sevide 1.7s cubic-bezier(.45,0,.3,1) both;animation-delay:calc(var(--k) * 70ms)}
+    @keyframes sevide{0%{transform:none;opacity:1}38%{transform:translateY(.9em) rotate(var(--r));opacity:0}62%{transform:translateY(-.35em);opacity:0}100%{transform:none;opacity:1}}
+
+    /* Petites bulles en bas de l'écran */
+    .toasts{position:fixed;left:clamp(.75rem,2vw,1.5rem);bottom:clamp(.75rem,2vw,1.5rem);z-index:70;display:flex;flex-direction:column;gap:.75rem;max-width:min(380px,calc(100vw - 1.5rem));pointer-events:none}
+    .toast{pointer-events:auto;padding:1rem 1.15rem;border-radius:18px;background:#fff;color:#1a00a8;box-shadow:0 14px 40px rgba(8,0,50,.45);font-size:.95rem;line-height:1.45;transition:opacity .4s,transform .4s}
+    .toast.cache{opacity:0;transform:translateY(12px)}
+    .toast b{font-family:var(--display);font-weight:400;font-size:1.15rem;display:block;margin-bottom:.2rem}
+    .toast__btns{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.8rem}
+    .toast button{font:inherit;font-weight:700;font-size:.88rem;padding:.5rem .95rem;border-radius:100px;border:2px solid #1a00a8;background:none;color:#1a00a8;cursor:pointer}
+    .toast button.plein{background:var(--accent);border-color:var(--accent);color:#fff}
+    .chrono b{font-variant-numeric:tabular-nums;color:var(--text)}
+
     /* Paparmanes qui tombent — pleine largeur */
     .stage{position:relative;height:clamp(420px,62vh,660px);margin:clamp(2.5rem,5vw,4rem) calc(-1 * var(--pad)) 0;overflow:hidden}
     #drop{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:pan-y}
@@ -132,6 +163,8 @@
     @media (prefers-reduced-motion:reduce){
       .reveal{opacity:1;translate:none}
       .ecrit .wc{opacity:1;animation:none!important}
+      .vider .v{animation:none}
+      .service:hover{transform:none}
       .badge svg{animation:none}
       .statut__dot{animation:none}
       .avancement__fill{transition:none;animation:none}
@@ -168,6 +201,25 @@
     <p class="eyebrow reveal">Ce que je fais</p>
     <h2 class="reveal">Pas de portfolio tape-à-l'œil ici<span class="o">.</span></h2>
     <p class="lead ecrit">Juste des clients contents et des sites qui roulent.</p>
+    <div class="services">
+      <p class="services__titre reveal">Je fais tout. <span class="o">Oui, tout.</span></p>
+      <ul class="services__grille">
+        <li class="service reveal"><span class="service__n">01</span><h3>Branding</h3><p>Logo, couleurs, typo : une identité qui te ressemble.</p></li>
+        <li class="service reveal"><span class="service__n">02</span><h3>Sites web</h3><p>Des sites beaux, rapides et faciles à mettre à jour.</p></li>
+        <li class="service reveal"><span class="service__n">03</span><h3>WordPress</h3><p>Sur mesure, et tu peux le modifier toi-même.</p></li>
+        <li class="service reveal"><span class="service__n">04</span><h3>Shopify</h3><p>Des boutiques prêtes à vendre dès le lancement.</p></li>
+        <li class="service reveal"><span class="service__n">05</span><h3>E-commerce</h3><p>Produits, paiements, livraison : tout pour vendre en ligne.</p></li>
+        <li class="service reveal"><span class="service__n">06</span><h3>Astro</h3><p>Des sites ultra-rapides, construits à la main.</p></li>
+        <li class="service reveal"><span class="service__n">07</span><h3>Infolettres</h3><p>Des infolettres qui se font ouvrir. Et lire.</p></li>
+        <li class="service reveal"><span class="service__n">08</span><h3>SEO</h3><p>Être trouvé sur Google. Pour vrai.</p></li>
+        <li class="service reveal"><span class="service__n">09</span><h3>GEO</h3><p>Être recommandé par ChatGPT, Gemini et les autres IA.</p></li>
+        <li class="service reveal"><span class="service__n">10</span><h3>Hébergement</h3><p>Ton site en ligne, sécurisé et surveillé.</p></li>
+        <li class="service reveal"><span class="service__n">11</span><h3>TI</h3><p>Courriels, domaines, DNS : je démêle tout ça.</p></li>
+        <li class="service reveal"><span class="service__n">12</span><h3>Dév. d'applications</h3><p>Applis web et mobiles, de l'idée au lancement.</p></li>
+        <li class="service reveal"><span class="service__n">13</span><h3>Photographie</h3><p>Produits, équipes, lieux : des photos qui vendent.</p></li>
+        <li class="service service--fin reveal"><span class="service__n">14</span><h3>Le reste</h3><p>Un projet bizarre? Probablement oui. Écris-moi.</p></li>
+      </ul>
+    </div>
   </section>
 
   <section class="sec">
@@ -195,6 +247,10 @@
     <div class="group">
       <h3 class="group__title">Sites WordPress <span class="group__count">21</span></h3>
       <div class="list">
+        <a class="item reveal" href="https://pacini.com" target="_blank" rel="noopener noreferrer">
+          <span class="item__name">Pacini<span class="item__note">+ le réseau de restaurants Pacini (ex. granby.pacini.com)</span></span>
+          <span class="item__right"><span class="item__url">pacini.com</span><span class="item__dot" aria-hidden="true"></span></span>
+        </a>
         <a class="item reveal" href="https://jecoursdmv.ca" target="_blank" rel="noopener noreferrer">
           <span class="item__name">Je Cours DMV</span>
           <span class="item__right"><span class="item__url">jecoursdmv.ca</span><span class="item__dot" aria-hidden="true"></span></span>
@@ -206,10 +262,6 @@
         <a class="item reveal" href="https://metiersdavenir.ca" target="_blank" rel="noopener noreferrer">
           <span class="item__name">Métiers d'avenir<span class="item__note">L'industrie manufacturière autrement</span></span>
           <span class="item__right"><span class="item__url">metiersdavenir.ca</span><span class="item__dot" aria-hidden="true"></span></span>
-        </a>
-        <a class="item reveal" href="https://pacini.com" target="_blank" rel="noopener noreferrer">
-          <span class="item__name">Pacini<span class="item__note">+ le réseau de restaurants Pacini (ex. granby.pacini.com)</span></span>
-          <span class="item__right"><span class="item__url">pacini.com</span><span class="item__dot" aria-hidden="true"></span></span>
         </a>
         <a class="item reveal" href="https://taxicentral.ca" target="_blank" rel="noopener noreferrer">
           <span class="item__name">Taxi Central<span class="item__note">Site web &amp; photographie</span></span>
@@ -293,14 +345,68 @@
   </section>
 
   <footer class="foot">
-    <span>© 2026 Paparmane — Studio créatif</span>
+    <span>© 2013–2026 Paparmane — Studio créatif</span>
+    <span class="chrono" aria-live="off">Tu es ici depuis <b class="chrono__t">0:00</b>. Déjà plus longtemps que moi sur mon propre site.</span>
     <span>Ce site a été fait vite. Assumé. Dernière mise à jour : entre deux clients.</span>
   </footer>
+
+  <div class="toasts" aria-live="polite"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   <script>
   (function () {
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    let pluieFn = () => {};   // remplacée plus bas par la vraie pluie de paparmanes
+    const garde = (k, v) => { try { return v === undefined ? localStorage.getItem(k) : localStorage.setItem(k, v); } catch (e) { return null; } };
+
+    /* Petites bulles en bas de l'écran */
+    const toasts = document.querySelector('.toasts');
+    function toast(html, btns, duree) {
+      const t = document.createElement('div'); t.className = 'toast cache'; t.innerHTML = html;
+      const ferme = () => { t.classList.add('cache'); setTimeout(() => t.remove(), 450); };
+      if (btns) {
+        const z = document.createElement('div'); z.className = 'toast__btns';
+        btns.forEach(([txt, plein, fn]) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = txt; if (plein) b.className = 'plein'; b.onclick = () => fn(ferme, t); z.appendChild(b); });
+        t.appendChild(z);
+      }
+      toasts.appendChild(t); requestAnimationFrame(() => requestAnimationFrame(() => t.classList.remove('cache')));
+      if (duree) setTimeout(ferme, duree);
+      return t;
+    }
+
+    /* La fausse bannière de témoins */
+    if (!garde('pp-biscuits')) setTimeout(() => toast(
+      '<b>🍪 Ce site n\'utilise pas de témoins.</b>Juste des paparmanes. Et un peu de café.',
+      [['Prendre une paparmane', true, ferme => { garde('pp-biscuits', 'oui'); ferme(); pluieFn(); }],
+       ['Non merci', false, (ferme, t) => { garde('pp-biscuits', 'non'); t.querySelector('.toast__btns').remove(); t.insertAdjacentHTML('beforeend', '<p style="margin-top:.5rem;font-weight:700">Tant pis. Plus pour moi.</p>'); setTimeout(ferme, 2200); }]]
+    ), 4500);
+
+    /* Toujours là? (après 45 s sans bouger) */
+    let inactif, dejaDit = false;
+    const reveille = () => {
+      clearTimeout(inactif);
+      if (!dejaDit) inactif = setTimeout(() => { dejaDit = true; toast('<b>Toujours là?</b>Moi, je suis repartie travailler sur le site d\'un client.', null, 7000); }, 45000);
+    };
+    ['mousemove', 'keydown', 'scroll', 'touchstart'].forEach(ev => addEventListener(ev, reveille, { passive: true }));
+    reveille();
+
+    /* Chrono dans le bas de page */
+    const chrono = document.querySelector('.chrono__t');
+    if (chrono) { const t0 = Date.now(); setInterval(() => { const s = Math.floor((Date.now() - t0) / 1000); chrono.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }, 1000); }
+
+    /* « vide. » qui se vide (au survol, au toucher, et une fois au début) */
+    const vide = document.querySelector('.hero__title .o');
+    if (vide) {
+      vide.innerHTML = [...vide.textContent].map((c, k) => `<span class="v" style="--k:${k};--r:${(k % 2 ? 1 : -1) * (12 + k * 7)}deg">${c}</span>`).join('');
+      let occupe = false;
+      const vider = () => { if (occupe || reduce) return; occupe = true; vide.classList.add('vider'); setTimeout(() => { vide.classList.remove('vider'); occupe = false; }, 2100); };
+      vide.addEventListener('mouseenter', vider); vide.addEventListener('click', vider);
+      setTimeout(vider, 3200);
+    }
+
+    /* Un clic sur mon courriel = petite pluie de paparmanes */
+    document.querySelectorAll('a[href^="mailto:"]').forEach(a => a.addEventListener('click', () => pluieFn()));
 
     /* L'onglet qui s'ennuie */
     const titre = document.title;
@@ -564,6 +670,7 @@
         if (reste) requestAnimationFrame(frame); else { pc.remove(); pluieEnCours = false; }
       })();
     }
+    pluieFn = pluie;
     const badge = document.querySelector('.badge');
     if (badge) {
       badge.addEventListener('click', pluie);
