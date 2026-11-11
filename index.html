@@ -177,6 +177,14 @@
 
     .foot{display:flex;flex-wrap:wrap;gap:.6rem 1.5rem;justify-content:space-between;padding:2.5rem var(--pad);color:var(--muted);font-size:.85rem;border-top:1px solid var(--line)}
 
+    @media (min-width:1000px){
+      .hero{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(330px,.85fr);grid-template-areas:"statut ." "titre avance" "sub avance";column-gap:clamp(2.5rem,5vw,6rem);align-items:start}
+      .statut{grid-area:statut;justify-self:start}
+      .hero__title{grid-area:titre;font-size:clamp(3.6rem,6.4vw,7.6rem);max-width:none}
+      .hero__sub{grid-area:sub}
+      .avancement{grid-area:avance;align-self:end;margin-top:clamp(3.5rem,6vw,5rem);max-width:none}
+      .badge{width:clamp(120px,11vw,170px)}
+    }
     @media (max-width:560px){
       .grille{grid-template-columns:1fr 1fr;gap:.6rem}
       .projet a{padding:.85rem .9rem .95rem}
@@ -224,7 +232,7 @@
     <div class="avancement">
       <div class="avancement__top"><span class="avancement__label">Avancement de mon propre site</span><span class="avancement__pct">3 %</span></div>
       <div class="avancement__barre" role="progressbar" aria-label="Avancement de mon propre site" aria-valuemin="0" aria-valuemax="100" aria-valuenow="3"><span class="avancement__fill"></span></div>
-      <div class="avancement__bas"><p class="avancement__msg fade" aria-live="polite">&nbsp;</p><span class="avancement__note">Fin prévue : quand j'aurai deux minutes.</span></div>
+      <div class="avancement__bas"><span class="avancement__note">Fin prévue : quand j'aurai deux minutes.</span><p class="avancement__msg fade" aria-live="polite">&nbsp;</p></div>
     </div>
   </section>
 
@@ -481,13 +489,13 @@
       '<b>🍪 Ce site n\'utilise pas de témoins.</b>Juste des paparmanes. Et un peu de café.',
       [['Prendre une paparmane', true, ferme => { garde('pp-biscuits', 'oui'); ferme(); pluieFn(); }],
        ['Non merci', false, (ferme, t) => { garde('pp-biscuits', 'non'); t.querySelector('.toast__btns').remove(); t.insertAdjacentHTML('beforeend', '<p style="margin-top:.5rem;font-weight:700">Tant pis. Plus pour moi.</p>'); setTimeout(ferme, 2200); }]]
-    ), 4500);
+    ), 2500);
 
     /* Toujours là? (après 45 s sans bouger) */
     let inactif, dejaDit = false;
     const reveille = () => {
       clearTimeout(inactif);
-      if (!dejaDit) inactif = setTimeout(() => { dejaDit = true; toast('<b>Toujours là?</b>Moi, je suis repartie travailler sur le site d\'un client.', null, 7000); }, 45000);
+      if (!dejaDit) inactif = setTimeout(() => { dejaDit = true; toast('<b>Toujours là?</b>Moi, je suis repartie travailler sur le site d\'un client.', null, 7000); }, 25000);
     };
     ['mousemove', 'keydown', 'scroll', 'touchstart'].forEach(ev => addEventListener(ev, reveille, { passive: true }));
     reveille();
@@ -503,7 +511,7 @@
       let occupe = false;
       const vider = () => { if (occupe || reduce) return; occupe = true; vide.classList.add('vider'); setTimeout(() => { vide.classList.remove('vider'); occupe = false; }, 2100); };
       vide.addEventListener('mouseenter', vider); vide.addEventListener('click', vider);
-      setTimeout(vider, 3200);
+      setTimeout(vider, 1800);
     }
 
     /* Un clic sur mon courriel = petite pluie de paparmanes */
@@ -544,7 +552,7 @@
         if (reduce) { statut.textContent = phrases[k]; return; }
         statut.classList.add('fade');
         setTimeout(() => { statut.textContent = phrases[k]; statut.classList.remove('fade'); }, 450);
-      }, 11000);
+      }, 5500);
     }
 
     /* Avancement de mon propre site : ça monte… puis un client appelle */
@@ -572,10 +580,10 @@
             pose(2 + Math.floor(Math.random() * 3));
             boite.classList.remove('secousse'); void boite.offsetWidth; boite.classList.add('secousse');
             nouvelleCible();
-            setTimeout(() => msg.classList.add('fade'), 6500);
-          }, 1400);
+            setTimeout(() => msg.classList.add('fade'), 4200);
+          }, 700);
         }
-      }, 1000);
+      }, 280);
     }
 
 
