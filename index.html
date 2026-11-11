@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Paparmane — Studio créatif</title>
-  <meta name="description" content="Paparmane — studio créatif web. Branding, sites web, infolettres, SEO & GEO, Astro, hébergement, TI, dév. app. Mon site est vide : je suis trop occupée sur vos projets." />
+  <meta name="description" content="Paparmane — studio créatif web. Branding, sites WordPress, Shopify et Odoo, applications web, infolettres, SEO & GEO, Loi 25, hébergement, TI. Mon site est vide : je suis trop occupée sur vos projets." />
   <link rel="icon" type="image/svg+xml" href="assets/imgs/favicon-dot.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -208,16 +208,19 @@
         <li class="service reveal"><span class="service__n">02</span><h3>Sites web</h3><p>Des sites beaux, rapides et faciles à mettre à jour.</p></li>
         <li class="service reveal"><span class="service__n">03</span><h3>WordPress</h3><p>Sur mesure, et tu peux le modifier toi-même.</p></li>
         <li class="service reveal"><span class="service__n">04</span><h3>Shopify</h3><p>Des boutiques prêtes à vendre dès le lancement.</p></li>
-        <li class="service reveal"><span class="service__n">05</span><h3>E-commerce</h3><p>Produits, paiements, livraison : tout pour vendre en ligne.</p></li>
-        <li class="service reveal"><span class="service__n">06</span><h3>Astro</h3><p>Des sites ultra-rapides, construits à la main.</p></li>
-        <li class="service reveal"><span class="service__n">07</span><h3>Infolettres</h3><p>Des infolettres qui se font ouvrir. Et lire.</p></li>
-        <li class="service reveal"><span class="service__n">08</span><h3>SEO</h3><p>Être trouvé sur Google. Pour vrai.</p></li>
-        <li class="service reveal"><span class="service__n">09</span><h3>GEO</h3><p>Être recommandé par ChatGPT, Gemini et les autres IA.</p></li>
-        <li class="service reveal"><span class="service__n">10</span><h3>Hébergement</h3><p>Ton site en ligne, sécurisé et surveillé.</p></li>
-        <li class="service reveal"><span class="service__n">11</span><h3>TI</h3><p>Courriels, domaines, DNS : je démêle tout ça.</p></li>
-        <li class="service reveal"><span class="service__n">12</span><h3>Dév. d'applications</h3><p>Applis web et mobiles, de l'idée au lancement.</p></li>
-        <li class="service reveal"><span class="service__n">13</span><h3>Photographie</h3><p>Produits, équipes, lieux : des photos qui vendent.</p></li>
-        <li class="service service--fin reveal"><span class="service__n">14</span><h3>Le reste</h3><p>Un projet bizarre? Probablement oui. Écris-moi.</p></li>
+        <li class="service reveal"><span class="service__n">05</span><h3>Odoo</h3><p>Sites et boutiques Odoo, ajustés à ton entreprise.</p></li>
+        <li class="service reveal"><span class="service__n">06</span><h3>E-commerce</h3><p>Produits, paiements, livraison : tout pour vendre en ligne.</p></li>
+        <li class="service reveal"><span class="service__n">07</span><h3>Sites sur mesure</h3><p>Astro, Next.js, React : du code fait à la main quand WordPress ne suffit plus.</p></li>
+        <li class="service reveal"><span class="service__n">08</span><h3>Applications web</h3><p>Inscriptions, paiements Stripe, comptes clients : des applis qui roulent pour vrai.</p></li>
+        <li class="service reveal"><span class="service__n">09</span><h3>Outils sur mesure</h3><p>Un audit SEO, un convertisseur d'images… si ça n'existe pas, je le bâtis.</p></li>
+        <li class="service reveal"><span class="service__n">10</span><h3>Infolettres</h3><p>Des infolettres qui se font ouvrir. Et lire.</p></li>
+        <li class="service reveal"><span class="service__n">11</span><h3>SEO</h3><p>Être trouvé sur Google. Pour vrai.</p></li>
+        <li class="service reveal"><span class="service__n">12</span><h3>GEO</h3><p>Être recommandé par ChatGPT, Gemini et les autres IA.</p></li>
+        <li class="service reveal"><span class="service__n">13</span><h3>Loi 25</h3><p>Bannière de consentement et conformité de ton site.</p></li>
+        <li class="service reveal"><span class="service__n">14</span><h3>Hébergement</h3><p>Ton site en ligne, sécurisé et surveillé.</p></li>
+        <li class="service reveal"><span class="service__n">15</span><h3>TI</h3><p>Courriels, domaines, DNS : je démêle tout ça.</p></li>
+        <li class="service reveal"><span class="service__n">16</span><h3>Photographie</h3><p>Produits, équipes, lieux : des photos qui vendent.</p></li>
+        <li class="service service--fin reveal"><span class="service__n">17</span><h3>Le reste</h3><p>Un projet bizarre? Probablement oui. Écris-moi.</p></li>
       </ul>
     </div>
   </section>
@@ -334,7 +337,7 @@
       </div>
     </div>
     <div class="stage" id="stage">
-      <canvas id="drop" role="img" aria-label="Services : Branding, sites web, infolettres, SEO, GEO, Astro, hébergement, TI, dév. app, Shopify, WordPress, photographie, e-commerce"></canvas>
+      <canvas id="drop" role="img" aria-label="Services : branding, sites web, infolettres, SEO, GEO, Astro, hébergement, TI, développement d'applications, Shopify, WordPress, Odoo, Loi 25, photographie, e-commerce"></canvas>
       <div class="stage__hint"><span class="stage__invite">Passe du temps sur mon site : attrape les paparmanes, lance-les !</span><span class="stage__compte" aria-live="polite"></span></div>
     </div>
   </section>
@@ -523,7 +526,7 @@
     if (typeof Matter === 'undefined') return;
     const { Engine, Runner, World, Bodies, Body, Mouse, MouseConstraint, Events, Query } = Matter;
 
-    const LABELS = ["Branding","Sites web","Infolettres","SEO","GEO","Astro","Hébergement","TI","Dév. app","Shopify","WordPress","Photographie","E-commerce"];
+    const LABELS = ["Branding","Sites web","Infolettres","SEO","GEO","Astro","Hébergement","TI","Dév. app","Shopify","WordPress","Odoo","Loi 25","Photographie","E-commerce"];
     const TILT = 0.55;      // rapport hauteur/largeur de la face vue en perspective
     const DEPTH = 0.32;     // épaisseur de la tranche (fraction du rayon)
 
