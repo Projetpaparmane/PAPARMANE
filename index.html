@@ -178,11 +178,18 @@
     .foot{display:flex;flex-wrap:wrap;gap:.6rem 1.5rem;justify-content:space-between;padding:2.5rem var(--pad);color:var(--muted);font-size:.85rem;border-top:1px solid var(--line)}
 
     @media (min-width:1000px){
-      .hero{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(330px,.85fr);grid-template-areas:"statut ." "titre avance" "sub avance";column-gap:clamp(2.5rem,5vw,6rem);align-items:start}
+      .hero{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(290px,.7fr);grid-template-areas:"statut ." "titre avance" "sub avance";column-gap:clamp(2.5rem,5vw,6rem);align-items:start}
       .statut{grid-area:statut;justify-self:start}
       .hero__title{grid-area:titre;font-size:clamp(3.6rem,6.4vw,7.6rem);max-width:none}
       .hero__sub{grid-area:sub}
-      .avancement{grid-area:avance;align-self:end;margin-top:clamp(3.5rem,6vw,5rem);max-width:none}
+      .avancement{grid-area:avance;align-self:end;justify-self:end;width:100%;max-width:400px;margin-top:clamp(3.5rem,6vw,5rem);padding:1.1rem 1.3rem;border-radius:18px}
+      .avancement__top{margin-bottom:.7rem}
+      .avancement__label{font-size:1.15rem}
+      .avancement__pct{font-size:2.4rem}
+      .avancement__barre{height:18px}
+      .avancement__bas{margin-top:.8rem;min-height:2.2rem}
+      .avancement__msg{font-size:.9rem;padding:.35rem .85rem}
+      .avancement__note{font-size:.8rem}
       .badge{width:clamp(120px,11vw,170px)}
     }
     @media (max-width:560px){
