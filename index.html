@@ -40,13 +40,33 @@
     .hero{position:relative;overflow-x:clip;background:var(--bg2);padding:clamp(4rem,9vw,8rem) var(--pad) var(--space)}
     .hero__title{font-size:clamp(3.4rem,11vw,11.5rem);line-height:.95;max-width:11ch}
     .hero__title .o{color:var(--accent)}
-    .badge{position:absolute;right:var(--pad);top:clamp(3rem,7vw,6rem);width:clamp(130px,16vw,220px);aspect-ratio:1;pointer-events:none}
+    .badge{position:absolute;right:var(--pad);top:clamp(3rem,7vw,6rem);width:clamp(130px,16vw,220px);aspect-ratio:1;cursor:pointer;border-radius:50%;-webkit-tap-highlight-color:transparent}
+    .badge:focus-visible{outline:3px solid var(--accent);outline-offset:4px}
+    .badge:hover .badge__p{transform:scale(1.12) rotate(-6deg)}
+    .badge__p{transition:transform .35s cubic-bezier(.34,1.56,.64,1)}
     .badge svg{width:100%;height:100%;animation:spin 22s linear infinite}
     .badge text{fill:var(--text);font-family:var(--body);font-weight:700;font-size:15px;letter-spacing:1.5px}
     .badge__p{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:clamp(2.2rem,3.6vw,3.6rem);color:var(--accent)}
     @keyframes spin{to{transform:rotate(360deg)}}
     .hero__sub{max-width:38ch;margin-top:clamp(2rem,4vw,3rem);font-size:clamp(1.15rem,1.9vw,1.55rem);line-height:1.5;color:var(--muted)}
     .hero__sub b,.hero__sub em{color:var(--text);font-weight:700;font-style:normal}
+
+    /* Statut en direct */
+    .statut{display:inline-flex;align-items:center;gap:.55rem;max-width:100%;margin-bottom:clamp(1.4rem,3vw,2.2rem);padding:.5rem 1.05rem;border-radius:100px;background:rgba(255,255,255,.07);border:1px solid var(--line);font-size:.92rem;line-height:1.35;color:var(--muted)}
+    .statut__dot{flex:none;width:9px;height:9px;border-radius:50%;background:#3ddc84;animation:pouls 2.6s ease-out infinite}
+    @keyframes pouls{0%{box-shadow:0 0 0 0 rgba(61,220,132,.55)}70%,100%{box-shadow:0 0 0 9px rgba(61,220,132,0)}}
+    .statut__label{color:var(--text);font-weight:600;white-space:nowrap}
+    .statut__txt{transition:opacity .45s}
+    .statut__txt.fade{opacity:0}
+
+    /* Avancement de mon propre site */
+    .avancement{max-width:440px;margin-top:clamp(2.2rem,4vw,3rem)}
+    .avancement__top{display:flex;justify-content:space-between;gap:1rem;font-size:.85rem;font-weight:600;color:var(--muted);margin-bottom:.55rem}
+    .avancement__pct{color:var(--text);font-variant-numeric:tabular-nums}
+    .avancement__barre{height:12px;border-radius:100px;background:rgba(255,255,255,.12);overflow:hidden}
+    .avancement__fill{display:block;height:100%;width:3%;border-radius:inherit;background:var(--accent);transition:width 1.1s cubic-bezier(.4,0,.2,1)}
+    .avancement__msg{min-height:1.5em;margin-top:.6rem;font-size:.9rem;font-weight:600;color:var(--text);transition:opacity .4s}
+    .avancement__msg.fade{opacity:0}
 
     /* Texte qui s'écrit tout seul */
     .wd{display:inline-block;white-space:nowrap}
@@ -65,7 +85,9 @@
     /* Paparmanes qui tombent — pleine largeur */
     .stage{position:relative;height:clamp(420px,62vh,660px);margin:clamp(2.5rem,5vw,4rem) calc(-1 * var(--pad)) 0;overflow:hidden}
     #drop{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:pan-y}
-    .stage__hint{position:absolute;left:50%;top:26px;translate:-50% 0;max-width:calc(100% - 2rem);text-align:center;font-size:clamp(.95rem,1.5vw,1.15rem);font-weight:600;color:var(--muted);pointer-events:none}
+    .stage__hint{position:absolute;left:50%;top:26px;translate:-50% 0;width:max-content;max-width:calc(100% - 2rem);display:flex;flex-direction:column;align-items:center;gap:.4rem;text-align:center;font-size:clamp(.95rem,1.5vw,1.15rem);font-weight:600;color:var(--muted);pointer-events:none}
+    .stage__compte{min-height:1.4em;font-size:.88em;color:var(--text);font-variant-numeric:tabular-nums}
+    .pluie{position:fixed;inset:0;width:100%;height:100%;z-index:60;pointer-events:none}
 
     /* Liste clients */
     .macron{position:relative}
@@ -105,6 +127,8 @@
       .reveal{opacity:1;translate:none}
       .ecrit .wc{opacity:1;animation:none!important}
       .badge svg{animation:none}
+      .statut__dot{animation:none}
+      .avancement__fill{transition:none}
     }
   </style>
 </head>
@@ -116,15 +140,21 @@
   </header>
 
   <section class="hero">
-    <div class="badge" aria-hidden="true">
+    <div class="badge" role="button" tabindex="0" aria-label="Surprise : fais pleuvoir des paparmanes" title="Ne clique pas ici.">
       <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
         <defs><path id="ring" d="M100,100 m-78,0 a78,78 0 1,1 156,0 a78,78 0 1,1 -156,0"/></defs>
         <text><textPath href="#ring" startOffset="0">PAPARMANE • STUDIO CRÉATIF • DÉJÀ DEPUIS 2013 •</textPath></text>
       </svg>
       <span class="badge__p">P.</span>
     </div>
+    <p class="statut"><span class="statut__dot" aria-hidden="true"></span><span class="statut__label">En ce moment :</span> <span class="statut__txt" aria-live="polite">en train de finir le site d'un client</span></p>
     <h1 class="hero__title">Désolée, mon site est <span class="o">vide.</span></h1>
     <p class="hero__sub ecrit"><b>Je suis trop occupée sur vos projets.</b> Branding, sites web, infolettres, SEO &amp; GEO, etc. — <em>J'ai toujours du temps pour les autres.</em></p>
+    <div class="avancement">
+      <div class="avancement__top"><span>Avancement de mon propre site</span><span class="avancement__pct">3 %</span></div>
+      <div class="avancement__barre" role="progressbar" aria-label="Avancement de mon propre site" aria-valuemin="0" aria-valuemax="100" aria-valuenow="3"><span class="avancement__fill"></span></div>
+      <p class="avancement__msg" aria-live="polite">&nbsp;</p>
+    </div>
   </section>
 
   <section class="sec">
@@ -246,7 +276,7 @@
     </div>
     <div class="stage" id="stage">
       <canvas id="drop" role="img" aria-label="Services : Branding, sites web, infolettres, SEO, GEO, Astro, hébergement, TI, dév. app, Shopify, WordPress, photographie, e-commerce"></canvas>
-      <span class="stage__hint">Passe du temps sur mon site : attrape les paparmanes, lance-les !</span>
+      <div class="stage__hint"><span class="stage__invite">Passe du temps sur mon site : attrape les paparmanes, lance-les !</span><span class="stage__compte" aria-live="polite"></span></div>
     </div>
   </section>
 
@@ -257,13 +287,80 @@
 
   <footer class="foot">
     <span>© 2026 Paparmane — Studio créatif</span>
-    <span>Ce site a été fait vite. Assumé.</span>
+    <span>Ce site a été fait vite. Assumé. Dernière mise à jour : entre deux clients.</span>
   </footer>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   <script>
   (function () {
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    /* L'onglet qui s'ennuie */
+    const titre = document.title;
+    document.addEventListener('visibilitychange', () => {
+      document.title = document.hidden ? 'Reviens! J\'ai des paparmanes.' : titre;
+    });
+
+    /* Pour les curieux qui ouvrent la console */
+    try {
+      console.log('%cTu fouilles dans mon code?', 'font:700 18px Inter,sans-serif;color:#ff3535');
+      console.log('%cOn devrait travailler ensemble : bonjour@paparmane.com', 'font:500 13px Inter,sans-serif');
+    } catch (e) {}
+
+    /* Statut en direct */
+    const statut = document.querySelector('.statut__txt');
+    if (statut) {
+      const h = new Date().getHours(), jour = new Date().getDay();
+      const premiers = h >= 22 || h < 6 ? 'devrait dormir, mais travaille sur le site d\'un client'
+        : (jour === 0 || jour === 6) ? 'c\'est la fin de semaine… et pourtant, je travaille'
+        : h < 10 ? 'premier café, premier courriel urgent ☕'
+        : 'en train de finir le site d\'un client';
+      const phrases = [premiers,
+        'au 3e café de la journée ☕',
+        'en appel avec un client (encore)',
+        'en train d\'optimiser le SEO de quelqu\'un d\'autre',
+        'en train de dire « oui, c\'est faisable »',
+        'en train de chercher la bonne nuance de rouge',
+        'sur « juste un petit changement » d\'un client',
+        'en train de mettre en ligne un site (pas le mien)'];
+      let k = 0;
+      statut.textContent = phrases[0];
+      setInterval(() => {
+        k = (k + 1) % phrases.length;
+        if (reduce) { statut.textContent = phrases[k]; return; }
+        statut.classList.add('fade');
+        setTimeout(() => { statut.textContent = phrases[k]; statut.classList.remove('fade'); }, 450);
+      }, 11000);
+    }
+
+    /* Avancement de mon propre site : ça monte… puis un client appelle */
+    const fill = document.querySelector('.avancement__fill');
+    if (fill) {
+      const pctEl = document.querySelector('.avancement__pct');
+      const barre = document.querySelector('.avancement__barre');
+      const msg = document.querySelector('.avancement__msg');
+      const oups = ['Oups : un client a appelé.', 'Oups : urgence WordPress chez un client.',
+        'Oups : « juste un petit changement » à faire.', 'Oups : pause café obligatoire.',
+        'Oups : un client veut son site pour hier.', 'Oups : j\'ai encore dit oui à un projet.'];
+      let pct = 3, cible = 0, o = 0;
+      const pose = v => { pct = v; fill.style.width = v + '%'; pctEl.textContent = v + ' %'; barre.setAttribute('aria-valuenow', v); };
+      const nouvelleCible = () => { cible = 14 + Math.floor(Math.random() * 15); };
+      nouvelleCible(); pose(3);
+      if (reduce) { pose(12); msg.textContent = oups[0]; }
+      else setInterval(() => {
+        if (document.hidden) return;
+        if (pct < cible) {
+          pose(pct + 1);
+          if (pct === cible) setTimeout(() => {
+            msg.classList.add('fade');
+            setTimeout(() => { msg.textContent = oups[o++ % oups.length]; msg.classList.remove('fade'); }, 400);
+            pose(2 + Math.floor(Math.random() * 3));
+            nouvelleCible();
+            setTimeout(() => msg.classList.add('fade'), 5200);
+          }, 1400);
+        }
+      }, 1300);
+    }
 
 
 
@@ -309,7 +406,7 @@
     const cv = document.getElementById('drop');
     const ctx = cv.getContext('2d');
     if (typeof Matter === 'undefined') return;
-    const { Engine, Runner, World, Bodies, Body, Mouse, MouseConstraint, Events } = Matter;
+    const { Engine, Runner, World, Bodies, Body, Mouse, MouseConstraint, Events, Query } = Matter;
 
     const LABELS = ["Branding","Sites web","Infolettres","SEO","GEO","Astro","Hébergement","TI","Dév. app","Shopify","WordPress","Photographie","E-commerce"];
     const TILT = 0.55;      // rapport hauteur/largeur de la face vue en perspective
@@ -409,6 +506,67 @@
       for (const b of coins) drawCoin(b);
     }
 
+    /* Compteur de paparmanes lancées */
+    const tactile = window.matchMedia('(pointer: coarse)').matches;
+    const compte = document.querySelector('.stage__compte');
+    if (tactile) document.querySelector('.stage__invite').textContent = 'Passe du temps sur mon site : touche les paparmanes pour les faire sauter !';
+    const paliers = { 1: 'Ça commence.', 5: 'Pas pire!', 10: 'Tu as plus de temps que moi.', 25: 'OK, on devrait vraiment se parler.',
+      50: 'Sérieux : bonjour@paparmane.com', 100: 'Tu mérites un rabais. (Non.)' };
+    let lancees = 0;
+    function lance() {
+      lancees++;
+      const p = paliers[lancees];
+      compte.textContent = `${lancees} paparmane${lancees > 1 ? 's' : ''} lancée${lancees > 1 ? 's' : ''}` + (p ? ` · ${p}` : '');
+    }
+
+    /* Sur cellulaire : une petite tape fait sauter la paparmane */
+    if (tactile && !reduce) cv.addEventListener('click', e => {
+      const r = cv.getBoundingClientRect();
+      const hit = Query.point(coins, { x: e.clientX - r.left, y: e.clientY - r.top })[0];
+      if (!hit) return;
+      Body.setVelocity(hit, { x: (Math.random() - .5) * 8, y: -15 });
+      Body.setAngularVelocity(hit, (Math.random() - .5) * .35);
+      lance();
+    });
+
+    /* Surprise : une pluie de paparmanes (clic sur le badge, ou taper « paparmane ») */
+    let pluieEnCours = false;
+    function pluie() {
+      if (reduce || pluieEnCours) return;
+      pluieEnCours = true;
+      const pc = document.createElement('canvas'); pc.className = 'pluie'; pc.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(pc);
+      const pr = Math.min(window.devicePixelRatio || 1, 2), PW = innerWidth, PH = innerHeight;
+      pc.width = PW * pr; pc.height = PH * pr;
+      const c = pc.getContext('2d');
+      const gouttes = Array.from({ length: Math.round(Math.min(46, PW / 22)) }, (_, i) => {
+        const rx = 22 + Math.random() * 26;
+        return { position: { x: Math.random() * PW, y: -60 - Math.random() * PH * .9 }, angle: (Math.random() - .5) * 1.4,
+          vy: 2.2 + Math.random() * 2.2, va: (Math.random() - .5) * .02,
+          coin: { label: LABELS[i % LABELS.length], rx, ry: rx * TILT, depth: rx * DEPTH } };
+      });
+      (function frame() {
+        c.setTransform(pr, 0, 0, pr, 0, 0); c.clearRect(0, 0, PW, PH);
+        let reste = 0;
+        for (const g of gouttes) {
+          g.position.y += g.vy; g.angle += g.va;
+          if (g.position.y < PH + 80) { reste++; drawCoin(g, c); }
+        }
+        if (reste) requestAnimationFrame(frame); else { pc.remove(); pluieEnCours = false; }
+      })();
+    }
+    const badge = document.querySelector('.badge');
+    if (badge) {
+      badge.addEventListener('click', pluie);
+      badge.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pluie(); } });
+    }
+    let tape = '';
+    document.addEventListener('keydown', e => {
+      if (e.key.length !== 1) return;
+      tape = (tape + e.key.toLowerCase()).slice(-9);
+      if (tape === 'paparmane') pluie();
+    });
+
     // souris : attraper / lancer (pas sur mobile, pour garder le défilement de la page)
     if (!window.matchMedia('(pointer: coarse)').matches && !reduce) {
       const mouse = Mouse.create(cv);
@@ -423,7 +581,7 @@
       } catch (e) {}
       cv.style.cursor = 'grab';
       Events.on(mc, 'startdrag', () => cv.style.cursor = 'grabbing');
-      Events.on(mc, 'enddrag', () => cv.style.cursor = 'grab');
+      Events.on(mc, 'enddrag', () => { cv.style.cursor = 'grab'; lance(); });
     }
 
     function addAll(stagger) {
