@@ -377,6 +377,18 @@
     .dino__langue{display:none}
     .dino.saute .dino__langue{display:block}
     @media (prefers-reduced-motion:reduce){.dino{animation:none;left:3vw}.dino .dino__pA,.dino .dino__pB{animation:none}}
+    /* Le petit dino qui sort du bouton « Mode arcade » pour inviter à jouer */
+    .dock{position:fixed}
+    .coucou{position:absolute;right:1.4rem;bottom:100%;width:64px;height:130px;pointer-events:none}
+    .coucou__trou{position:absolute;left:0;right:0;bottom:-2px;height:72px;overflow:hidden;pointer-events:none}
+    .coucou__dino{position:absolute;left:4px;bottom:0;width:56px;transform:translateY(105%) scaleX(-1);transition:transform .45s cubic-bezier(.3,1.5,.5,1);cursor:pointer;pointer-events:auto}
+    .coucou__dino .dino__svg{display:block;width:100%;height:auto;filter:drop-shadow(2px 2px 0 #000)}
+    .coucou.sorti .coucou__dino{transform:translateY(6%) scaleX(-1);animation:coucou-hoche .5s ease-in-out .45s 3}
+    @keyframes coucou-hoche{50%{transform:translateY(0) scaleX(-1) rotate(-6deg)}}
+    .coucou__bulle{position:absolute;right:70%;bottom:58px;padding:.55rem .7rem;border:3px solid #000;background:#fff;color:#000;font:10px/1.3 "Press Start 2P",monospace;white-space:nowrap;box-shadow:3px 3px 0 #000;opacity:0;transform:scale(.6);transform-origin:100% 100%;transition:opacity .2s,transform .25s cubic-bezier(.3,1.6,.5,1)}
+    .coucou.sorti .coucou__bulle{opacity:1;transform:none;transition-delay:.3s}
+    .arcade .coucou{display:none}
+    @media (max-width:600px){.coucou{right:.1rem}.coucou__bulle{font-size:8px}}
     /* imprimer la page */
     .imprime{display:none}
     @media print{
@@ -752,6 +764,10 @@
     <p class="imprime__arcade">GAME OVER<br><br>Tu imprimes un site vide? 🌳</p>
   </div>
   <div class="dock">
+    <div class="coucou" aria-hidden="true">
+      <span class="coucou__bulle">Psst! Clique pour jouer!</span>
+      <div class="coucou__trou"><div class="coucou__dino"></div></div>
+    </div>
     <button type="button" class="dock__btn dock__arcade" aria-pressed="false"><span aria-hidden="true">🕹️</span><span class="dock__txt">Mode arcade</span></button>
     <button type="button" class="dock__btn dock__print"><span aria-hidden="true">🖨️</span><span class="dock__txt">Imprime mon site pour voir</span></button>
   </div>
@@ -992,6 +1008,23 @@
       sons.rugit();
       clearTimeout(dino._t); dino._t = setTimeout(() => dino.classList.remove('saute'), 1400);
     });
+    // le petit dino sort du bouton « Mode arcade » de temps en temps pour inviter à jouer
+    const coucou = document.querySelector('.coucou');
+    if (coucou) {
+      const petit = coucou.querySelector('.coucou__dino'), modele = document.querySelector('.dino__svg');
+      if (modele) petit.innerHTML = modele.outerHTML;
+      let cache;
+      const sort = () => {
+        if (document.documentElement.classList.contains('arcade') || document.hidden) return;
+        coucou.classList.add('sorti');
+        clearTimeout(cache); cache = setTimeout(() => coucou.classList.remove('sorti'), 3400);
+      };
+      setTimeout(sort, 4500);
+      setInterval(sort, 11000);
+      const bt = document.querySelector('.dock__arcade');
+      if (bt) bt.addEventListener('mouseenter', sort);
+      petit.addEventListener('click', e => { e.stopPropagation(); coucou.classList.remove('sorti'); arcade(); });
+    }
     const btArcade = document.querySelector('.dock__arcade');
     if (btArcade) btArcade.addEventListener('click', e => { e.stopPropagation(); arcade(); });
     const btPrint = document.querySelector('.dock__print');
