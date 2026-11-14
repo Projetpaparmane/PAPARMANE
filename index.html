@@ -359,6 +359,24 @@
     .arcade .dock__arcade{background:#ffd400;border-color:#ffd400}
     .arcade .dock__arcade .dock__txt{color:#08004f}
     @media (max-width:600px){.dock__txt{display:none}.dock__btn{padding:.65rem;font-size:1.15rem}}
+    /* Le dinosaure pixélisé du mode arcade */
+    .dino{display:none;position:fixed;left:0;bottom:clamp(5.5rem,10vh,7rem);z-index:165;width:clamp(64px,6vw,88px);cursor:pointer;animation:dino-marche 17s linear infinite}
+    .arcade .dino{display:block}
+    .dino__corps{position:relative;transform-origin:50% 100%}
+    .dino__svg{display:block;width:100%;height:auto;filter:drop-shadow(3px 3px 0 #000)}
+    .dino__pB{visibility:hidden}
+    .dino .dino__pA{animation:dino-pA .36s linear infinite}
+    .dino .dino__pB{animation:dino-pB .36s linear infinite}
+    @keyframes dino-pA{0%,49.9%{visibility:visible}50%,100%{visibility:hidden}}
+    @keyframes dino-pB{0%,49.9%{visibility:hidden}50%,100%{visibility:visible}}
+    @keyframes dino-marche{from{transform:translateX(-120px)}to{transform:translateX(calc(100vw + 40px))}}
+    .dino.saute .dino__corps{animation:dino-saut .7s cubic-bezier(.3,1.4,.5,1)}
+    @keyframes dino-saut{0%{transform:none}15%{transform:scale(1.1,.85)}45%{transform:translateY(-110%) rotate(-8deg)}75%{transform:translateY(-20%)}88%{transform:scale(1.08,.9)}100%{transform:none}}
+    .dino__bulle{position:absolute;left:70%;bottom:105%;padding:.5rem .6rem;border:3px solid #000;background:#fff;color:#000;font:11px/1 "Press Start 2P",monospace;white-space:nowrap;opacity:0;transform:scale(.6);transform-origin:0 100%;transition:opacity .15s,transform .2s cubic-bezier(.3,1.6,.5,1);pointer-events:none}
+    .dino.saute .dino__bulle{opacity:1;transform:none}
+    .dino__langue{display:none}
+    .dino.saute .dino__langue{display:block}
+    @media (prefers-reduced-motion:reduce){.dino{animation:none;left:3vw}.dino .dino__pA,.dino .dino__pB{animation:none}}
     /* imprimer la page */
     .imprime{display:none}
     @media print{
@@ -737,6 +755,9 @@
     <button type="button" class="dock__btn dock__arcade" aria-pressed="false"><span aria-hidden="true">🕹️</span><span class="dock__txt">Mode arcade</span></button>
     <button type="button" class="dock__btn dock__print"><span aria-hidden="true">🖨️</span><span class="dock__txt">Imprime mon site pour voir</span></button>
   </div>
+  <div class="dino" role="button" tabindex="-1" aria-label="Dinosaure : clique pour le faire sursauter">
+    <div class="dino__corps"><svg class="dino__svg" viewBox="0 0 16 15" shape-rendering="crispEdges" aria-hidden="true"><g fill="#3ddc84"><rect x="9" y="0" width="1.02" height="1.02"/><rect x="10" y="0" width="1.02" height="1.02"/><rect x="11" y="0" width="1.02" height="1.02"/><rect x="12" y="0" width="1.02" height="1.02"/><rect x="13" y="0" width="1.02" height="1.02"/><rect x="14" y="0" width="1.02" height="1.02"/><rect x="8" y="1" width="1.02" height="1.02"/><rect x="9" y="1" width="1.02" height="1.02"/><rect x="10" y="1" width="1.02" height="1.02" fill="#111"/><rect x="11" y="1" width="1.02" height="1.02"/><rect x="12" y="1" width="1.02" height="1.02"/><rect x="13" y="1" width="1.02" height="1.02"/><rect x="14" y="1" width="1.02" height="1.02"/><rect x="15" y="1" width="1.02" height="1.02"/><rect x="8" y="2" width="1.02" height="1.02"/><rect x="9" y="2" width="1.02" height="1.02"/><rect x="10" y="2" width="1.02" height="1.02"/><rect x="11" y="2" width="1.02" height="1.02"/><rect x="12" y="2" width="1.02" height="1.02"/><rect x="13" y="2" width="1.02" height="1.02"/><rect x="14" y="2" width="1.02" height="1.02"/><rect x="15" y="2" width="1.02" height="1.02"/><rect x="8" y="3" width="1.02" height="1.02"/><rect x="9" y="3" width="1.02" height="1.02"/><rect x="10" y="3" width="1.02" height="1.02"/><rect x="11" y="3" width="1.02" height="1.02"/><rect x="12" y="3" width="1.02" height="1.02"/><rect x="13" y="3" width="1.02" height="1.02"/><rect x="14" y="3" width="1.02" height="1.02"/><rect x="15" y="3" width="1.02" height="1.02"/><rect x="8" y="4" width="1.02" height="1.02"/><rect x="9" y="4" width="1.02" height="1.02"/><rect x="10" y="4" width="1.02" height="1.02"/><rect x="11" y="4" width="1.02" height="1.02"/><rect x="8" y="5" width="1.02" height="1.02"/><rect x="9" y="5" width="1.02" height="1.02"/><rect x="10" y="5" width="1.02" height="1.02"/><rect x="11" y="5" width="1.02" height="1.02"/><rect x="12" y="5" width="1.02" height="1.02"/><rect x="13" y="5" width="1.02" height="1.02"/><rect x="0" y="6" width="1.02" height="1.02"/><rect x="7" y="6" width="1.02" height="1.02"/><rect x="8" y="6" width="1.02" height="1.02"/><rect x="9" y="6" width="1.02" height="1.02"/><rect x="10" y="6" width="1.02" height="1.02"/><rect x="11" y="6" width="1.02" height="1.02"/><rect x="0" y="7" width="1.02" height="1.02"/><rect x="1" y="7" width="1.02" height="1.02"/><rect x="6" y="7" width="1.02" height="1.02"/><rect x="7" y="7" width="1.02" height="1.02"/><rect x="8" y="7" width="1.02" height="1.02"/><rect x="9" y="7" width="1.02" height="1.02"/><rect x="10" y="7" width="1.02" height="1.02"/><rect x="11" y="7" width="1.02" height="1.02"/><rect x="12" y="7" width="1.02" height="1.02"/><rect x="0" y="8" width="1.02" height="1.02"/><rect x="1" y="8" width="1.02" height="1.02"/><rect x="2" y="8" width="1.02" height="1.02"/><rect x="5" y="8" width="1.02" height="1.02"/><rect x="6" y="8" width="1.02" height="1.02"/><rect x="7" y="8" width="1.02" height="1.02"/><rect x="8" y="8" width="1.02" height="1.02"/><rect x="9" y="8" width="1.02" height="1.02"/><rect x="10" y="8" width="1.02" height="1.02"/><rect x="11" y="8" width="1.02" height="1.02"/><rect x="12" y="8" width="1.02" height="1.02"/><rect x="13" y="8" width="1.02" height="1.02"/><rect x="0" y="9" width="1.02" height="1.02"/><rect x="1" y="9" width="1.02" height="1.02"/><rect x="2" y="9" width="1.02" height="1.02"/><rect x="3" y="9" width="1.02" height="1.02"/><rect x="4" y="9" width="1.02" height="1.02"/><rect x="5" y="9" width="1.02" height="1.02"/><rect x="6" y="9" width="1.02" height="1.02"/><rect x="7" y="9" width="1.02" height="1.02"/><rect x="8" y="9" width="1.02" height="1.02"/><rect x="9" y="9" width="1.02" height="1.02"/><rect x="10" y="9" width="1.02" height="1.02"/><rect x="12" y="9" width="1.02" height="1.02"/><rect x="1" y="10" width="1.02" height="1.02"/><rect x="2" y="10" width="1.02" height="1.02"/><rect x="3" y="10" width="1.02" height="1.02"/><rect x="4" y="10" width="1.02" height="1.02"/><rect x="5" y="10" width="1.02" height="1.02"/><rect x="6" y="10" width="1.02" height="1.02"/><rect x="7" y="10" width="1.02" height="1.02"/><rect x="8" y="10" width="1.02" height="1.02"/><rect x="9" y="10" width="1.02" height="1.02"/><rect x="10" y="10" width="1.02" height="1.02"/><rect x="2" y="11" width="1.02" height="1.02"/><rect x="3" y="11" width="1.02" height="1.02"/><rect x="4" y="11" width="1.02" height="1.02"/><rect x="5" y="11" width="1.02" height="1.02"/><rect x="6" y="11" width="1.02" height="1.02"/><rect x="7" y="11" width="1.02" height="1.02"/><rect x="8" y="11" width="1.02" height="1.02"/><rect x="9" y="11" width="1.02" height="1.02"/><rect x="3" y="12" width="1.02" height="1.02"/><rect x="4" y="12" width="1.02" height="1.02"/><rect x="5" y="12" width="1.02" height="1.02"/><rect x="6" y="12" width="1.02" height="1.02"/><rect x="7" y="12" width="1.02" height="1.02"/><rect x="8" y="12" width="1.02" height="1.02"/><g class="dino__pA"><rect x="3" y="13" width="1.02" height="1.02"/><rect x="4" y="13" width="1.02" height="1.02"/><rect x="7" y="13" width="1.02" height="1.02"/><rect x="8" y="13" width="1.02" height="1.02"/><rect x="3" y="14" width="1.02" height="1.02"/><rect x="8" y="14" width="1.02" height="1.02"/><rect x="9" y="14" width="1.02" height="1.02"/></g><g class="dino__pB"><rect x="3" y="13" width="1.02" height="1.02"/><rect x="4" y="13" width="1.02" height="1.02"/><rect x="7" y="13" width="1.02" height="1.02"/><rect x="8" y="13" width="1.02" height="1.02"/><rect x="2" y="14" width="1.02" height="1.02"/><rect x="3" y="14" width="1.02" height="1.02"/><rect x="8" y="14" width="1.02" height="1.02"/></g></g><rect x="13" y="5" width="2" height="1" fill="#ff3535" class="dino__langue"/></svg><span class="dino__bulle">RAWR!</span></div>
+  </div>
   <div class="hud" aria-hidden="true"><span><span class="hud__1up">1UP</span>&nbsp;&nbsp;<span class="hud__score">000000</span></span><span class="hud__hi">HI-SCORE&nbsp;&nbsp;999999</span><span class="hud__credit">CRÉDIT 01</span></div>
   <div class="veille" aria-hidden="true">
     <span class="veille__score">PAPARMANE.EXE</span>
@@ -809,7 +830,28 @@
         src.connect(f).connect(g).connect(a.destination); src.start();
       };
       const jingle = notes => notes.forEach(([f, d, du]) => note(f, d, du));
-      return { note, crounch, jingle };
+      // un cri de dinosaure 8 bits : un grondement qui monte puis descend, avec un trémolo et un souffle
+      const rugit = () => {
+        const a = get(); if (!a) return;
+        const t = a.currentTime + .02, dur = .95;
+        const o = a.createOscillator(), o2 = a.createOscillator(), g = a.createGain(), f = a.createBiquadFilter();
+        o.type = 'sawtooth'; o2.type = 'square';
+        o.frequency.setValueAtTime(140, t); o.frequency.linearRampToValueAtTime(320, t + .18); o.frequency.exponentialRampToValueAtTime(70, t + dur);
+        o2.frequency.setValueAtTime(147, t); o2.frequency.linearRampToValueAtTime(335, t + .18); o2.frequency.exponentialRampToValueAtTime(74, t + dur);
+        const lfo = a.createOscillator(), lg = a.createGain(); lfo.frequency.value = 28; lg.gain.value = 40;
+        lfo.connect(lg); lg.connect(o.frequency); lg.connect(o2.frequency);
+        f.type = 'lowpass'; f.frequency.value = 1400; f.Q.value = 6;
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.16, t + .05); g.gain.setValueAtTime(.16, t + .45); g.gain.exponentialRampToValueAtTime(.001, t + dur);
+        o.connect(f); o2.connect(f); f.connect(g).connect(a.destination);
+        // le souffle
+        const n = Math.floor(a.sampleRate * dur), b = a.createBuffer(1, n, a.sampleRate), d = b.getChannelData(0);
+        for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+        const src = a.createBufferSource(), nf = a.createBiquadFilter(), ng = a.createGain();
+        src.buffer = b; nf.type = 'bandpass'; nf.frequency.value = 900; ng.gain.value = .08;
+        src.connect(nf).connect(ng).connect(a.destination);
+        [o, o2, lfo].forEach(x => { x.start(t); x.stop(t + dur + .05); }); src.start(t);
+      };
+      return { note, crounch, jingle, rugit };
     })();
 
     // confettis en gros pixels
@@ -924,7 +966,7 @@
     };
     addEventListener('click', e => {
       const t = e.target;
-      const n = t.closest && t.closest('.ordi__bonbon') ? 1000 : t.closest && t.closest('.ordi__ecran, .ordi__souris') ? 100 : 10;
+      const n = t.closest && t.closest('.dino') ? 500 : t.closest && t.closest('.ordi__bonbon') ? 1000 : t.closest && t.closest('.ordi__ecran, .ordi__souris') ? 100 : 10;
       points(n, e.clientX, e.clientY);
     });
     const drop = document.getElementById('drop');
@@ -943,6 +985,13 @@
     };
     const konami = ['arrowup', 'arrowup', 'arrowdown', 'arrowdown', 'arrowleft', 'arrowright', 'arrowleft', 'arrowright', 'b', 'a'];
     let suite = [], mot = '';
+    // le dinosaure : un clic, il sursaute et rugit
+    const dino = document.querySelector('.dino');
+    if (dino) dino.addEventListener('click', () => {
+      dino.classList.remove('saute'); void dino.offsetWidth; dino.classList.add('saute');
+      sons.rugit();
+      clearTimeout(dino._t); dino._t = setTimeout(() => dino.classList.remove('saute'), 1400);
+    });
     const btArcade = document.querySelector('.dock__arcade');
     if (btArcade) btArcade.addEventListener('click', e => { e.stopPropagation(); arcade(); });
     const btPrint = document.querySelector('.dock__print');
