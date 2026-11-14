@@ -403,9 +403,13 @@
     .quiz__choix button:active{transform:translate(2px,2px);box-shadow:1px 1px 0 #000}
     .quiz__choix span{display:inline-grid;place-items:center;flex:none;width:1.7rem;height:1.7rem;border:2px solid #000;background:#fff;color:#000;font:10px/1 "Press Start 2P",monospace}
     .quiz__tard{margin-top:.9rem;border:0;background:none;color:#13007f;font:600 .85rem/1 var(--body);text-decoration:underline;cursor:pointer}
+    .onglet-films{position:fixed;left:0;top:58%;z-index:74;display:flex;align-items:center;gap:.4rem;padding:.7rem .8rem .7rem .6rem;border:3px solid #000;border-left:0;background:#ffd400;color:#000;font:10px/1 "Press Start 2P",monospace;box-shadow:4px 4px 0 #000;cursor:pointer;transform:translateX(-4px);transition:transform .2s}
+    .onglet-films:hover{transform:translateX(0);background:var(--accent);color:#fff}
+    .onglet-films[hidden]{display:none}
+    @media (max-width:600px){.onglet-films span{display:none}.onglet-films{font-size:16px;padding:.5rem .55rem}}
     /* les dessins en pixels qui traversent l'écran */
     .scene{position:fixed;inset:0;z-index:255;pointer-events:none;overflow:hidden}
-    .pix{position:absolute;display:block;image-rendering:pixelated;filter:drop-shadow(4px 4px 0 rgba(0,0,0,.55))}
+    .pix{position:absolute;display:block;image-rendering:pixelated;filter:drop-shadow(4px 4px 0 rgba(0,0,0,.55));pointer-events:auto;cursor:pointer}
     .pix svg{display:block;width:100%;height:auto}
     .pix--avion{left:0;top:30%;width:clamp(220px,30vw,420px);animation:avion 2.6s cubic-bezier(.6,0,.4,1) forwards}
     @keyframes avion{0%{transform:translate(-110%,40px) rotate(4deg)}55%{transform:translate(45vw,-10px) rotate(-3deg)}100%{transform:translate(110vw,-120px) rotate(-10deg)}}
@@ -810,6 +814,7 @@
     <button type="button" class="quiz__tard">Plus tard</button>
   </div>
   <div class="scene" aria-hidden="true"></div>
+  <button type="button" class="onglet-films" hidden>🎬 <span>Films 80</span></button>
   <div class="dock">
     <div class="coucou" aria-hidden="true">
       <span class="coucou__bulle">Psst! Clique pour jouer!</span>
@@ -914,7 +919,32 @@
         src.connect(nf).connect(ng).connect(a.destination);
         [o, o2, lfo].forEach(x => { x.start(t); x.stop(t + dur + .05); }); src.start(t);
       };
-      return { note, crounch, jingle, rugit };
+      // petit bruit blanc filtré (réutilisé par plusieurs sons)
+      const souffle = (dur, type, f0, f1, vol, q = 1) => {
+        const a = get(); if (!a) return;
+        const t = a.currentTime + .02, n = Math.floor(a.sampleRate * dur), b = a.createBuffer(1, n, a.sampleRate), d = b.getChannelData(0);
+        for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+        const src = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+        src.buffer = b; f.type = type; f.Q.value = q;
+        f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(f1, t + dur);
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + dur * .25); g.gain.exponentialRampToValueAtTime(.001, t + dur);
+        src.connect(f).connect(g).connect(a.destination); src.start(t);
+      };
+      const effets = {
+        vroum: () => { souffle(1.3, 'bandpass', 300, 2400, .35, 1.2); note(90, 0, 1.1, 'sawtooth', .05); },
+        fouet: () => { souffle(.12, 'highpass', 2500, 6000, .6, .7); setTimeout(() => souffle(.06, 'highpass', 4000, 8000, .4), 70); },
+        ouuh: () => {
+          const a = get(); if (!a) return;
+          const t = a.currentTime + .02, o = a.createOscillator(), g = a.createGain(), l = a.createOscillator(), lg = a.createGain();
+          o.type = 'sine'; o.frequency.setValueAtTime(420, t); o.frequency.linearRampToValueAtTime(520, t + .5); o.frequency.exponentialRampToValueAtTime(230, t + 1.6);
+          l.frequency.value = 6; lg.gain.value = 18; l.connect(lg).connect(o.frequency);
+          g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.12, t + .25); g.gain.exponentialRampToValueAtTime(.001, t + 1.7);
+          o.connect(g).connect(a.destination); [o, l].forEach(x => { x.start(t); x.stop(t + 1.75); });
+        },
+        dring: () => { [0, .22].forEach(d => { note(2100, d, .5, 'sine', .09); note(2650, d, .45, 'sine', .05); }); },
+        bip: () => { note(1250, 0, .09, 'square', .05); note(1550, .13, .1, 'square', .05); }
+      };
+      return { note, crounch, jingle, rugit, effets };
     })();
 
     // confettis en gros pixels
@@ -1043,17 +1073,17 @@
       ], { '#': '#9aa5b1', d: '#6f7a86', l: '#c9d1d9', c: '#7fd3ff', r: '#ff3535', f: '#ffb000' }),
       lune: '<svg viewBox="0 0 40 40" shape-rendering="crispEdges"><circle cx="20" cy="20" r="19" fill="#fff6c2"/><circle cx="13" cy="14" r="3" fill="#efe3a0"/><circle cx="26" cy="25" r="4" fill="#efe3a0"/><circle cx="25" cy="11" r="2" fill="#efe3a0"/></svg>',
       velo: pixels([
-        '.............##...............',
-        '............####..............',
-        '............####..............',
-        '............####..............',
-        '............###...............',
-        '............####..............',
-        '............#..#######........',
-        '...........##.....#...........',
-        '.......#####......#...........',
-        '.........#.##.....#...........',
-        '.........##########...........',
+        '.............##.....gg...gg...',
+        '............####.....g..g.....',
+        '............####.....gggg.....',
+        '............####.....gggg.....',
+        '............###......gkgk.....',
+        '............####.....gggg.....',
+        '............#..#####wwwwww....',
+        '...........##.....#.wwwwww....',
+        '.......#####......#.bbbbbb....',
+        '.........#.##.....#.bbbbbb....',
+        '.........##########.bbbbbb....',
         '....######...##.#..#######....',
         '...##...###...###..##....##...',
         '..##....#.##..##..####....##..',
@@ -1065,7 +1095,7 @@
         '...##....##........##....##...',
         '....######..........######....',
         '..............................'
-      ], { '#': '#111' }),
+      ], { '#': '#111', b: '#a0703a', w: '#ffffff', g: '#7ddc5a', k: '#111' }),
       chapeau: pixels([
         '.......########.......',
         '......##########......',
@@ -1093,28 +1123,43 @@
     };
     const FILMS = {
       topgun: { pieces: [['avion', 'pix--avion']], mot: 'Vrrrooom! Mon site va pas plus vite pour autant.', son: [[523, 0, .08], [659, .08, .08], [784, .16, .08], [1047, .24, .35]] },
-      et: { pieces: [['lune', 'pix--lune'], ['velo', 'pix--velo']], mot: 'Moi aussi je rentre à la maison… après le projet d\'un client.', son: [[392, 0, .25], [523, .25, .25], [659, .5, .5]] },
+      et: { pieces: [['lune', 'pix--lune'], ['velo', 'pix--velo']], mot: 'Bip bip! Lui aussi veut rentrer à la maison… après le projet d\'un client.', son: [[392, 0, .25], [523, .25, .25], [659, .5, .5]] },
       indy: { pieces: [['chapeau', 'pix--chapeau'], ['fouet', 'pix--fouet']], mot: 'J\'ai trouvé un trésor perdu : mon temps libre. Non, finalement.', son: [[330, 0, .12], [440, .12, .12], [494, .24, .12], [523, .36, .4]] },
       ghost: { pieces: [['fantome', 'pix--fantome']], mot: 'Un fantôme? Non, c\'est juste mon site vide. Bouh!', son: [[440, 0, .3], [415, .3, .3], [392, .6, .5]] }
     };
     const joue = cle => {
       const f = FILMS[cle]; if (!f || !scene) return;
       scene.innerHTML = '';
-      f.pieces.forEach(([d, cls]) => { const el = document.createElement('div'); el.className = 'pix ' + cls; el.innerHTML = DESSINS[d]; scene.appendChild(el); });
+      const BRUITS = { avion: ['vroum'], lune: ['dring'], velo: ['dring', 'bip'], chapeau: ['fouet'], fouet: ['fouet'], fantome: ['ouuh'] };
+      f.pieces.forEach(([d, cls]) => {
+        const el = document.createElement('div'); el.className = 'pix ' + cls; el.innerHTML = DESSINS[d];
+        el.addEventListener('click', () => {
+          (BRUITS[d] || []).forEach((b, i) => setTimeout(() => sons.effets[b](), i * 550));
+          if (el.animate) el.animate([{ scale: '1' }, { scale: '1.25' }, { scale: '.92' }, { scale: '1' }], { duration: 450, easing: 'ease-out' });
+        });
+        scene.appendChild(el);
+      });
       const mot = document.createElement('p'); mot.className = 'scene__mot'; mot.textContent = f.mot; scene.appendChild(mot);
       sons.jingle(f.son);
-      if (cle === 'indy') setTimeout(() => sons.crounch(), 1500);   // le claquement du fouet
+      if (cle === 'indy') setTimeout(() => sons.effets.fouet(), 1500);   // le claquement du fouet
       clearTimeout(scene._t); scene._t = setTimeout(() => { scene.innerHTML = ''; }, 4400);
     };
     if (quiz) {
-      const ferme = () => { quiz.classList.remove('on'); setTimeout(() => { quiz.hidden = true; }, 300); garde('pp-film', 'vu'); };
+      const onglet = document.querySelector('.onglet-films');
+      const ouvre = () => { quiz.hidden = false; requestAnimationFrame(() => requestAnimationFrame(() => quiz.classList.add('on'))); if (onglet) onglet.hidden = true; };
+      const ferme = () => {
+        quiz.classList.remove('on'); setTimeout(() => { quiz.hidden = true; }, 300);
+        if (!garde('pp-film')) garde('pp-film', 'vu');
+        if (onglet) onglet.hidden = false;                    // l'onglet reste pour choisir un autre film
+      };
+      if (onglet) { onglet.addEventListener('click', ouvre); if (garde('pp-film')) onglet.hidden = false; }
       quiz.querySelectorAll('[data-film]').forEach(b => b.addEventListener('click', () => { ferme(); garde('pp-film', b.dataset.film); setTimeout(() => joue(b.dataset.film), 250); }));
       quiz.querySelector('.quiz__ferme').addEventListener('click', ferme);
       quiz.querySelector('.quiz__tard').addEventListener('click', ferme);
       addEventListener('keydown', e => { if (e.key === 'Escape' && !quiz.hidden) ferme(); });
       if (!garde('pp-film')) setTimeout(() => {
         if (document.querySelector('.veille.on')) return;
-        quiz.hidden = false; requestAnimationFrame(() => requestAnimationFrame(() => quiz.classList.add('on')));
+        ouvre();
       }, 15000);
     }
 
