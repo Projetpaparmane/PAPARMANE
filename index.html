@@ -372,8 +372,9 @@
     @keyframes dino-marche{from{transform:translateX(-120px)}to{transform:translateX(calc(100vw + 40px))}}
     .dino.saute .dino__corps{animation:dino-saut .7s cubic-bezier(.3,1.4,.5,1)}
     @keyframes dino-saut{0%{transform:none}15%{transform:scale(1.1,.85)}45%{transform:translateY(-110%) rotate(-8deg)}75%{transform:translateY(-20%)}88%{transform:scale(1.08,.9)}100%{transform:none}}
-    .dino__bulle{position:absolute;left:70%;bottom:105%;padding:.5rem .6rem;border:3px solid #000;background:#fff;color:#000;font:11px/1 "Press Start 2P",monospace;white-space:nowrap;opacity:0;transform:scale(.6);transform-origin:0 100%;transition:opacity .15s,transform .2s cubic-bezier(.3,1.6,.5,1);pointer-events:none}
-    .dino.saute .dino__bulle{opacity:1;transform:none}
+    .dino__bulle{position:absolute;left:70%;bottom:105%;padding:.5rem .6rem;border:3px solid #000;background:#fff;color:#000;font:11px/1 "Press Start 2P",monospace;white-space:nowrap;transform-origin:0 100%;pointer-events:none}
+    .dino.saute .dino__bulle{background:#ffd400;animation:bulle-pop .3s cubic-bezier(.3,1.6,.5,1)}
+    @keyframes bulle-pop{from{transform:scale(.5)}}
     .dino__langue{display:none}
     .dino.saute .dino__langue{display:block}
     @media (prefers-reduced-motion:reduce){.dino{animation:none;left:3vw}.dino .dino__pA,.dino .dino__pB{animation:none}}
@@ -389,6 +390,39 @@
     .coucou.sorti .coucou__bulle{opacity:1;transform:none;transition-delay:.3s}
     .arcade .coucou{display:none}
     @media (max-width:600px){.coucou{right:.1rem}.coucou__bulle{font-size:8px}}
+    /* Le sondage des films des années 80 */
+    .quiz{position:fixed;left:50%;top:50%;z-index:260;width:min(440px,calc(100vw - 2rem));translate:-50% -50%;padding:1.6rem 1.5rem 1.2rem;border:4px solid #000;background:#fff;color:#13007f;box-shadow:8px 8px 0 #000,0 30px 80px rgba(8,0,50,.55);text-align:center;opacity:0;transform:scale(.85);transition:opacity .25s,transform .35s cubic-bezier(.3,1.5,.5,1)}
+    .quiz.on{opacity:1;transform:none}
+    .quiz[hidden]{display:none}
+    .quiz__ferme{position:absolute;top:.4rem;right:.6rem;border:0;background:none;font:700 1.6rem/1 var(--body);color:#13007f;cursor:pointer}
+    .quiz__sur{margin:0;font:10px/1.4 "Press Start 2P",monospace;color:var(--accent)}
+    .quiz__titre{margin:.7rem 0 1.1rem;font-family:var(--display);text-transform:uppercase;font-size:clamp(1.9rem,6vw,2.4rem);line-height:1}
+    .quiz__choix{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+    .quiz__choix button{display:flex;align-items:center;gap:.55rem;padding:.75rem .8rem;border:3px solid #000;background:#ffd400;color:#000;font:800 .95rem/1.1 var(--body);text-align:left;cursor:pointer;box-shadow:3px 3px 0 #000;transition:transform .12s,box-shadow .12s,background-color .15s}
+    .quiz__choix button:hover{background:var(--accent);color:#fff;transform:translate(-2px,-2px);box-shadow:5px 5px 0 #000}
+    .quiz__choix button:active{transform:translate(2px,2px);box-shadow:1px 1px 0 #000}
+    .quiz__choix span{display:inline-grid;place-items:center;flex:none;width:1.7rem;height:1.7rem;border:2px solid #000;background:#fff;color:#000;font:10px/1 "Press Start 2P",monospace}
+    .quiz__tard{margin-top:.9rem;border:0;background:none;color:#13007f;font:600 .85rem/1 var(--body);text-decoration:underline;cursor:pointer}
+    /* les dessins en pixels qui traversent l'écran */
+    .scene{position:fixed;inset:0;z-index:255;pointer-events:none;overflow:hidden}
+    .pix{position:absolute;display:block;image-rendering:pixelated;filter:drop-shadow(4px 4px 0 rgba(0,0,0,.55))}
+    .pix svg{display:block;width:100%;height:auto}
+    .pix--avion{left:0;top:30%;width:clamp(220px,30vw,420px);animation:avion 2.6s cubic-bezier(.6,0,.4,1) forwards}
+    @keyframes avion{0%{transform:translate(-110%,40px) rotate(4deg)}55%{transform:translate(45vw,-10px) rotate(-3deg)}100%{transform:translate(110vw,-120px) rotate(-10deg)}}
+    .pix--avion .flamme{animation:flamme .12s steps(2) infinite}
+    @keyframes flamme{50%{opacity:.35}}
+    .pix--lune{left:62%;top:40%;width:clamp(200px,24vw,320px);translate:-50% -50%;animation:apparait 4.2s ease-in-out forwards}
+    .pix--velo{left:0;top:33%;width:clamp(130px,14vw,190px);filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 1px #fff);animation:velo 3.4s .5s ease-in-out both}
+    @keyframes velo{0%{transform:translate(-120%,120px) rotate(-4deg)}100%{transform:translate(105vw,-140px) rotate(-10deg)}}
+    @keyframes apparait{0%{opacity:0;transform:scale(.8)}15%,80%{opacity:1;transform:none}100%{opacity:0}}
+    .pix--chapeau{left:50%;top:40%;width:clamp(180px,22vw,280px);translate:-50% -50%;animation:chapeau 3.8s cubic-bezier(.3,1.4,.5,1) forwards}
+    @keyframes chapeau{0%{transform:translateY(-70vh) rotate(-30deg);opacity:1}30%{transform:translateY(0) rotate(4deg);opacity:1}38%{transform:translateY(-14px) rotate(-3deg);opacity:1}46%,82%{transform:none;opacity:1}100%{transform:translateY(20px);opacity:0}}
+    .pix--fouet{left:50%;top:62%;width:clamp(240px,30vw,380px);translate:-50% -50%;animation:fouet 3.8s ease-out forwards}
+    @keyframes fouet{0%,25%{opacity:0;transform:scaleX(.1) rotate(-20deg);transform-origin:0 50%}40%{opacity:1;transform:scaleX(1.05) rotate(4deg)}46%,82%{opacity:1;transform:none}100%{opacity:0}}
+    .pix--fantome{left:0;top:35%;width:clamp(120px,14vw,190px);animation:fantome 4.2s ease-in-out forwards}
+    @keyframes fantome{0%{transform:translate(-120%,0)}20%{transform:translate(20vw,-40px)}40%{transform:translate(40vw,30px)}60%{transform:translate(60vw,-30px)}80%{transform:translate(80vw,20px)}100%{transform:translate(110vw,-40px)}}
+    .scene__mot{position:absolute;left:50%;bottom:16%;translate:-50% 0;width:max-content;max-width:calc(100vw - 2rem);padding:.8rem 1.1rem;border:3px solid #000;background:#fff;color:#000;box-shadow:5px 5px 0 #000;font:12px/1.6 "Press Start 2P",monospace;text-align:center;animation:apparait 4.2s ease-in-out forwards}
+    @media (prefers-reduced-motion:reduce){.pix,.scene__mot{animation-duration:.01s;animation-delay:0s}}
     /* imprimer la page */
     .imprime{display:none}
     @media print{
@@ -763,6 +797,19 @@
     <p class="imprime__normal">Vraiment? Tu imprimes un site vide? 🌳</p>
     <p class="imprime__arcade">GAME OVER<br><br>Tu imprimes un site vide? 🌳</p>
   </div>
+  <div class="quiz" role="dialog" aria-labelledby="quiz-titre" hidden>
+    <button type="button" class="quiz__ferme" aria-label="Fermer">×</button>
+    <p class="quiz__sur">Petit sondage très sérieux</p>
+    <p class="quiz__titre" id="quiz-titre">Quel était ton film préféré des années 80?</p>
+    <div class="quiz__choix">
+      <button type="button" data-film="topgun"><span>1</span>Top Gun</button>
+      <button type="button" data-film="et"><span>2</span>E.T.</button>
+      <button type="button" data-film="indy"><span>3</span>Indiana Jones</button>
+      <button type="button" data-film="ghost"><span>4</span>Ghostbusters</button>
+    </div>
+    <button type="button" class="quiz__tard">Plus tard</button>
+  </div>
+  <div class="scene" aria-hidden="true"></div>
   <div class="dock">
     <div class="coucou" aria-hidden="true">
       <span class="coucou__bulle">Psst! Clique pour jouer!</span>
@@ -772,7 +819,7 @@
     <button type="button" class="dock__btn dock__print"><span aria-hidden="true">🖨️</span><span class="dock__txt">Imprime mon site pour voir</span></button>
   </div>
   <div class="dino" role="button" tabindex="-1" aria-label="Dinosaure : clique pour le faire sursauter">
-    <div class="dino__corps"><svg class="dino__svg" viewBox="0 0 16 15" shape-rendering="crispEdges" aria-hidden="true"><g fill="#3ddc84"><rect x="9" y="0" width="1.02" height="1.02"/><rect x="10" y="0" width="1.02" height="1.02"/><rect x="11" y="0" width="1.02" height="1.02"/><rect x="12" y="0" width="1.02" height="1.02"/><rect x="13" y="0" width="1.02" height="1.02"/><rect x="14" y="0" width="1.02" height="1.02"/><rect x="8" y="1" width="1.02" height="1.02"/><rect x="9" y="1" width="1.02" height="1.02"/><rect x="10" y="1" width="1.02" height="1.02" fill="#111"/><rect x="11" y="1" width="1.02" height="1.02"/><rect x="12" y="1" width="1.02" height="1.02"/><rect x="13" y="1" width="1.02" height="1.02"/><rect x="14" y="1" width="1.02" height="1.02"/><rect x="15" y="1" width="1.02" height="1.02"/><rect x="8" y="2" width="1.02" height="1.02"/><rect x="9" y="2" width="1.02" height="1.02"/><rect x="10" y="2" width="1.02" height="1.02"/><rect x="11" y="2" width="1.02" height="1.02"/><rect x="12" y="2" width="1.02" height="1.02"/><rect x="13" y="2" width="1.02" height="1.02"/><rect x="14" y="2" width="1.02" height="1.02"/><rect x="15" y="2" width="1.02" height="1.02"/><rect x="8" y="3" width="1.02" height="1.02"/><rect x="9" y="3" width="1.02" height="1.02"/><rect x="10" y="3" width="1.02" height="1.02"/><rect x="11" y="3" width="1.02" height="1.02"/><rect x="12" y="3" width="1.02" height="1.02"/><rect x="13" y="3" width="1.02" height="1.02"/><rect x="14" y="3" width="1.02" height="1.02"/><rect x="15" y="3" width="1.02" height="1.02"/><rect x="8" y="4" width="1.02" height="1.02"/><rect x="9" y="4" width="1.02" height="1.02"/><rect x="10" y="4" width="1.02" height="1.02"/><rect x="11" y="4" width="1.02" height="1.02"/><rect x="8" y="5" width="1.02" height="1.02"/><rect x="9" y="5" width="1.02" height="1.02"/><rect x="10" y="5" width="1.02" height="1.02"/><rect x="11" y="5" width="1.02" height="1.02"/><rect x="12" y="5" width="1.02" height="1.02"/><rect x="13" y="5" width="1.02" height="1.02"/><rect x="0" y="6" width="1.02" height="1.02"/><rect x="7" y="6" width="1.02" height="1.02"/><rect x="8" y="6" width="1.02" height="1.02"/><rect x="9" y="6" width="1.02" height="1.02"/><rect x="10" y="6" width="1.02" height="1.02"/><rect x="11" y="6" width="1.02" height="1.02"/><rect x="0" y="7" width="1.02" height="1.02"/><rect x="1" y="7" width="1.02" height="1.02"/><rect x="6" y="7" width="1.02" height="1.02"/><rect x="7" y="7" width="1.02" height="1.02"/><rect x="8" y="7" width="1.02" height="1.02"/><rect x="9" y="7" width="1.02" height="1.02"/><rect x="10" y="7" width="1.02" height="1.02"/><rect x="11" y="7" width="1.02" height="1.02"/><rect x="12" y="7" width="1.02" height="1.02"/><rect x="0" y="8" width="1.02" height="1.02"/><rect x="1" y="8" width="1.02" height="1.02"/><rect x="2" y="8" width="1.02" height="1.02"/><rect x="5" y="8" width="1.02" height="1.02"/><rect x="6" y="8" width="1.02" height="1.02"/><rect x="7" y="8" width="1.02" height="1.02"/><rect x="8" y="8" width="1.02" height="1.02"/><rect x="9" y="8" width="1.02" height="1.02"/><rect x="10" y="8" width="1.02" height="1.02"/><rect x="11" y="8" width="1.02" height="1.02"/><rect x="12" y="8" width="1.02" height="1.02"/><rect x="13" y="8" width="1.02" height="1.02"/><rect x="0" y="9" width="1.02" height="1.02"/><rect x="1" y="9" width="1.02" height="1.02"/><rect x="2" y="9" width="1.02" height="1.02"/><rect x="3" y="9" width="1.02" height="1.02"/><rect x="4" y="9" width="1.02" height="1.02"/><rect x="5" y="9" width="1.02" height="1.02"/><rect x="6" y="9" width="1.02" height="1.02"/><rect x="7" y="9" width="1.02" height="1.02"/><rect x="8" y="9" width="1.02" height="1.02"/><rect x="9" y="9" width="1.02" height="1.02"/><rect x="10" y="9" width="1.02" height="1.02"/><rect x="12" y="9" width="1.02" height="1.02"/><rect x="1" y="10" width="1.02" height="1.02"/><rect x="2" y="10" width="1.02" height="1.02"/><rect x="3" y="10" width="1.02" height="1.02"/><rect x="4" y="10" width="1.02" height="1.02"/><rect x="5" y="10" width="1.02" height="1.02"/><rect x="6" y="10" width="1.02" height="1.02"/><rect x="7" y="10" width="1.02" height="1.02"/><rect x="8" y="10" width="1.02" height="1.02"/><rect x="9" y="10" width="1.02" height="1.02"/><rect x="10" y="10" width="1.02" height="1.02"/><rect x="2" y="11" width="1.02" height="1.02"/><rect x="3" y="11" width="1.02" height="1.02"/><rect x="4" y="11" width="1.02" height="1.02"/><rect x="5" y="11" width="1.02" height="1.02"/><rect x="6" y="11" width="1.02" height="1.02"/><rect x="7" y="11" width="1.02" height="1.02"/><rect x="8" y="11" width="1.02" height="1.02"/><rect x="9" y="11" width="1.02" height="1.02"/><rect x="3" y="12" width="1.02" height="1.02"/><rect x="4" y="12" width="1.02" height="1.02"/><rect x="5" y="12" width="1.02" height="1.02"/><rect x="6" y="12" width="1.02" height="1.02"/><rect x="7" y="12" width="1.02" height="1.02"/><rect x="8" y="12" width="1.02" height="1.02"/><g class="dino__pA"><rect x="3" y="13" width="1.02" height="1.02"/><rect x="4" y="13" width="1.02" height="1.02"/><rect x="7" y="13" width="1.02" height="1.02"/><rect x="8" y="13" width="1.02" height="1.02"/><rect x="3" y="14" width="1.02" height="1.02"/><rect x="8" y="14" width="1.02" height="1.02"/><rect x="9" y="14" width="1.02" height="1.02"/></g><g class="dino__pB"><rect x="3" y="13" width="1.02" height="1.02"/><rect x="4" y="13" width="1.02" height="1.02"/><rect x="7" y="13" width="1.02" height="1.02"/><rect x="8" y="13" width="1.02" height="1.02"/><rect x="2" y="14" width="1.02" height="1.02"/><rect x="3" y="14" width="1.02" height="1.02"/><rect x="8" y="14" width="1.02" height="1.02"/></g></g><rect x="13" y="5" width="2" height="1" fill="#ff3535" class="dino__langue"/></svg><span class="dino__bulle">RAWR!</span></div>
+    <div class="dino__corps"><svg class="dino__svg" viewBox="0 0 16 15" shape-rendering="crispEdges" aria-hidden="true"><g fill="#3ddc84"><rect x="9" y="0" width="1.02" height="1.02"/><rect x="10" y="0" width="1.02" height="1.02"/><rect x="11" y="0" width="1.02" height="1.02"/><rect x="12" y="0" width="1.02" height="1.02"/><rect x="13" y="0" width="1.02" height="1.02"/><rect x="14" y="0" width="1.02" height="1.02"/><rect x="8" y="1" width="1.02" height="1.02"/><rect x="9" y="1" width="1.02" height="1.02"/><rect x="10" y="1" width="1.02" height="1.02" fill="#111"/><rect x="11" y="1" width="1.02" height="1.02"/><rect x="12" y="1" width="1.02" height="1.02"/><rect x="13" y="1" width="1.02" height="1.02"/><rect x="14" y="1" width="1.02" height="1.02"/><rect x="15" y="1" width="1.02" height="1.02"/><rect x="8" y="2" width="1.02" height="1.02"/><rect x="9" y="2" width="1.02" height="1.02"/><rect x="10" y="2" width="1.02" height="1.02"/><rect x="11" y="2" width="1.02" height="1.02"/><rect x="12" y="2" width="1.02" height="1.02"/><rect x="13" y="2" width="1.02" height="1.02"/><rect x="14" y="2" width="1.02" height="1.02"/><rect x="15" y="2" width="1.02" height="1.02"/><rect x="8" y="3" width="1.02" height="1.02"/><rect x="9" y="3" width="1.02" height="1.02"/><rect x="10" y="3" width="1.02" height="1.02"/><rect x="11" y="3" width="1.02" height="1.02"/><rect x="12" y="3" width="1.02" height="1.02"/><rect x="13" y="3" width="1.02" height="1.02"/><rect x="14" y="3" width="1.02" height="1.02"/><rect x="15" y="3" width="1.02" height="1.02"/><rect x="8" y="4" width="1.02" height="1.02"/><rect x="9" y="4" width="1.02" height="1.02"/><rect x="10" y="4" width="1.02" height="1.02"/><rect x="11" y="4" width="1.02" height="1.02"/><rect x="8" y="5" width="1.02" height="1.02"/><rect x="9" y="5" width="1.02" height="1.02"/><rect x="10" y="5" width="1.02" height="1.02"/><rect x="11" y="5" width="1.02" height="1.02"/><rect x="12" y="5" width="1.02" height="1.02"/><rect x="13" y="5" width="1.02" height="1.02"/><rect x="0" y="6" width="1.02" height="1.02"/><rect x="7" y="6" width="1.02" height="1.02"/><rect x="8" y="6" width="1.02" height="1.02"/><rect x="9" y="6" width="1.02" height="1.02"/><rect x="10" y="6" width="1.02" height="1.02"/><rect x="11" y="6" width="1.02" height="1.02"/><rect x="0" y="7" width="1.02" height="1.02"/><rect x="1" y="7" width="1.02" height="1.02"/><rect x="6" y="7" width="1.02" height="1.02"/><rect x="7" y="7" width="1.02" height="1.02"/><rect x="8" y="7" width="1.02" height="1.02"/><rect x="9" y="7" width="1.02" height="1.02"/><rect x="10" y="7" width="1.02" height="1.02"/><rect x="11" y="7" width="1.02" height="1.02"/><rect x="12" y="7" width="1.02" height="1.02"/><rect x="0" y="8" width="1.02" height="1.02"/><rect x="1" y="8" width="1.02" height="1.02"/><rect x="2" y="8" width="1.02" height="1.02"/><rect x="5" y="8" width="1.02" height="1.02"/><rect x="6" y="8" width="1.02" height="1.02"/><rect x="7" y="8" width="1.02" height="1.02"/><rect x="8" y="8" width="1.02" height="1.02"/><rect x="9" y="8" width="1.02" height="1.02"/><rect x="10" y="8" width="1.02" height="1.02"/><rect x="11" y="8" width="1.02" height="1.02"/><rect x="12" y="8" width="1.02" height="1.02"/><rect x="13" y="8" width="1.02" height="1.02"/><rect x="0" y="9" width="1.02" height="1.02"/><rect x="1" y="9" width="1.02" height="1.02"/><rect x="2" y="9" width="1.02" height="1.02"/><rect x="3" y="9" width="1.02" height="1.02"/><rect x="4" y="9" width="1.02" height="1.02"/><rect x="5" y="9" width="1.02" height="1.02"/><rect x="6" y="9" width="1.02" height="1.02"/><rect x="7" y="9" width="1.02" height="1.02"/><rect x="8" y="9" width="1.02" height="1.02"/><rect x="9" y="9" width="1.02" height="1.02"/><rect x="10" y="9" width="1.02" height="1.02"/><rect x="12" y="9" width="1.02" height="1.02"/><rect x="1" y="10" width="1.02" height="1.02"/><rect x="2" y="10" width="1.02" height="1.02"/><rect x="3" y="10" width="1.02" height="1.02"/><rect x="4" y="10" width="1.02" height="1.02"/><rect x="5" y="10" width="1.02" height="1.02"/><rect x="6" y="10" width="1.02" height="1.02"/><rect x="7" y="10" width="1.02" height="1.02"/><rect x="8" y="10" width="1.02" height="1.02"/><rect x="9" y="10" width="1.02" height="1.02"/><rect x="10" y="10" width="1.02" height="1.02"/><rect x="2" y="11" width="1.02" height="1.02"/><rect x="3" y="11" width="1.02" height="1.02"/><rect x="4" y="11" width="1.02" height="1.02"/><rect x="5" y="11" width="1.02" height="1.02"/><rect x="6" y="11" width="1.02" height="1.02"/><rect x="7" y="11" width="1.02" height="1.02"/><rect x="8" y="11" width="1.02" height="1.02"/><rect x="9" y="11" width="1.02" height="1.02"/><rect x="3" y="12" width="1.02" height="1.02"/><rect x="4" y="12" width="1.02" height="1.02"/><rect x="5" y="12" width="1.02" height="1.02"/><rect x="6" y="12" width="1.02" height="1.02"/><rect x="7" y="12" width="1.02" height="1.02"/><rect x="8" y="12" width="1.02" height="1.02"/><g class="dino__pA"><rect x="3" y="13" width="1.02" height="1.02"/><rect x="4" y="13" width="1.02" height="1.02"/><rect x="7" y="13" width="1.02" height="1.02"/><rect x="8" y="13" width="1.02" height="1.02"/><rect x="3" y="14" width="1.02" height="1.02"/><rect x="8" y="14" width="1.02" height="1.02"/><rect x="9" y="14" width="1.02" height="1.02"/></g><g class="dino__pB"><rect x="3" y="13" width="1.02" height="1.02"/><rect x="4" y="13" width="1.02" height="1.02"/><rect x="7" y="13" width="1.02" height="1.02"/><rect x="8" y="13" width="1.02" height="1.02"/><rect x="2" y="14" width="1.02" height="1.02"/><rect x="3" y="14" width="1.02" height="1.02"/><rect x="8" y="14" width="1.02" height="1.02"/></g></g><rect x="13" y="5" width="2" height="1" fill="#ff3535" class="dino__langue"/></svg><span class="dino__bulle">Attrape-moi!</span></div>
   </div>
   <div class="hud" aria-hidden="true"><span><span class="hud__1up">1UP</span>&nbsp;&nbsp;<span class="hud__score">000000</span></span><span class="hud__hi">HI-SCORE&nbsp;&nbsp;999999</span><span class="hud__credit">CRÉDIT 01</span></div>
   <div class="veille" aria-hidden="true">
@@ -966,6 +1013,111 @@
       }, 2400);
     };
 
+    // ===== Le sondage des films des années 80 (une seule fois, après 15 secondes) =====
+    const quiz = document.querySelector('.quiz'), scene = document.querySelector('.scene');
+    const pixels = (rangs, couleurs) => {
+      const h = rangs.length, w = Math.max(...rangs.map(r => r.length));
+      let r = '';
+      rangs.forEach((ligne, y) => [...ligne].forEach((c, x) => { if (couleurs[c]) r += `<rect x="${x}" y="${y}" width="1.03" height="1.03" fill="${couleurs[c]}"${c === 'f' ? ' class="flamme"' : ''}/>`; }));
+      return `<svg viewBox="0 0 ${w} ${h}" shape-rendering="crispEdges">${r}</svg>`;
+    };
+    const DESSINS = {
+      avion: pixels([
+        '.........####.......................................',
+        '.........#####......................................',
+        '........#rrr##......................................',
+        '........#######.....................................',
+        '........#######.....................................',
+        '........########...................cccc.............',
+        '.......##########................cccccccc...........',
+        '.......##########.....##########cccccccccc..........',
+        '......#########################################.....',
+        '.fffff#############################################.',
+        'ffffff##############lllllll#####################....',
+        '......####################################..........',
+        '.......ddddddd...dddddddddddddd.....................',
+        '......ddddddd...dddddddddddddd......................',
+        '.....dddddd.....dddddddddddd........................',
+        '...............dddddddddddd.........................',
+        '....................................................'
+      ], { '#': '#9aa5b1', d: '#6f7a86', l: '#c9d1d9', c: '#7fd3ff', r: '#ff3535', f: '#ffb000' }),
+      lune: '<svg viewBox="0 0 40 40" shape-rendering="crispEdges"><circle cx="20" cy="20" r="19" fill="#fff6c2"/><circle cx="13" cy="14" r="3" fill="#efe3a0"/><circle cx="26" cy="25" r="4" fill="#efe3a0"/><circle cx="25" cy="11" r="2" fill="#efe3a0"/></svg>',
+      velo: pixels([
+        '.............##...............',
+        '............####..............',
+        '............####..............',
+        '............####..............',
+        '............###...............',
+        '............####..............',
+        '............#..#######........',
+        '...........##.....#...........',
+        '.......#####......#...........',
+        '.........#.##.....#...........',
+        '.........##########...........',
+        '....######...##.#..#######....',
+        '...##...###...###..##....##...',
+        '..##....#.##..##..####....##..',
+        '..#....#...#.##...#..#.....#..',
+        '..#....#...#.#....#...#....#..',
+        '..#....#######....#....#...#..',
+        '..#........#......#........#..',
+        '..##......##......##......##..',
+        '...##....##........##....##...',
+        '....######..........######....',
+        '..............................'
+      ], { '#': '#111' }),
+      chapeau: pixels([
+        '.......########.......',
+        '......##########......',
+        '.....############.....',
+        '.....############.....',
+        '.....kkkkkkkkkkkk.....',
+        '..##################..',
+        '######################',
+        '.####################.'
+      ], { '#': '#8a5a2b', k: '#3b2410' }),
+      fouet: '<svg viewBox="0 0 120 30"><path d="M2 20 C 30 4, 60 34, 90 12 S 112 8, 118 16" fill="none" stroke="#5a3a1b" stroke-width="4" stroke-linecap="round"/><rect x="0" y="16" width="14" height="8" rx="2" fill="#3b2410"/></svg>',
+      fantome: pixels([
+        '....######....',
+        '..##########..',
+        '.############.',
+        '.###kk##kk###.',
+        '.###kk##kk###.',
+        '##############',
+        '######mm######',
+        '##############',
+        '##############',
+        '##.###.###.###',
+        '#...#...#...#.'
+      ], { '#': '#ffffff', k: '#13007f', m: '#ff7aa8' })
+    };
+    const FILMS = {
+      topgun: { pieces: [['avion', 'pix--avion']], mot: 'Vrrrooom! Mon site va pas plus vite pour autant.', son: [[523, 0, .08], [659, .08, .08], [784, .16, .08], [1047, .24, .35]] },
+      et: { pieces: [['lune', 'pix--lune'], ['velo', 'pix--velo']], mot: 'Moi aussi je rentre à la maison… après le projet d\'un client.', son: [[392, 0, .25], [523, .25, .25], [659, .5, .5]] },
+      indy: { pieces: [['chapeau', 'pix--chapeau'], ['fouet', 'pix--fouet']], mot: 'J\'ai trouvé un trésor perdu : mon temps libre. Non, finalement.', son: [[330, 0, .12], [440, .12, .12], [494, .24, .12], [523, .36, .4]] },
+      ghost: { pieces: [['fantome', 'pix--fantome']], mot: 'Un fantôme? Non, c\'est juste mon site vide. Bouh!', son: [[440, 0, .3], [415, .3, .3], [392, .6, .5]] }
+    };
+    const joue = cle => {
+      const f = FILMS[cle]; if (!f || !scene) return;
+      scene.innerHTML = '';
+      f.pieces.forEach(([d, cls]) => { const el = document.createElement('div'); el.className = 'pix ' + cls; el.innerHTML = DESSINS[d]; scene.appendChild(el); });
+      const mot = document.createElement('p'); mot.className = 'scene__mot'; mot.textContent = f.mot; scene.appendChild(mot);
+      sons.jingle(f.son);
+      if (cle === 'indy') setTimeout(() => sons.crounch(), 1500);   // le claquement du fouet
+      clearTimeout(scene._t); scene._t = setTimeout(() => { scene.innerHTML = ''; }, 4400);
+    };
+    if (quiz) {
+      const ferme = () => { quiz.classList.remove('on'); setTimeout(() => { quiz.hidden = true; }, 300); garde('pp-film', 'vu'); };
+      quiz.querySelectorAll('[data-film]').forEach(b => b.addEventListener('click', () => { ferme(); garde('pp-film', b.dataset.film); setTimeout(() => joue(b.dataset.film), 250); }));
+      quiz.querySelector('.quiz__ferme').addEventListener('click', ferme);
+      quiz.querySelector('.quiz__tard').addEventListener('click', ferme);
+      addEventListener('keydown', e => { if (e.key === 'Escape' && !quiz.hidden) ferme(); });
+      if (!garde('pp-film')) setTimeout(() => {
+        if (document.querySelector('.veille.on')) return;
+        quiz.hidden = false; requestAnimationFrame(() => requestAnimationFrame(() => quiz.classList.add('on')));
+      }, 15000);
+    }
+
     // le mode arcade : code Konami
     const hudScore = document.querySelector('.hud__score');
     let score = 0;
@@ -1004,9 +1156,11 @@
     // le dinosaure : un clic, il sursaute et rugit
     const dino = document.querySelector('.dino');
     if (dino) dino.addEventListener('click', () => {
+      const bulle = dino.querySelector('.dino__bulle');
       dino.classList.remove('saute'); void dino.offsetWidth; dino.classList.add('saute');
+      bulle.textContent = 'RAWR!';
       sons.rugit();
-      clearTimeout(dino._t); dino._t = setTimeout(() => dino.classList.remove('saute'), 1400);
+      clearTimeout(dino._t); dino._t = setTimeout(() => { dino.classList.remove('saute'); bulle.textContent = 'Attrape-moi!'; }, 1400);
     });
     // le petit dino sort du bouton « Mode arcade » de temps en temps pour inviter à jouer
     const coucou = document.querySelector('.coucou');
