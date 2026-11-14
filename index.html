@@ -262,7 +262,7 @@
       .hero .badge{position:absolute;right:3vw;top:clamp(.75rem,2vh,1.5rem);width:clamp(130px,10vw,170px)}
       .hero__rang{display:flex;align-items:flex-start;gap:3vw}
       .hero__gauche{flex:none}
-      .ordi{position:relative;flex:0 1 min(23vw,40vh);min-width:200px;max-width:440px;margin:0 0 0 1vw}
+      .ordi{position:relative;flex:0 1 min(23vw,40vh);min-width:200px;max-width:440px;margin:clamp(3rem,8vh,5.5rem) 0 0 1vw}
     }
     @media (max-width:560px){
       .services__grille{gap:.7rem}
@@ -299,23 +299,24 @@
       .stage__joke,.stage__joke.on{transform:none;transition:opacity .3s}
     }
     /* Barre de chargement juste au-dessus du grand titre */
-    .avancement{position:relative;height:32px;width:100%;max-width:none;margin:0 0 clamp(2.2rem,5vh,3.4rem);padding:0 .9rem;display:flex;align-items:center;justify-content:flex-start;gap:2.2rem;border:1px solid rgba(255,255,255,.18);border-radius:0;background:#08004f;overflow:hidden}
+    .avancement{position:relative;height:54px;width:100%;max-width:none;margin:0 0 clamp(2.2rem,5vh,3.4rem);padding:0 1.1rem;display:flex;align-items:center;justify-content:flex-start;gap:2.2rem;border:2px solid rgba(255,255,255,.75);border-radius:0;background:#06003d;box-shadow:0 0 0 4px rgba(255,53,53,.25),0 10px 30px rgba(8,0,50,.45);overflow:hidden}
     .avancement__barre{position:absolute;inset:0;height:auto;border-radius:0;background:transparent;z-index:0}
-    .avancement__fill{border-radius:0;opacity:.9}
+    .avancement__fill{border-radius:0;opacity:1;animation:rayures 1.6s linear infinite}
     .avancement__top,.avancement__bas{position:relative;z-index:1;margin:0;min-height:0}
     .avancement__top{display:flex;align-items:center;gap:.5rem;flex:none}
-    .avancement__label{font-family:var(--body);font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;line-height:1;color:#fff;text-shadow:0 1px 2px rgba(8,0,50,.6)}
-    .avancement__pct{font-family:var(--display);font-size:1.25rem;line-height:1;color:#fff;text-shadow:0 1px 2px rgba(8,0,50,.6)}
+    .avancement__label{font-family:var(--body);font-size:.9rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;line-height:1;color:#fff;text-shadow:0 1px 2px rgba(8,0,50,.6)}
+    .avancement__pct{font-family:var(--display);font-size:2.1rem;line-height:1;color:#fff;text-shadow:0 1px 2px rgba(8,0,50,.6)}
     .avancement__bas{justify-items:start;text-align:left;padding-left:2.2rem;border-left:1px solid rgba(255,255,255,.3)}
-    .avancement__note{font-size:.75rem;color:rgba(255,255,255,.8);white-space:nowrap}
-    .avancement__msg{justify-self:start;padding:0;border-radius:0;background:none;color:#fff;font-size:.8rem;font-weight:700;line-height:1;white-space:nowrap;text-shadow:0 1px 2px rgba(8,0,50,.6)}
+    .avancement__note{font-size:.92rem;color:rgba(255,255,255,.9);white-space:nowrap}
+    .avancement__msg{justify-self:start;padding:0;border-radius:0;background:none;color:#fff;font-size:1rem;font-weight:800;line-height:1;white-space:nowrap;text-shadow:0 1px 2px rgba(8,0,50,.6)}
     .avancement__msg.fade{transform:translateY(-6px)}
     @media (max-width:600px){
-      .avancement{padding:0 .8rem;gap:1.1rem;margin-bottom:2rem}
+      .avancement{height:48px;padding:0 .8rem;gap:1.1rem;margin-bottom:2rem}
+      .avancement__pct{font-size:1.7rem}
       .avancement__bas{padding-left:1.1rem}
       .avancement__label,.avancement__note{display:none}
-      .avancement__pct::before{content:"Mon site : ";font-family:var(--body);font-size:.68rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
-      .avancement__msg{font-size:.72rem;white-space:normal}
+      .avancement__pct::before{content:"Mon site : ";font-family:var(--body);font-size:.4em;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+      .avancement__msg{font-size:.8rem;white-space:normal;line-height:1.15}
     }
     /* ===== Délire arcade années 80 ===== */
     @media (pointer:fine){
@@ -372,8 +373,9 @@
       .arcade .imprime__arcade{display:block;font:16pt/2 "Press Start 2P",monospace}
     }
     @media (prefers-reduced-motion:reduce){.veille__txt,.hud__1up{animation:none}}
+    @media (prefers-reduced-motion:reduce){.avancement__fill{animation:none}}
     /* L'arrivée : vieille télé mal syntonisée */
-    .intro{position:fixed;inset:0;z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.2rem;overflow:hidden;background:#151515;animation:intro-secours .01s 3.2s forwards}
+    .intro{position:fixed;inset:0;z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.2rem;overflow:hidden;background:#151515;animation:intro-secours .01s 5s forwards}
     @keyframes intro-secours{to{opacity:0;visibility:hidden}}
     .intro::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(to bottom,rgba(0,0,0,.28) 0 2px,transparent 2px 4px);box-shadow:inset 0 0 160px rgba(0,0,0,.85);pointer-events:none}
     .intro__neige{position:absolute;inset:0;width:100%;height:100%;opacity:.8}
@@ -381,8 +383,8 @@
     @keyframes intro-bande{from{top:100%}to{top:-24%}}
     .intro__txt{position:relative;z-index:1;margin:0;font-family:var(--display);text-transform:uppercase;font-size:clamp(4rem,15vw,13rem);line-height:.9;color:#fff;text-shadow:-4px 0 #ff3535,4px 0 #00e5ff}
     .intro__sous{position:relative;z-index:1;margin:0;font:12px/1 "Press Start 2P",monospace;color:#fff;opacity:.85}
-    .intro.fini{opacity:0;transition:opacity .3s ease-out}
-    .accroche body{animation:accroche .45s steps(1) both}
+    .intro.fini{opacity:0;transition:opacity .45s ease-out}
+    .accroche body{animation:accroche .6s steps(1) both}
     @keyframes accroche{0%{transform:translate(-12px,0) skewX(5deg);filter:hue-rotate(90deg) contrast(1.4)}20%{transform:translate(9px,3px) skewX(-4deg);filter:hue-rotate(-70deg) saturate(1.6)}40%{transform:translate(-5px,-2px);filter:contrast(1.3)}60%{transform:translate(3px,0) skewX(1deg);filter:none}80%{transform:translate(-1px,0)}100%{transform:none;filter:none}}
   </style>
 </head>
@@ -396,6 +398,9 @@
   <script>
   /* En entrant : une vieille télé mal syntonisée pendant une seconde, puis le site « accroche » */
   (() => {
+    // on arrive toujours au début du site (le navigateur ne nous remet pas plus bas)
+    try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch (e) {}
+    if (!location.hash) window.scrollTo(0, 0);
     const intro = document.querySelector('.intro');
     if (!intro) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { intro.remove(); return; }
@@ -412,13 +417,14 @@
       txt.style.transform = `translate(${(Math.random() - .5) * (k > .75 ? 46 : 8)}px, ${(Math.random() - .5) * 8}px) skewX(${(Math.random() - .5) * (k > .85 ? 34 : 4)}deg)`;
       txt.style.textShadow = `${-2 - Math.random() * 9}px 0 #ff3535, ${2 + Math.random() * 9}px 0 #00e5ff`;
       txt.style.opacity = k > .92 ? .15 : 1;
-      if (t - t0 > 950) { fini = true; return termine(); }
+      if (t - t0 > 2400) { fini = true; return termine(); }
       requestAnimationFrame(frame);
     };
     const termine = () => {
+      if (!location.hash) window.scrollTo(0, 0);
       intro.classList.add('fini');
       document.documentElement.classList.add('accroche');
-      setTimeout(() => { intro.remove(); document.documentElement.classList.remove('accroche'); }, 480);
+      setTimeout(() => { intro.remove(); document.documentElement.classList.remove('accroche'); }, 650);
     };
     requestAnimationFrame(frame);
   })();
