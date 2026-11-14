@@ -255,8 +255,8 @@
     @media (min-width:1000px){
       /* Haut de page : titre GÉANT sur 3 lignes, centré dans l'écran ; badge et avancement dans les espaces libres à droite */
       .top{padding-left:3vw;padding-right:3vw}
-      .hero{display:flex;flex-direction:column;justify-content:center;min-height:calc(100svh - 116px);padding:clamp(2rem,4vh,3.5rem) 3vw}
-      .statut{order:-1;align-self:flex-start;margin:0 0 clamp(2.6rem,6vh,4rem)}
+      .hero{display:flex;flex-direction:column;justify-content:center;min-height:calc(100svh - 86px);padding:clamp(2rem,4vh,3.5rem) 3vw}
+      .statut{order:-1;align-self:flex-start;margin:0 0 clamp(1rem,2.4vh,1.6rem)}
       .hero__title{font-size:clamp(4.5rem,min(13.9vw,26vh),200px);line-height:.88;max-width:none}
       .hero__sub{margin-top:clamp(.6rem,1.6vh,1.1rem);font-size:clamp(1.1rem,1.5vw,1.4rem)}
       .hero .badge{position:absolute;right:3vw;top:clamp(.75rem,2vh,1.5rem);width:clamp(130px,10vw,170px)}
@@ -298,9 +298,8 @@
       .avancement.secousse{animation:none}
       .stage__joke,.stage__joke.on{transform:none;transition:opacity .3s}
     }
-    /* Barre de chargement collée tout en haut : le site qui n'arrive jamais à finir de charger */
-    body{padding-top:30px}
-    .avancement{position:fixed;top:0;left:0;right:0;z-index:80;height:30px;max-width:none;width:auto;margin:0;padding:0 3vw;display:flex;align-items:center;justify-content:flex-start;gap:2.2rem;border:0;border-radius:0;background:#08004f;box-shadow:0 2px 12px rgba(8,0,50,.35);overflow:hidden}
+    /* Barre de chargement juste au-dessus du grand titre */
+    .avancement{position:relative;height:32px;width:100%;max-width:none;margin:0 0 clamp(2.2rem,5vh,3.4rem);padding:0 .9rem;display:flex;align-items:center;justify-content:flex-start;gap:2.2rem;border:1px solid rgba(255,255,255,.18);border-radius:0;background:#08004f;overflow:hidden}
     .avancement__barre{position:absolute;inset:0;height:auto;border-radius:0;background:transparent;z-index:0}
     .avancement__fill{border-radius:0;opacity:.9}
     .avancement__top,.avancement__bas{position:relative;z-index:1;margin:0;min-height:0}
@@ -308,15 +307,15 @@
     .avancement__label{font-family:var(--body);font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;line-height:1;color:#fff;text-shadow:0 1px 2px rgba(8,0,50,.6)}
     .avancement__pct{font-family:var(--display);font-size:1.25rem;line-height:1;color:#fff;text-shadow:0 1px 2px rgba(8,0,50,.6)}
     .avancement__bas{justify-items:start;text-align:left;padding-left:2.2rem;border-left:1px solid rgba(255,255,255,.3)}
-    .avancement__note{font-size:.75rem;color:rgba(255,255,255,.8)}
-    .avancement__msg{justify-self:start;padding:0;border-radius:0;background:none;color:#fff;font-size:.8rem;font-weight:700;line-height:1;text-shadow:0 1px 2px rgba(8,0,50,.6)}
+    .avancement__note{font-size:.75rem;color:rgba(255,255,255,.8);white-space:nowrap}
+    .avancement__msg{justify-self:start;padding:0;border-radius:0;background:none;color:#fff;font-size:.8rem;font-weight:700;line-height:1;white-space:nowrap;text-shadow:0 1px 2px rgba(8,0,50,.6)}
     .avancement__msg.fade{transform:translateY(-6px)}
     @media (max-width:600px){
-      .avancement{padding:0 1rem;gap:1.1rem}
+      .avancement{padding:0 .8rem;gap:1.1rem;margin-bottom:2rem}
       .avancement__bas{padding-left:1.1rem}
       .avancement__label,.avancement__note{display:none}
       .avancement__pct::before{content:"Mon site : ";font-family:var(--body);font-size:.68rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
-      .avancement__msg{font-size:.72rem}
+      .avancement__msg{font-size:.72rem;white-space:normal}
     }
     /* ===== Délire arcade années 80 ===== */
     @media (pointer:fine){
@@ -373,15 +372,57 @@
       .arcade .imprime__arcade{display:block;font:16pt/2 "Press Start 2P",monospace}
     }
     @media (prefers-reduced-motion:reduce){.veille__txt,.hud__1up{animation:none}}
+    /* L'arrivée : vieille télé mal syntonisée */
+    .intro{position:fixed;inset:0;z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.2rem;overflow:hidden;background:#151515;animation:intro-secours .01s 3.2s forwards}
+    @keyframes intro-secours{to{opacity:0;visibility:hidden}}
+    .intro::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(to bottom,rgba(0,0,0,.28) 0 2px,transparent 2px 4px);box-shadow:inset 0 0 160px rgba(0,0,0,.85);pointer-events:none}
+    .intro__neige{position:absolute;inset:0;width:100%;height:100%;opacity:.8}
+    .intro__bande{position:absolute;left:0;right:0;height:24%;background:linear-gradient(transparent,rgba(255,255,255,.22),transparent);animation:intro-bande .55s linear infinite}
+    @keyframes intro-bande{from{top:100%}to{top:-24%}}
+    .intro__txt{position:relative;z-index:1;margin:0;font-family:var(--display);text-transform:uppercase;font-size:clamp(4rem,15vw,13rem);line-height:.9;color:#fff;text-shadow:-4px 0 #ff3535,4px 0 #00e5ff}
+    .intro__sous{position:relative;z-index:1;margin:0;font:12px/1 "Press Start 2P",monospace;color:#fff;opacity:.85}
+    .intro.fini{opacity:0;transition:opacity .3s ease-out}
+    .accroche body{animation:accroche .45s steps(1) both}
+    @keyframes accroche{0%{transform:translate(-12px,0) skewX(5deg);filter:hue-rotate(90deg) contrast(1.4)}20%{transform:translate(9px,3px) skewX(-4deg);filter:hue-rotate(-70deg) saturate(1.6)}40%{transform:translate(-5px,-2px);filter:contrast(1.3)}60%{transform:translate(3px,0) skewX(1deg);filter:none}80%{transform:translate(-1px,0)}100%{transform:none;filter:none}}
   </style>
 </head>
 <body>
-
-  <div class="avancement" role="status">
-    <div class="avancement__top"><span class="avancement__label">Avancement de mon propre site</span><span class="avancement__pct">3 %</span></div>
-    <div class="avancement__barre" role="progressbar" aria-label="Avancement de mon propre site" aria-valuemin="0" aria-valuemax="100" aria-valuenow="3"><span class="avancement__fill"></span></div>
-    <div class="avancement__bas"><span class="avancement__note">Fin prévue : quand j'aurai deux minutes.</span><p class="avancement__msg fade" aria-live="polite">&nbsp;</p></div>
+  <div class="intro" aria-hidden="true">
+    <canvas class="intro__neige" width="200" height="112"></canvas>
+    <div class="intro__bande"></div>
+    <p class="intro__txt">Paparmane</p>
+    <p class="intro__sous">Réglage du signal…</p>
   </div>
+  <script>
+  /* En entrant : une vieille télé mal syntonisée pendant une seconde, puis le site « accroche » */
+  (() => {
+    const intro = document.querySelector('.intro');
+    if (!intro) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { intro.remove(); return; }
+    const cv = intro.querySelector('canvas'), c = cv.getContext('2d'), img = c.createImageData(cv.width, cv.height);
+    const txt = intro.querySelector('.intro__txt');
+    let t0 = 0, fini = false;
+    const frame = t => {
+      if (fini) return;
+      if (!t0) t0 = t;
+      const d = img.data;
+      for (let i = 0; i < d.length; i += 4) { const v = Math.random() * 230; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; }
+      c.putImageData(img, 0, 0);
+      const k = Math.random();
+      txt.style.transform = `translate(${(Math.random() - .5) * (k > .75 ? 46 : 8)}px, ${(Math.random() - .5) * 8}px) skewX(${(Math.random() - .5) * (k > .85 ? 34 : 4)}deg)`;
+      txt.style.textShadow = `${-2 - Math.random() * 9}px 0 #ff3535, ${2 + Math.random() * 9}px 0 #00e5ff`;
+      txt.style.opacity = k > .92 ? .15 : 1;
+      if (t - t0 > 950) { fini = true; return termine(); }
+      requestAnimationFrame(frame);
+    };
+    const termine = () => {
+      intro.classList.add('fini');
+      document.documentElement.classList.add('accroche');
+      setTimeout(() => { intro.remove(); document.documentElement.classList.remove('accroche'); }, 480);
+    };
+    requestAnimationFrame(frame);
+  })();
+  </script>
 
   <header class="top">
     <a href="#" class="logo">Paparmane<span class="dot">.</span></a>
@@ -400,6 +441,11 @@
     </svg>
     <div class="hero__rang">
       <div class="hero__gauche">
+      <div class="avancement" role="status">
+        <div class="avancement__top"><span class="avancement__label">Avancement de mon propre site</span><span class="avancement__pct">3 %</span></div>
+        <div class="avancement__barre" role="progressbar" aria-label="Avancement de mon propre site" aria-valuemin="0" aria-valuemax="100" aria-valuenow="3"><span class="avancement__fill"></span></div>
+        <div class="avancement__bas"><span class="avancement__note">Fin prévue : quand j'aurai deux minutes.</span><p class="avancement__msg fade" aria-live="polite">&nbsp;</p></div>
+      </div>
         <h1 class="hero__title"><span class="hero__l1">Désolée, mon</span> <span class="hero__l1">site est <span class="o">vide.</span></span></h1>
       <p class="hero__sub ecrit"><b>Je suis trop occupée sur vos projets.</b> Branding, sites web, infolettres, SEO &amp; GEO, etc. — <em>J'ai toujours du temps pour les autres.</em></p>
       </div>
