@@ -360,8 +360,8 @@
     .arcade .dock__arcade .dock__txt{color:#08004f}
     @media (max-width:600px){.dock__txt{display:none}.dock__btn{padding:.65rem;font-size:1.15rem}}
     /* Le dinosaure pixélisé du mode arcade */
-    .dino{display:none;position:fixed;left:0;bottom:clamp(5.5rem,10vh,7rem);z-index:165;width:clamp(64px,6vw,88px);cursor:pointer;animation:dino-marche 17s linear infinite}
-    .arcade .dino{display:block}
+    .dino{display:none;position:fixed;left:0;bottom:clamp(5.5rem,10vh,7rem);z-index:165;width:clamp(64px,6vw,88px);cursor:pointer}
+    .dino.marche{display:block;animation:dino-marche 17s linear forwards}
     .dino__corps{position:relative;transform-origin:50% 100%}
     .dino__svg{display:block;width:100%;height:auto;filter:drop-shadow(3px 3px 0 #000)}
     .dino__pB{visibility:hidden}
@@ -377,7 +377,7 @@
     @keyframes bulle-pop{from{transform:scale(.5)}}
     .dino__langue{display:none}
     .dino.saute .dino__langue{display:block}
-    @media (prefers-reduced-motion:reduce){.dino{animation:none;left:3vw}.dino .dino__pA,.dino .dino__pB{animation:none}}
+    @media (prefers-reduced-motion:reduce){.dino .dino__pA,.dino .dino__pB{animation:none}}
     /* Le petit dino qui sort du bouton « Mode arcade » pour inviter à jouer */
     .dock{position:fixed}
     .coucou{position:absolute;right:1.4rem;bottom:100%;width:64px;height:130px;pointer-events:none}
@@ -427,6 +427,18 @@
     @keyframes fantome{0%{transform:translate(-120%,0)}20%{transform:translate(20vw,-40px)}40%{transform:translate(40vw,30px)}60%{transform:translate(60vw,-30px)}80%{transform:translate(80vw,20px)}100%{transform:translate(110vw,-40px)}}
     .scene__mot{position:absolute;left:50%;bottom:16%;translate:-50% 0;width:max-content;max-width:calc(100vw - 2rem);padding:.8rem 1.1rem;border:3px solid #000;background:#fff;color:#000;box-shadow:5px 5px 0 #000;font:12px/1.6 "Press Start 2P",monospace;text-align:center;animation:apparait 4.2s ease-in-out forwards}
     @media (prefers-reduced-motion:reduce){.pix,.scene__mot{animation-duration:.01s;animation-delay:0s}}
+    /* Le jeu « L'invasion des clients » (bouton Veille) */
+    .dock__veille .dock__txt{font-family:"Press Start 2P",monospace;font-size:.6rem;color:#7fd3ff}
+    .jeu{position:fixed;inset:0;z-index:600;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.8rem;background:#000;touch-action:none}
+    .jeu[hidden]{display:none}
+    .jeu__ecran{display:block;image-rendering:pixelated;image-rendering:crisp-edges;background:#05001f;box-shadow:0 0 0 4px #1a1a1a,0 0 60px rgba(61,220,132,.15)}
+    .jeu::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(to bottom,rgba(0,0,0,.25) 0 1px,transparent 1px 3px)}
+    .jeu__quitte{position:absolute;top:.8rem;right:.8rem;z-index:2;padding:.6rem .8rem;border:2px solid #fff;background:#000;color:#fff;font:10px/1 "Press Start 2P",monospace;cursor:pointer}
+    .jeu__quitte:hover{background:var(--accent);border-color:var(--accent)}
+    .jeu__tactile{display:none;gap:.8rem;z-index:2}
+    .jeu__tactile button{width:76px;height:64px;border:3px solid #fff;border-radius:12px;background:#111;color:#fff;font-size:1.6rem;touch-action:none;-webkit-user-select:none;user-select:none}
+    .jeu__tactile button.appui{background:var(--accent)}
+    @media (pointer:coarse){.jeu__tactile{display:flex}}
     /* imprimer la page */
     .imprime{display:none}
     @media print{
@@ -814,6 +826,11 @@
     <button type="button" class="quiz__tard">Plus tard</button>
   </div>
   <div class="scene" aria-hidden="true"></div>
+  <div class="jeu" role="dialog" aria-label="Jeu : L'invasion des clients" hidden>
+    <canvas class="jeu__ecran" width="400" height="300"></canvas>
+    <button type="button" class="jeu__quitte">✕ Retour au site</button>
+    <div class="jeu__tactile" aria-hidden="true"><button type="button" data-k="g">◀</button><button type="button" data-k="f">🔥</button><button type="button" data-k="d">▶</button></div>
+  </div>
   <button type="button" class="onglet-films" hidden>🎬 <span>Films 80</span></button>
   <div class="dock">
     <div class="coucou" aria-hidden="true">
@@ -942,7 +959,9 @@
           o.connect(g).connect(a.destination); [o, l].forEach(x => { x.start(t); x.stop(t + 1.75); });
         },
         dring: () => { [0, .22].forEach(d => { note(2100, d, .5, 'sine', .09); note(2650, d, .45, 'sine', .05); }); },
-        bip: () => { note(1250, 0, .09, 'square', .05); note(1550, .13, .1, 'square', .05); }
+        bip: () => { note(1250, 0, .09, 'square', .05); note(1550, .13, .1, 'square', .05); },
+        boum: () => souffle(.28, 'lowpass', 1800, 160, .35, .8),
+        pew: () => note(1400, 0, .06, 'square', .035)
       };
       return { note, crounch, jingle, rugit, effets };
     })();
@@ -1163,6 +1182,194 @@
       }, 15000);
     }
 
+    // ===================== « L'INVASION DES CLIENTS » (bouton Veille) =====================
+    // Jeu original de tir à la verticale : le canon à paparmanes contre les demandes de clients.
+    const jeu = document.querySelector('.jeu');
+    let lanceJeu = () => {};
+    if (jeu) {
+      const cv = jeu.querySelector('.jeu__ecran'), c = cv.getContext('2d');
+      const W = 400, H = 300;
+      const sprite = rangs => rangs.map(r => [...r]);
+      const SPRITES = [
+        { nom: 'tel', pts: 40, coul: '#ffd400', px: sprite(['..#######..', '.#########.', '##.......##', '##.......##', '...#####...', '..#######..', '..#.#.#.#..', '..#######..']) },
+        { nom: 'courriel', pts: 30, coul: '#ffffff', px: sprite(['###########', '##.......##', '#.#.....#.#', '#..#...#..#', '#...#.#...#', '#....#....#', '#.........#', '###########']) },
+        { nom: 'crayon', pts: 20, coul: '#ff5fd2', px: sprite(['........##.', '.......####', '......####.', '.....####..', '....####...', '...####....', '..#.##.....', '.##........']) },
+        { nom: 'cafe', pts: 10, coul: '#3ddc84', px: sprite(['..#..#..#..', '...#..#....', '#########..', '#########.#', '#########.#', '#########.#', '.#######.#.', '..#####....']) }
+      ];
+      const CANON = sprite(['.....###.....', '....#####....', '...#######...', '.###########.', '#############', '#############']);
+      const MOTS = ['Réglé!', 'Facturé!', 'Livré!', 'Envoyé!', 'Approuvé!', 'Classé!'];
+      const DINO = sprite(['.........######.', '........##.#####', '........########', '........########', '........####....', '........######..', '#......#####....', '##....#######...', '###..#########..', '###########.#...', '.##########.....', '..########......', '...######.......', '...##..##.......', '...#....##......']);
+      let dino = null, attenteDino = 12;
+      const dessine = (px, x, y, coul, k = 2) => { c.fillStyle = coul; px.forEach((r, j) => r.forEach((ch, i) => { if (ch === '#') c.fillRect(Math.round(x + i * k), Math.round(y + j * k), k, k); })); };
+      const texte = (t, x, y, coul = '#fff', taille = 8, align = 'center') => { c.fillStyle = coul; c.font = taille + 'px "Press Start 2P", monospace'; c.textAlign = align; c.textBaseline = 'middle'; c.fillText(t, x, y); };
+
+      let etat = 'off', anim = 0, avant = 0, t = 0, joueur, ennemis, tirs, bombes, mots, score, vies, vague, dir, cadence, invuln, pas, attenteBombe;
+      const touches = {};
+      const nouvelleVague = () => {
+        ennemis = [];
+        SPRITES.forEach((sp, rang) => { for (let col = 0; col < 8; col++) ennemis.push({ x: 40 + col * 38, y: 46 + rang * 26, sp, vivant: true }); });
+        dir = 1; tirs = []; bombes = []; attenteBombe = 1.2;
+      };
+      const nouvellePartie = () => { joueur = { x: W / 2 - 13, y: H - 26 }; score = 0; vies = 3; vague = 1; mots = []; invuln = 0; cadence = 0; dino = null; attenteDino = 10 + Math.random() * 8; nouvelleVague(); etat = 'jeu'; };
+      const taille = () => {
+        const s = Math.min((innerWidth - 12) / W, (innerHeight - (matchMedia('(pointer: coarse)').matches ? 150 : 70)) / H);
+        cv.style.width = Math.floor(W * s) + 'px'; cv.style.height = Math.floor(H * s) + 'px';
+      };
+      const boom = (x, y, coul) => { for (let i = 0; i < 10; i++) mots.push({ x, y, vx: (Math.random() - .5) * 120, vy: (Math.random() - .5) * 120, vie: .5, coul, eclat: true }); };
+
+      const maj = dt => {
+        t += dt;
+        if (etat !== 'jeu') return;
+        // joueur
+        const v = 150;
+        if (touches.g) joueur.x -= v * dt;
+        if (touches.d) joueur.x += v * dt;
+        joueur.x = Math.max(4, Math.min(W - 30, joueur.x));
+        cadence -= dt; invuln -= dt;
+        if (touches.f && cadence <= 0 && tirs.length < 3) { tirs.push({ x: joueur.x + 12, y: joueur.y - 4 }); cadence = .28; sons.effets.pew(); }
+        // ennemis
+        const vivants = ennemis.filter(e => e.vivant);
+        const vx = (18 + (32 - vivants.length) * 2.6 + vague * 6) * dir;
+        let bord = false;
+        vivants.forEach(e => { e.x += vx * dt; if (e.x < 6 || e.x + 22 > W - 6) bord = true; });
+        if (bord) { dir *= -1; vivants.forEach(e => { e.x += vx * dt * -1.5; e.y += 9; }); }
+        // bombes des clients
+        attenteBombe -= dt;
+        if (attenteBombe <= 0 && vivants.length) {
+          const tireur = vivants[Math.floor(Math.random() * vivants.length)];
+          bombes.push({ x: tireur.x + 10, y: tireur.y + 16 });
+          attenteBombe = Math.max(.35, 1.1 - vague * .1) * (.6 + Math.random() * .8);
+        }
+        tirs.forEach(b => b.y -= 230 * dt); tirs = tirs.filter(b => b.y > -10);
+        bombes.forEach(b => b.y += (85 + vague * 8) * dt); bombes = bombes.filter(b => b.y < H + 10);
+        // collisions : paparmanes contre clients
+        tirs.forEach(b => vivants.forEach(e => {
+          if (!b.mort && e.vivant && b.x > e.x - 2 && b.x < e.x + 23 && b.y > e.y && b.y < e.y + 17) {
+            e.vivant = false; b.mort = true; score += e.sp.pts;
+            mots.push({ x: e.x + 11, y: e.y + 6, vy: -30, vx: 0, vie: .8, txt: MOTS[Math.floor(Math.random() * MOTS.length)], coul: e.sp.coul });
+            boom(e.x + 11, e.y + 8, e.sp.coul); sons.effets.boum();
+            points(e.sp.pts);
+          }
+        }));
+        // le dino bonus
+        attenteDino -= dt;
+        if (!dino && attenteDino <= 0) { const g = Math.random() < .5; dino = { x: g ? -26 : W + 2, v: g ? 70 : -70 }; }
+        if (dino) {
+          dino.x += dino.v * dt;
+          tirs.forEach(b => { if (dino && !b.mort && b.x > dino.x && b.x < dino.x + 24 && b.y > 22 && b.y < 46) {
+            b.mort = true; score += 500; points(500);
+            mots.push({ x: dino.x + 12, y: 30, vy: -25, vx: 0, vie: 1.2, txt: 'RAWR! +500', coul: '#3ddc84' });
+            boom(dino.x + 12, 34, '#3ddc84'); sons.rugit(); dino = null; attenteDino = 14 + Math.random() * 10;
+          } });
+          if (dino && (dino.x < -40 || dino.x > W + 40)) { dino = null; attenteDino = 12 + Math.random() * 10; }
+        }
+        tirs = tirs.filter(b => !b.mort);
+        // bombes contre joueur
+        bombes.forEach(b => {
+          if (!b.mort && invuln <= 0 && b.x > joueur.x && b.x < joueur.x + 26 && b.y > joueur.y && b.y < joueur.y + 12) {
+            b.mort = true; vies--; invuln = 1.4; boom(joueur.x + 13, joueur.y + 6, '#ff3535');
+            sons.jingle([[392, 0, .1], [311, .1, .1], [247, .2, .3]]);
+            if (vies <= 0) { etat = 'fin'; sons.jingle([[392, 0, .2], [370, .2, .2], [349, .4, .2], [330, .6, .6]]); }
+          }
+        });
+        bombes = bombes.filter(b => !b.mort);
+        if (vivants.some(e => e.y + 16 >= joueur.y)) { etat = 'fin'; sons.jingle([[392, 0, .2], [330, .2, .6]]); }
+        if (!ennemis.some(e => e.vivant)) { vague++; nouvelleVague(); mots.push({ x: W / 2, y: H / 2, vx: 0, vy: -10, vie: 1.6, txt: 'VAGUE ' + vague + '!', coul: '#ffd400' }); sons.jingle([[523, 0, .08], [659, .08, .08], [784, .16, .08], [1047, .24, .3]]); }
+        mots.forEach(m => { m.x += (m.vx || 0) * dt; m.y += (m.vy || 0) * dt; m.vie -= dt; }); mots = mots.filter(m => m.vie > 0);
+      };
+
+      const rendu = () => {
+        c.fillStyle = '#05001f'; c.fillRect(0, 0, W, H);
+        // petites étoiles
+        c.fillStyle = 'rgba(255,255,255,.5)';
+        for (let i = 0; i < 40; i++) { const x = (i * 97) % W, y = ((i * 53) + t * (8 + (i % 3) * 6)) % H; c.fillRect(x, y, 1, 1); }
+        if (etat === 'veille') {
+          texte('INSÉREZ UNE PAPARMANE', W / 2, H / 2 - 30, '#ffd400', 10);
+          const y = Math.min(H / 2 + 4, H / 2 - 60 + t * 160);          // la paparmane tombe dans la fente
+          c.fillStyle = '#ff3535'; c.beginPath(); c.arc(W / 2, y, 9, 0, Math.PI * 2); c.fill();
+          texte('P', W / 2 + 1, y + 1, '#fff', 8);
+          c.fillStyle = '#888'; c.fillRect(W / 2 - 16, H / 2 + 14, 32, 4);
+          if (t > .45) texte('CRÉDIT 01', W / 2, H / 2 + 44, '#3ddc84', 8);
+          return;
+        }
+        if (etat === 'titre') {
+          texte("L'INVASION", W / 2, 58, '#ff3535', 16);
+          texte('DES CLIENTS', W / 2, 84, '#ff3535', 16);
+          SPRITES.forEach((sp, i) => { dessine(sp.px, 92 + i * 60, 118 + Math.sin(t * 4 + i) * 3, sp.coul); texte(sp.pts + ' PTS', 103 + i * 60, 150, '#fff', 6); });
+          dessine(CANON, W / 2 - 13, 180, '#ff3535');
+          dessine(DINO, 318, 170, '#3ddc84', 1.5); texte('BONUS', 330, 202, '#3ddc84', 6); texte('500', 330, 211, '#3ddc84', 6);
+          texte('Règle les demandes avant', W / 2, 212, '#d2ccf7', 7);
+          texte('qu\'elles arrivent en bas!', W / 2, 224, '#d2ccf7', 7);
+          if (Math.floor(t * 2) % 2 === 0) texte(matchMedia('(pointer: coarse)').matches ? 'TOUCHE 🔥 POUR JOUER' : 'ESPACE POUR JOUER', W / 2, 256, '#ffd400', 9);
+          if (!matchMedia('(pointer: coarse)').matches) texte('FLÈCHES : bouger · ESPACE : tirer', W / 2, 278, '#888', 6);
+          return;
+        }
+        // en jeu (ou fin)
+        ennemis.forEach(e => { if (e.vivant) dessine(e.sp.px, e.x, e.y + (Math.floor(t * 3) % 2), e.sp.coul); });
+        tirs.forEach(b => { c.fillStyle = '#ff3535'; c.fillRect(b.x - 2, b.y - 2, 4, 4); c.fillStyle = '#fff'; c.fillRect(b.x - 1, b.y - 1, 1, 1); });
+        bombes.forEach(b => { c.fillStyle = '#fff'; c.fillRect(b.x - 1, b.y - 6, 2, 5); c.fillRect(b.x - 1, b.y + 1, 2, 2); });
+        if (dino) { c.save(); if (dino.v < 0) { c.translate(dino.x * 2 + 24, 0); c.scale(-1, 1); } dessine(DINO, dino.x, 24, '#3ddc84', 1.5); c.restore(); }
+        if (invuln <= 0 || Math.floor(t * 10) % 2) dessine(CANON, joueur.x, joueur.y, '#ff3535');
+        c.fillStyle = '#3ddc84'; c.fillRect(0, H - 8, W, 1);
+        mots.forEach(m => { if (m.eclat) { c.fillStyle = m.coul; c.fillRect(m.x, m.y, 2, 2); } else texte(m.txt, m.x, m.y, m.coul, m.txt.startsWith('VAGUE') ? 14 : 7); });
+        texte('SCORE ' + String(score).padStart(5, '0'), 8, 14, '#fff', 8, 'left');
+        texte('VAGUE ' + vague, W / 2, 14, '#ffd400', 8);
+        texte('VIES ' + '♥'.repeat(Math.max(0, vies)), W - 8, 14, '#ff3535', 8, 'right');
+        if (etat === 'fin') {
+          c.fillStyle = 'rgba(0,0,0,.75)'; c.fillRect(0, 0, W, H);
+          texte('GAME OVER', W / 2, 92, '#ff3535', 20);
+          texte('Les clients ont gagné.', W / 2, 132, '#fff', 8);
+          texte('Mon site est toujours vide.', W / 2, 150, '#fff', 8);
+          texte('SCORE ' + score, W / 2, 184, '#ffd400', 10);
+          if (Math.floor(t * 2) % 2 === 0) texte(matchMedia('(pointer: coarse)').matches ? 'TOUCHE 🔥 POUR REJOUER' : 'ESPACE POUR REJOUER', W / 2, 226, '#7fd3ff', 8);
+          texte('ÉCHAP : retour au site', W / 2, 250, '#888', 6);
+        }
+      };
+      const boucle = now => {
+        if (etat === 'off') return;
+        const dt = Math.min(.05, (now - avant) / 1000 || .016); avant = now;
+        maj(dt); rendu();
+        anim = requestAnimationFrame(boucle);
+      };
+      const ouvreJeu = () => {
+        jeu.hidden = false; document.body.style.overflow = 'hidden'; taille();
+        etat = 'veille'; t = 0; avant = performance.now();
+        if (document.fonts) document.fonts.load('8px "Press Start 2P"');
+        setTimeout(() => sons.jingle([[988, 0, .07], [1319, .07, .3]]), 300);   // bling! la pièce
+
+        setTimeout(() => { if (etat === 'veille') { etat = 'titre'; t = 0; } }, 1600);
+        cancelAnimationFrame(anim); anim = requestAnimationFrame(boucle);
+      };
+      const fermeJeu = () => { etat = 'off'; cancelAnimationFrame(anim); jeu.hidden = true; document.body.style.overflow = ''; Object.keys(touches).forEach(k => touches[k] = false); };
+      const action = () => { if (etat === 'titre' || etat === 'fin') nouvellePartie(); };
+      lanceJeu = ouvreJeu;
+      jeu.querySelector('.jeu__quitte').addEventListener('click', e => { e.stopPropagation(); fermeJeu(); });
+      addEventListener('resize', () => { if (!jeu.hidden) taille(); });
+      addEventListener('keydown', e => {
+        if (jeu.hidden) return;
+        const k = e.key;
+        if (k === 'Escape') return fermeJeu();
+        if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' ', 'Spacebar'].includes(k)) e.preventDefault();
+        if (k === 'ArrowLeft' || k === 'a' || k === 'A') touches.g = true;
+        if (k === 'ArrowRight' || k === 'd' || k === 'D') touches.d = true;
+        if (k === ' ' || k === 'Spacebar' || k === 'ArrowUp') { touches.f = true; action(); }
+      });
+      addEventListener('keyup', e => {
+        const k = e.key;
+        if (k === 'ArrowLeft' || k === 'a' || k === 'A') touches.g = false;
+        if (k === 'ArrowRight' || k === 'd' || k === 'D') touches.d = false;
+        if (k === ' ' || k === 'Spacebar' || k === 'ArrowUp') touches.f = false;
+      });
+      // boutons tactiles (cellulaire)
+      jeu.querySelectorAll('.jeu__tactile button').forEach(b => {
+        const k = b.dataset.k;
+        const on = e => { e.preventDefault(); touches[k] = true; b.classList.add('appui'); if (k === 'f') action(); };
+        const off = e => { e.preventDefault(); touches[k] = false; b.classList.remove('appui'); };
+        b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off); b.addEventListener('pointerleave', off);
+      });
+      cv.addEventListener('click', action);
+    }
+
     // le mode arcade : code Konami
     const hudScore = document.querySelector('.hud__score');
     let score = 0;
@@ -1184,22 +1391,20 @@
     });
     const drop = document.getElementById('drop');
     if (drop) drop.addEventListener('pointerup', e => points(50, e.clientX, e.clientY));
-    const arcade = () => {
-      const on = document.documentElement.classList.toggle('arcade');
-      const bt = document.querySelector('.dock__arcade');
-      if (bt) { bt.setAttribute('aria-pressed', on); bt.querySelector('.dock__txt').textContent = on ? 'Quitter l\'arcade' : 'Mode arcade'; }
-      if (on) {
-        sons.jingle([[392, 0, .1], [523, .1, .1], [659, .2, .1], [784, .3, .1], [1047, .4, .25], [784, .68, .08], [1047, .78, .35]]);
-        confettis(innerWidth / 2, innerHeight / 3, 140);
-        toast('<b>MODE ARCADE ACTIVÉ! 🕹️</b>Clique partout pour gagner des points : regarde le compteur en bas! Lance des paparmanes (+50) et insère-en une dans l\'ordi (+1000). Reclique sur 🕹️ pour revenir.', null, 8000);
-      } else {
-        sons.jingle([[784, 0, .1], [523, .1, .1], [392, .2, .3]]);
-      }
-    };
+    const arcade = () => lanceJeu();   // le mode arcade, c'est maintenant le jeu « L'invasion des clients »
     const konami = ['arrowup', 'arrowup', 'arrowdown', 'arrowdown', 'arrowleft', 'arrowright', 'arrowleft', 'arrowright', 'b', 'a'];
     let suite = [], mot = '';
-    // le dinosaure : un clic, il sursaute et rugit
+    // le dinosaure : il traverse le bas de l'écran de temps en temps; un clic, il sursaute et rugit
     const dino = document.querySelector('.dino');
+    if (dino && !reduce) {
+      const passe = () => {
+        if (document.hidden || !document.querySelector('.jeu').hidden || dino.classList.contains('marche')) return;
+        dino.classList.add('marche');
+        setTimeout(() => dino.classList.remove('marche'), 17200);
+      };
+      setTimeout(passe, 20000);
+      setInterval(passe, 30000);
+    }
     if (dino) dino.addEventListener('click', () => {
       const bulle = dino.querySelector('.dino__bulle');
       dino.classList.remove('saute'); void dino.offsetWidth; dino.classList.add('saute');
