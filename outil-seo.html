@@ -105,9 +105,10 @@
   .tri.g{border-top:3px solid var(--good)}.tri.g .n,.tri.g .l{color:var(--good)}
 
   .overview{margin-top:18px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
-  .overview-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px 18px;background:var(--surface-2);border-bottom:1px solid var(--line)}
+  .overview-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 22px;background:var(--surface-2);border-bottom:1px solid var(--line)}
   .overview-head h3{margin:0;font-family:var(--serif);font-size:21px}.overview-head span{font-size:11px;color:var(--ink-faint)}
-  .overview-grid{display:grid;grid-template-columns:repeat(4,1fr)}
+  .overview{padding-bottom:22px}
+  .overview-grid{display:grid;grid-template-columns:repeat(4,1fr);margin:0 22px;border-top:1px solid var(--line);border-left:1px solid var(--line);border-radius:10px;overflow:hidden}
   @media(max-width:760px){.overview-grid{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:430px){.overview-grid{grid-template-columns:1fr}}
   .ov{min-height:142px;padding:15px 17px;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
@@ -270,8 +271,8 @@
   .note b{color:var(--accent-hi)}
   .foot{margin-top:48px;padding-top:22px;border-top:2px solid var(--ink);display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;align-items:center;font-size:12px;color:var(--ink-faint)}
   .toolbar{display:flex;gap:10px;justify-content:flex-end;margin:26px 0 0;flex-wrap:wrap}
-  .ov-group{display:flex;align-items:baseline;gap:10px;margin:18px 0 8px;padding-top:12px;border-top:1px dashed var(--line)}
-  .ov-group:first-of-type{border-top:none;padding-top:0;margin-top:8px}
+  .ov-group{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 10px;margin:26px 22px 12px}
+  .ov-group:first-of-type{margin-top:20px}
   .ov-group h4{margin:0;font-size:13px;text-transform:uppercase;letter-spacing:.12em;color:var(--accent)}
   .ov-group span{font-size:12px;color:var(--ink-faint)}
   .exec-only{display:none}
@@ -2110,7 +2111,12 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   if(pages.every(p=>p.lang)) wins.push(["Langue déclarée",(pages[0].lang||"")+" — bon signal local."]);
   if(disc.sitemapFound) wins.push(["Plan de site présent",(disc.sitemapUrl?sh(disc.sitemapUrl)+" — ":"")+"Google découvre facilement les pages."]);
   if(disc.robots?.exists) wins.push(["robots.txt en place","directives d'exploration définies."]);
-  if(dead.length===0&&linkResults.length>unverifiable.length) wins.push(["Aucun lien interne brisé",(linkResults.length-unverifiable.length)+" liens vérifiés."]);
+  // Un lien vers une page explorée avec succès est un lien vivant prouvé :
+  // il compte comme vérifié, même s'il n'a pas eu besoin d'un contrôle séparé.
+  const liveKeys=new Set(pages.map(p=>String(p.finalUrl||p.url).replace(/\/$/,"")));
+  const linksViaCrawl=new Set(pages.flatMap(p=>p.links||[]).map(l=>String(l).replace(/\/$/,"")).filter(l=>liveKeys.has(l))).size;
+  const linksConfirmed=linksViaCrawl+linkResults.length-unverifiable.length;
+  if(dead.length===0&&linksConfirmed>0) wins.push(["Aucun lien interne brisé",linksConfirmed+" liens vérifiés"+(linksViaCrawl?" (dont "+linksViaCrawl+" par l'exploration des pages)":"")+"."]);
   if(preciseIdentity.length) wins.push(["Identité d'entreprise précise",preciseIdentity.slice(0,3).join(", ")+" — le type le plus précis possible, c'est exactement ce que Google attend."]);
   if(disc.notFound?.correct) wins.push(["Page 404 correcte","une adresse inventée renvoie bien « page introuvable »."]);
   if(deadPages.length===0) wins.push(["Toutes les pages répondent",pages.length+"/"+pagesAll.length+" en code 200."]);
@@ -2235,7 +2241,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   };
   return {gscInsights, variantsCheck, linking, origin, disc, pages, keywordPages, deadPages, issues, wins, scores, scoreEvidence, global, imgPages, uniqFiles, isWP, aiReadiness, searchAgents, siteKeywords, cannibalization, targetMap, clientName:options.clientName||"",contactName:options.contactName||"",publicContacts,pagesNeedingWork,quickWins,proofCount,opportunityScore,schemaAudit:{inventory:schemaInventory,expectedMissing,entityNames,entityIds,identityReady,coordsReady:schemaCoordsReady},advancedAudit,auditMeta,
           counts,
-          linksChecked: linkResults.length};
+          linksChecked: linksViaCrawl+linkResults.length};
 }
 
 // --- Rendu ---
