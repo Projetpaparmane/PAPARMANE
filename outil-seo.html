@@ -389,9 +389,11 @@
         <div class="field"><label for="clientName">Nom de l'entreprise prospectée</label><input id="clientName" type="text" placeholder="Entreprise ABC"></div>
         <div class="field"><label for="contactName">Nom du contact, si connu</label><input id="contactName" type="text" placeholder="Marie"></div>
         <div class="field"><label for="targetKeywords">Mots-clés visés</label><textarea id="targetKeywords" rows="3" placeholder="service principal&#10;service + ville&#10;question fréquente"></textarea></div>
+        <div class="field"><label for="searchCity">Ville de recherche — positions Google réelles des 10 premiers mots-clés visés</label><input id="searchCity" type="text" placeholder="Granby"></div>
       </div>
     </details>
     <label class="check"><input type="checkbox" id="quickMode"> <span><b>Audit rapide</b> : accueil seulement, pour qualifier un prospect en une minute. Score indicatif, non conservé dans l'historique.</span></label>
+    <label class="check"><input type="checkbox" id="inspectIndex"> <span><b>Inspecter l'index Google</b> (1 à 2 minutes) : pour un client qui a partagé sa Search Console, Google dit lui-même quelles pages sont indexées, et pourquoi les autres ne le sont pas.</span></label>
     <div class="hint">Audit public de prospection — jusqu'à 1 000 pages · aucun accès au site ni à Search Console · le site analysé voit passer « PaparmaneSEO » dans ses journaux.</div>
   </section>
 
@@ -480,7 +482,9 @@ function summarizePageSpeed(d,url,strategy){
     lab:{lcp:num("largest-contentful-paint"),cls:num("cumulative-layout-shift"),tbt:num("total-blocking-time"),fcp:num("first-contentful-paint"),si:num("speed-index"),ttfb:num("server-response-time")},
     field:d.loadingExperience?.metrics&&Object.keys(d.loadingExperience.metrics).length?{...field(d.loadingExperience.metrics),overall:d.loadingExperience.overall_category||null}:null,
     originField:d.originLoadingExperience?.metrics&&Object.keys(d.originLoadingExperience.metrics).length?{...field(d.originLoadingExperience.metrics),overall:d.originLoadingExperience.overall_category||null}:null,
-    opportunities};
+    opportunities,
+    // Contrôles d'accessibilité en échec, nommés par Google ; null = non mesuré.
+    a11yFails:cat.accessibility?.auditRefs?cat.accessibility.auditRefs.map(r=>a[r.id]).filter(x=>x&&x.score===0&&x.scoreDisplayMode==="binary").map(x=>String(x.title||"")).filter(Boolean).slice(0,8):null};
 }
 // Erreurs Lighthouse passagères : le robot Google n'a pas réussi à charger la page
 // (serveur lent, délai, redirection) ou Google a eu un raté interne. On réessaie une fois.
@@ -730,6 +734,15 @@ async function runAudit(){
     const gtmetrixPromise=config.gtmetrix&&!quick?runGtmetrix(origin+"/"):Promise.resolve({configured:!!config.gtmetrix,available:false,reason:quick?"gtmetrix_skipped_quick":"gtmetrix_not_configured"});
     const watchPromise=config.watch?api({mode:"watch",site:origin}).catch(()=>null):Promise.resolve(null);
     const remoteHistoryPromise=config.history?api({mode:"history",site:origin}).catch(()=>null):Promise.resolve(null);
+    // Quatre adresses, positions Google réelles et lecture profonde de Search Console.
+    const searchCity=$("#searchCity")?.value.trim()||"";
+    const wantInspect=!!$("#inspectIndex")?.checked&&!quick;
+    const variantsPromise=api({mode:"variants",site:origin}).catch(e=>({checked:false,error:e.message}));
+    const serpKeywords=targetKeywords.slice(0,10);
+    const serpPostPromise=config.serp&&serpKeywords.length&&!quick
+      ?api({mode:"serp",action:"post"},{keywords:serpKeywords,city:searchCity}).catch(e=>({configured:true,available:false,reason:e.code||"request_error",error:e.message}))
+      :Promise.resolve(null);
+    const gscDeepPromise=gscPromise.then(g=>g&&g.available&&!quick?api({mode:"gsc",site:origin,deep:1}).catch(e=>({available:false,reason:e.code||"request_error",error:e.message})):null);
     const trafficCacheKey="pap_intelligence_v5_"+new URL(origin).hostname+"_canada_fr-en";
     let cachedTraffic=null;
     try{const saved=JSON.parse(localStorage.getItem(trafficCacheKey)||"null");if(saved&&Date.now()-saved.cachedAt<604800000)cachedTraffic=saved.data;}catch{}
@@ -815,7 +828,8 @@ async function runAudit(){
     const isPage=u=>{try{return !NON_PAGE.test(new URL(u).pathname);}catch{return false;}};
     disc.pages=disc.pages.filter(isPage);
     // Deux pages de plus que l'accueil, en mobile : la vitesse varie d'un modèle de page à l'autre.
-    if(!quick) for(const u of disc.pages.filter(u=>u.replace(/\/$/,"")!==origin.replace(/\/$/,"")).slice(0,2)) psiRuns.push(fetchPageSpeed(u,"mobile",psiKey));
+    disc.psiReasons={};
+    if(!quick) for(const x of pickSpeedPages(disc.pages,origin)){ disc.psiReasons[x.url]=x.reason; psiRuns.push(fetchPageSpeed(x.url,"mobile",psiKey)); }
     let skippedFiles=0;
     const queue=[...disc.pages]; const seen=new Set(queue); const pages=[];
     // Sitemap présent mais vide (ou limité à l'accueil) : on explore aussi les liens.
@@ -935,6 +949,23 @@ async function runAudit(){
           if(disc.places?.available) log(disc.places.match?"✓ Fiche Google reliée au site : "+disc.places.match.name:"ℹ Aucune fiche Google dont le site web est celui-ci", disc.places.match?"okl":"warnl");
         }
       }
+      // Les quatre adresses, Search Console en profondeur, index et positions Google.
+      disc.variants=await withTimeout(variantsPromise,10000,{checked:false,error:"délai dépassé"});
+      disc.gscDeep=await withTimeout(gscDeepPromise,12000,null);
+      if(disc.gscDeep?.available) log("✓ Search Console en profondeur : "+disc.gscDeep.sampled+" recherches lues", "okl");
+      if(wantInspect&&disc.searchConsole.available){
+        log("Inspection de l'index Google, page par page (1 à 2 minutes)…");
+        disc.indexInspect=await runIndexInspection(origin,pages,disc,(n,t)=>log("  "+n+"/"+t+" pages inspectées"));
+        log(disc.indexInspect.available?"✓ Index Google : "+disc.indexInspect.results.filter(INDEX_OK).length+" page(s) indexée(s) sur "+disc.indexInspect.results.filter(r=>r.ok).length+" inspectée(s)":"ℹ Index Google non inspecté : "+(disc.indexInspect.reason==="inspect_forbidden"?"l'accès accordé ne le permet pas":(disc.indexInspect.error||disc.indexInspect.reason)), disc.indexInspect.available?"okl":"warnl");
+      } else if(wantInspect) log("ℹ Index Google non inspecté : Search Console non accessible pour ce site", "warnl");
+      const serpPost=await withTimeout(serpPostPromise,10000,null);
+      if(serpPost){
+        const sitePhones=[...new Set(pages.flatMap(p=>p.nap?.phones||[]))].slice(0,5);
+        if(serpPost.available) log("Lecture des positions Google réelles ("+serpPost.tasks.filter(t=>t.ok).length+" mots-clés, "+serpPost.location.split(",")[0]+")…");
+        disc.serp=await collectSerp(serpPost,origin,sitePhones,75000);
+        if(disc.serp.available) log((disc.serp.pendingIds.length?"⚠ ":"✓ ")+"Positions Google : "+disc.serp.results.length+" mesurée(s)"+(disc.serp.pendingIds.length?", "+disc.serp.pendingIds.length+" encore en attente (bouton dans le rapport)":""), disc.serp.pendingIds.length?"warnl":"okl");
+        else log("ℹ Positions Google non mesurées : "+(disc.serp.error||disc.serp.reason), "warnl");
+      }
     }
     log("Compilation du rapport…");
 
@@ -970,7 +1001,9 @@ async function runAudit(){
     if(model.auditMeta.conclusive!==false&&model.auditMeta.confidence==="élevée"){
       const snapshot={date:new Date().toISOString(),global:model.global,scores:model.scores,counts:model.counts,pages:model.pages.length,scoreVersion:model.auditMeta.scoreVersion,confidence:model.auditMeta.confidence,
         // Constats du moment, pour le tableau avant / après du prochain audit.
-        issues:model.issues.slice(0,150).map(i=>({k:issueKey(i.title),t:i.title,s:i.sev}))};
+        issues:model.issues.slice(0,150).map(i=>({k:issueKey(i.title),t:i.title,s:i.sev})),
+        // Positions Google réelles du jour, pour dire « stable », « en hausse » ou « en baisse » la prochaine fois.
+        serp:(model.disc.serp?.results||[]).map(r=>({k:normKey(r.keyword),p:r.position}))};
       localStorage.setItem("pap_audits_"+new URL(origin).hostname,JSON.stringify([snapshot,...history].slice(0,12)));
       if(remoteList) api({mode:"history",site:origin},{snapshot}).catch(()=>{});
     }
@@ -986,6 +1019,143 @@ async function runAudit(){
 }
 
 // --- Construction du modèle : scores + problèmes ---
+// ===== Visibilité réelle : 4 adresses, positions Google, Search Console en profondeur, index, maillage =====
+const normKey=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]+/g," ").trim();
+const noSlash=u=>String(u||"").split("#")[0].replace(/\/$/,"");
+// Pages mesurées par PageSpeed en plus de l'accueil : une par type de page
+// (service, produit, article) plutôt que les deux premières par ordre alphabétique.
+function pickSpeedPages(pages,origin){
+  const home=noSlash(origin);
+  const path=u=>{try{return new URL(u).pathname.toLowerCase();}catch{return "";}};
+  const cand=pages.filter(u=>noSlash(u)!==home&&!/contact|politique|mentions|conditions|confidential|panier|cart|checkout|compte|account|merci|thank|recherche|search|tag\/|categor/.test(path(u)));
+  const depth=u=>path(u).split("/").filter(Boolean).length;
+  const TYPES=[["page de service",/service|expertise|offre|soin|traitement|solution|realisation|réalisation/,1],["page produit",/produit|product|boutique|shop|collection/,2],["article",/blog|blogue|article|actualit|nouvelle|news|chronique/,2]];
+  const out=[];
+  for(const [reason,re,minDepth] of TYPES){
+    if(out.length>=2) break;
+    const hits=cand.filter(u=>re.test(path(u))&&!out.some(o=>o.url===u));
+    const pick=hits.find(u=>depth(u)>=minDepth)||hits[0];
+    if(pick) out.push({url:pick,reason});
+  }
+  for(const u of cand){ if(out.length>=2) break; if(!out.some(o=>o.url===u)) out.push({url:u,reason:"autre page du site"}); }
+  return out;
+}
+// Verdict des quatre adresses : seuls les faits prouvés sont des défauts ; un
+// délai ou un refus du pare-feu reste « non vérifié ».
+function variantsVerdict(v){
+  if(!v||!v.checked||!Array.isArray(v.variants)) return {verdict:"absent",lines:[]};
+  const count={};
+  for(const x of v.variants) if(x.finalUrl&&x.status<400&&/^https:/.test(x.finalUrl)) count[noSlash(x.finalUrl)]=(count[noSlash(x.finalUrl)]||0)+1;
+  const target=Object.entries(count).sort((a,b)=>b[1]-a[1])[0]?.[0]||"";
+  const trail=x=>(x.chain||[]).map(c=>noSlash(c.url)+" ("+c.status+")").join(" → ");
+  const PROVEN={dns:"cette adresse n'existe pas (aucun enregistrement DNS)",tls:"certificat de sécurité invalide pour cette adresse",refused:"connexion refusée par le serveur",loop:"redirections en boucle"};
+  const lines=v.variants.map(x=>{
+    const start=noSlash(x.url);
+    if(x.error) return PROVEN[x.error]?{start,kind:"defaut",text:PROVEN[x.error],trail:trail(x)}:{start,kind:"non-verifie",text:x.error==="timeout"?"pas de réponse à temps":"réponse non concluante",trail:trail(x)};
+    if(x.status>=400) return [404,410].includes(x.status)?{start,kind:"defaut",text:"répond « introuvable » ("+x.status+")",trail:trail(x)}:{start,kind:"non-verifie",text:"réponse "+x.status+" (pare-feu ou erreur du serveur)",trail:trail(x)};
+    if(/^http:/.test(x.finalUrl)) return {start,kind:"defaut",insecure:true,text:x.hops?"aboutit à une adresse non sécurisée":"répond en version non sécurisée, sans rediriger vers https",trail:trail(x)};
+    if(target&&noSlash(x.finalUrl)!==target) return {start,kind:"defaut",text:"n'arrive pas à la même adresse que les autres ("+noSlash(x.finalUrl)+") : le site existe en double",trail:trail(x)};
+    return {start,kind:"ok",hops:x.hops||0,text:x.hops?"arrive à "+target+" en "+plur(x.hops,"étape","étapes"):"adresse finale",trail:trail(x)};
+  });
+  const verdict=lines.some(l=>l.kind==="defaut")?"defaut":lines.some(l=>l.kind==="non-verifie")?"non-verifie":"conforme";
+  return {verdict,lines,target,maxHops:Math.max(0,...lines.map(l=>l.hops||0))};
+}
+// Positions Google : les tâches sont déposées au début de l'audit puis relues.
+async function pollSerp(state,origin){
+  const ids=state.pendingIds.slice(0,10); if(!ids.length) return state;
+  const r=await api({mode:"serp",action:"get"},{ids,site:origin,phones:state.phones||[]}).catch(()=>null);
+  for(const x of (r&&Array.isArray(r.results)?r.results:[])){
+    if(x.ready){ state.results.push({...x,keyword:state.byId[x.id]||x.keyword}); state.pendingIds=state.pendingIds.filter(i=>i!==x.id); }
+    else if(!x.pending&&x.error){ state.failed.push({keyword:state.byId[x.id],error:x.error}); state.pendingIds=state.pendingIds.filter(i=>i!==x.id); }
+  }
+  return state;
+}
+async function collectSerp(post,origin,phones,maxMs){
+  if(!post||!post.available) return post;
+  const okTasks=post.tasks.filter(t=>t.ok&&t.id);
+  const state={configured:true,available:true,location:post.location,device:post.device,language:post.language,postCostUsd:Number(post.providerCostUsd||0),
+    byId:Object.fromEntries(okTasks.map(t=>[t.id,t.keyword])),order:post.tasks.map(t=>t.keyword),pendingIds:okTasks.map(t=>t.id),results:[],
+    failed:post.tasks.filter(t=>!t.ok).map(t=>({keyword:t.keyword,error:t.error})),phones};
+  const deadline=Date.now()+maxMs;
+  for(;;){ await pollSerp(state,origin); if(!state.pendingIds.length||Date.now()>=deadline) break; await new Promise(r=>setTimeout(r,SERP_POLL_MS)); }
+  return state;
+}
+let SERP_POLL_MS=7000;
+async function serpLater(btn){
+  const m=currentModel, s=m?.disc?.serp; if(!s) return;
+  btn.disabled=true; btn.textContent="Lecture en cours…";
+  await pollSerp(s,m.origin);
+  const box=document.getElementById("serpBox"); if(box) box.innerHTML=serpInnerHtml(m);
+}
+// Inspection d'index : les pages déjà affichées par Google ne sont pas
+// inspectées (elles sont indexées) ; celles que le site exclut lui-même sont à part.
+async function runIndexInspection(origin,pages,disc,onProgress){
+  const live=pages.filter(p=>!p.dead&&!p.skipped);
+  const urlOf=p=>p.finalUrl||p.url;
+  const shownSet=new Set([...(disc.gscDeep?.pagesSeen||[]).map(noSlash),...(disc.gscDeep?.queries||[]).map(q=>noSlash(q.url)),...(disc.searchConsole?.pages||[]).map(q=>noSlash(q.url))].filter(Boolean));
+  const isExcluded=p=>!!p.indexability?.noindex||p.canonicalMatches===false;
+  const excluded=live.filter(isExcluded), shown=live.filter(p=>!isExcluded(p)&&shownSet.has(noSlash(urlOf(p))));
+  const rest=live.filter(p=>!isExcluded(p)&&!shownSet.has(noSlash(urlOf(p)))).sort((a,b)=>(noSlash(urlOf(a))===noSlash(origin)?-1:0)-(noSlash(urlOf(b))===noSlash(origin)?-1:0));
+  const todo=rest.slice(0,40).map(urlOf), results=[];
+  const base={total:live.length,shown:shown.length,excluded:excluded.length,candidates:rest.length};
+  for(let i=0;i<todo.length;i+=3){
+    const r=await api({mode:"gscinspect"},{site:origin,urls:todo.slice(i,i+3)}).catch(e=>({available:false,reason:e.code||"request_error",error:e.message}));
+    if(!r||!r.available||!Array.isArray(r.results)){ if(!results.length) return {...base,available:false,reason:r?.reason||"request_error",error:r?.error||""}; break; }
+    if(i===0&&r.results.length&&r.results.every(x=>!x.ok&&x.reason==="inspect_forbidden")) return {...base,available:false,reason:"inspect_forbidden",error:r.results[0].error,permission:r.permission};
+    results.push(...r.results);
+    if(onProgress) onProgress(results.length,todo.length);
+    if(r.results.some(x=>x.reason==="inspect_quota")) break;
+  }
+  return {...base,available:true,results,asked:todo.length};
+}
+const INDEX_OK=x=>x.ok&&x.verdict==="PASS";
+function serpInnerHtml(m){
+  const s=m.disc?.serp; if(!s) return "";
+  if(!s.available){
+    if(s.reason==="location_unknown") return `<div class="note"><b>Positions Google non mesurées.</b> La ville « ${esc(s.location||"")} » n'est pas reconnue par la source. Essayer le nom de la ville en anglais (ex. « Montreal »), ou la forme « Ville,Quebec,Canada ». Aucun repli sur une autre zone n'a été fait.</div>`;
+    return `<p class="sec-intro screen-only">Positions Google : non mesurées (${esc(s.error||s.reason||"erreur")}). Note interne, non imprimée.</p>`;
+  }
+  const prev=new Map((m.previous?.serp||[]).map(x=>[x.k,x.p]));
+  const byKey=new Map(s.results.map(r=>[normKey(r.keyword),r]));
+  const when=(s.results[0]?.checkedAt||"").slice(0,10);
+  const rows=s.order.map(k=>{
+    const r=byKey.get(normKey(k));
+    if(!r){ const f=s.failed.find(x=>normKey(x.keyword)===normKey(k)); return `<tr><td><b>${esc(k)}</b></td><td colspan="4">${f?"non mesuré ("+esc(f.error)+")":"mesure en cours chez Google — pas encore revenue"}</td></tr>`; }
+    const before=prev.get(normKey(k));
+    const move=r.position!=null&&typeof before==="number"?(Math.abs(before-r.position)<=2?" · stable":before>r.position?` · <span class="tag ok">▲ ${before-r.position}</span>`:` · <span class="tag no">▼ ${r.position-before}</span>`):"";
+    const pos=r.position==null?`hors des ${esc(r.observed)} premiers résultats observés`:`<span class="tag ${r.position<=3?"ok":r.position<=10?"mid":"no"}">${esc(r.position)}</span>${move}`;
+    const ahead=(r.top||[]).filter(t=>r.position==null||t.position<r.position).map(t=>esc(t.domain)).join(", ")||"—";
+    const lp={none:"pas de carte locale",yes:`<span class="tag ok">présent</span>`,no:`<span class="tag no">absent</span> (${(r.localPack.names||[]).map(esc).join(", ")})`,unknown:"carte présente — présence du client non déterminée"}[r.localPack?.client||"none"];
+    return `<tr><td><b>${esc(k)}</b></td><td class="c">${pos}</td><td class="pg">${r.url?esc(short(r.url,m.origin)):"—"}</td><td>${ahead}</td><td>${lp}</td></tr>`;
+  }).join("");
+  const cost=Math.max(s.postCostUsd||0,s.results.reduce((a,r)=>a+(r.costUsd||0),0));
+  return `<p class="sec-intro"><b>Recherche Google réelle</b>${when?" faite le "+esc(when):""}, depuis ${esc(s.location==="Canada"?"le Canada (aucune ville précisée)":s.location.split(",")[0])}, sur téléphone, en ${s.language==="en"?"anglais":"français"}. Une position est la photo d'un jour : elle varie selon le lieu, l'appareil et le moment. Un écart de deux rangs ou moins est considéré comme stable. Mesure distincte du score Paparmane.</p>
+    <div class="tbl-wrap"><table><thead><tr><th>Mot-clé visé</th><th class="c">Position</th><th>Page affichée</th><th>Devant vous</th><th>Carte locale</th></tr></thead><tbody>${rows}</tbody></table></div>
+    ${s.pendingIds.length?`<p class="sec-intro screen-only"><button class="btn ghost" onclick="serpLater(this)">Récupérer les positions (${s.pendingIds.length} en attente)</button></p>`:""}
+    <p class="sec-intro screen-only">Coût DataForSEO de cette mesure : ${cost?cost.toFixed(4).replace(".",",")+" $ US":"non communiqué"}. Note interne, non imprimée.</p>`;
+}
+function serpHtml(m){
+  const inner=serpInnerHtml(m); if(!inner) return "";
+  return `<div class="sec-h"><h3>Positions Google réelles</h3><span class="cnt">${m.disc.serp.order?.length||0}</span><div class="rule"></div></div><div id="serpBox">${inner}</div>`;
+}
+function gscDeepHtml(m){
+  const g=m.gscInsights; if(!g) return "";
+  const fmtN=v=>Number(v||0).toLocaleString("fr-CA"), pos=v=>v==null?"—":Number(v).toFixed(1).replace(".",",");
+  const tbl=(cols,rows)=>`<div class="tbl-wrap"><table><thead><tr>${cols.map((c,i)=>`<th${i&&i<cols.length-1?' class="c"':""}>${c}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div>`;
+  const targets=g.targets.length?`<p class="sec-intro"><b>Vos mots-clés visés, selon Google</b> — position moyenne réelle sur 90 jours. Google ne rapporte pas les recherches trop rares : une ligne vide ne prouve pas l'absence.</p>`+tbl(["Mot-clé visé","Position moyenne","Clics","Impressions","Page affichée"],g.targets.map(t=>t.impressions?`<tr><td><b>${esc(t.keyword)}</b></td><td class="c tnum">${esc(pos(t.position))}</td><td class="c tnum">${fmtN(t.clicks)}</td><td class="c tnum">${fmtN(t.impressions)}</td><td class="pg">${t.url?esc(short(t.url,m.origin)):"—"}</td></tr>`:`<tr><td><b>${esc(t.keyword)}</b></td><td colspan="4">aucune impression rapportée par Google</td></tr>`).join("")):"";
+  const near=g.nearly.length?`<p class="sec-intro"><b>Recherches proches de la première page</b> (positions 8 à 20), sur les ${fmtN(g.sampled)} recherches lues.${g.brandTerms.length?" Recherches contenant le nom de l'entreprise exclues : "+g.brandTerms.map(esc).join(", ")+".":""}</p>`+tbl(["Recherche","Position","Impressions","Clics","Page affichée"],g.nearly.slice(0,40).map((q,i)=>`<tr${i>=10?' class="screen-only"':""}><td><b>${esc(q.query)}</b></td><td class="c tnum">${esc(pos(q.position))}</td><td class="c tnum">${fmtN(q.impressions)}</td><td class="c tnum">${fmtN(q.clicks)}</td><td class="pg">${q.url?esc(short(q.url,m.origin)):"—"}</td></tr>`).join("")):"";
+  const multi=g.multi.length?`<p class="sec-intro"><b>Recherches pour lesquelles Google a affiché plusieurs pages du site.</b> C'est un fait mesuré, pas forcément un problème : il le devient quand deux pages se partagent les affichages sans qu'aucune ne monte.</p>`+tbl(["Recherche","Pages affichées (affichages)"],g.multi.slice(0,5).map(x=>`<tr><td><b>${esc(x.query)}</b></td><td class="pg">${x.pages.map(p=>esc(short(p.url,m.origin))+" ("+fmtN(p.impressions)+")").join(" · ")}</td></tr>`).join("")):"";
+  return targets+near+multi;
+}
+function indexHtml(m){
+  const x=m.disc?.indexInspect; if(!x) return "";
+  if(!x.available) return `<p class="sec-intro screen-only">Inspection de l'index Google : non réalisée (${esc(x.reason==="inspect_forbidden"?"l'accès accordé par le client ne permet pas l'inspection — rien n'a été demandé de plus":x.error||x.reason||"erreur")}). Note interne, non imprimée.</p>`;
+  const ok=x.results.filter(INDEX_OK), bad=x.results.filter(r=>r.ok&&!INDEX_OK(r)), unk=x.results.filter(r=>!r.ok);
+  const differs=r=>r.googleCanonical&&r.userCanonical&&noSlash(r.googleCanonical)!==noSlash(r.userCanonical);
+  const rows=[...bad,...ok.filter(differs),...ok.filter(r=>!differs(r))].map((r,i)=>`<tr${i>=15?' class="screen-only"':""}><td class="pg">${esc(short(r.url,m.origin))}</td><td>${INDEX_OK(r)?`<span class="tag ok">indexée</span>`:`<span class="tag no">absente</span>`} ${esc(r.coverage||"")}</td><td class="c tnum">${esc(r.lastCrawl||"—")}</td><td class="pg">${differs(r)?esc(short(r.googleCanonical,m.origin)):"—"}</td></tr>`).join("");
+  return `<p class="sec-intro"><b>État dans l'index Google, selon Google lui-même</b> — ${x.results.filter(r=>r.ok).length} page(s) inspectée(s) sur ${x.total} : ${ok.length} dans l'index, ${bad.length} absente(s).${x.shown?" "+x.shown+" page(s) non inspectée(s) parce que Google les a déjà affichées dans ses résultats sur 90 jours : elles sont indexées.":""}${x.excluded?" "+x.excluded+" page(s) que le site exclut lui-même (noindex ou adresse canonique ailleurs) ne sont pas comptées.":""}${unk.length?" "+unk.length+" réponse(s) non revenue(s) : non vérifié.":""}${x.candidates>x.asked?" "+(x.candidates-x.asked)+" page(s) au-delà du plafond de 40 n'ont pas été inspectées.":""} Google décrit son index, pas la page du jour : une correction récente n'y paraît pas encore.</p>
+    ${rows?`<div class="tbl-wrap"><table><thead><tr><th>Page</th><th>État selon Google</th><th class="c">Dernier passage</th><th>Adresse retenue par Google, si différente</th></tr></thead><tbody>${rows}</tbody></table></div>`:""}`;
+}
 // Ville d'une adresse « 12 rue X, Sherbrooke, QC J1H 1A1, Canada » ou
 // « 12 rue X, Sherbrooke (Québec) J1H 1A1 ». Rien d'inventé : vide si incertain.
 function cityFromAddress(addr){
@@ -1423,18 +1593,34 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
       steps:fixes.length?fixes:["Corriger d'abord l'élément le plus lent à s'afficher (image d'en-tête, police, script bloquant)."],effort:"2-6 h",gain:"classement mobile"});
     if(psiHome.scores.accessibility!=null&&psiHome.scores.accessibility<80) issues.push({sev:"info",cat:"qualite",title:"Accessibilité : "+psiHome.scores.accessibility+"/100 selon Google",
       body:"Contrastes insuffisants, champs de formulaire sans libellé, ordre des titres… Les corrections profitent aussi au référencement et à tous les visiteurs.",
-      where:["Audit d'accessibilité Lighthouse, accueil mobile"],steps:["Consulter la section Accessibilité du rapport PageSpeed de l'accueil.","Corriger d'abord les contrastes et les libellés de formulaire."],effort:"1-3 h",gain:"accessibilité"});
+      where:["Audit d'accessibilité Lighthouse, accueil mobile",...(psiHome.a11yFails===null?["Détail des contrôles en échec : non mesuré"]:psiHome.a11yFails.map(t=>"Contrôle en échec selon Google : "+esc(t)))],steps:["Consulter la section Accessibilité du rapport PageSpeed de l'accueil.","Corriger d'abord les contrastes et les libellés de formulaire."],effort:"1-3 h",gain:"accessibilité"});
     if(perf!=null&&perf>=90) wins.push(["Site rapide sur mobile",perf+"/100 selon Google PageSpeed."]);
     if(field&&field.overall==="FAST") wins.push(["Core Web Vitals réels au vert","vrais visiteurs Chrome, 28 derniers jours."]);
   }
 
   // ---- Google Search Console : vraies données quand l'accès est accordé ----
   const gsc=disc.searchConsole;
+  // ---- Search Console en profondeur : mots-clés visés, recherches proches, pages multiples ----
+  let gscInsights=null;
+  const gscDeep=disc.gscDeep;
+  const brandTerms=[...new Set([...(String(options.clientName||"").split(/\s+/)),new URL(origin).hostname.replace(/^www\./,"").split(".")[0]].map(normKey).filter(t=>t.length>=4))];
+  if(gsc?.available&&gscDeep?.available){
+    const isBrand=q=>{const k=normKey(q).replace(/ /g,"");return brandTerms.some(t=>k.includes(t.replace(/ /g,"")));};
+    const rowsDeep=(gscDeep.queries||[]).map(q=>({...q,k:normKey(q.query)}));
+    const targets=(options.targetKeywords||[]).slice(0,20).map(keyword=>{
+      const k=normKey(keyword); const hits=k?rowsDeep.filter(q=>q.k.includes(k)):[];
+      const impressions=hits.reduce((a,q)=>a+q.impressions,0), clicks=hits.reduce((a,q)=>a+q.clicks,0);
+      const position=impressions?hits.reduce((a,q)=>a+(q.position||0)*q.impressions,0)/impressions:null;
+      return {keyword,impressions,clicks,position,url:[...hits].sort((a,b)=>b.impressions-a.impressions)[0]?.url||""};
+    });
+    const nearlyDeep=rowsDeep.filter(q=>q.position!=null&&q.position>=8&&q.position<=20&&q.impressions>=20&&!isBrand(q.query)).sort((a,b)=>b.impressions-a.impressions);
+    gscInsights={sampled:gscDeep.sampled||rowsDeep.length,brandTerms,targets,nearly:nearlyDeep,multi:(gscDeep.multi||[]).filter(x=>!isBrand(x.query))};
+  }
   if(gsc?.available){
-    const nearly=(gsc.queries||[]).filter(q=>q.position!=null&&q.position>=8&&q.position<=20&&q.impressions>=20).slice(0,8);
+    const nearly=(gscInsights?gscInsights.nearly:(gsc.queries||[]).filter(q=>q.position!=null&&q.position>=8&&q.position<=20&&q.impressions>=20)).slice(0,gscInsights?10:8);
     if(nearly.length) issues.push({sev:"info",cat:"keywords",title:plur(nearly.length,"recherche réelle à portée de la première page","recherches réelles à portée de la première page"),
       body:"Données Search Console : le site apparaît déjà pour ces recherches, en bas de première page ou en deuxième page. Renforcer la page qui se classe (titre, contenu, liens internes) peut la faire monter sans créer de nouvelle page.",
-      where:nearly.map(q=>"<code>"+esc(q.query)+"</code> — position "+esc(Number(q.position).toFixed(1).replace(".",","))+" · "+esc(q.impressions)+" impressions · "+esc(q.clicks)+" clics"),
+      where:nearly.map(q=>"<code>"+esc(q.query)+"</code> — position "+esc(Number(q.position).toFixed(1).replace(".",","))+" · "+esc(q.impressions)+" impressions · "+esc(q.clicks)+" clics"+(q.url?" · page "+esc(sh(q.url)):"")),
       steps:["Repérer la page classée dans Search Console (Performances → Pages).","Mettre la recherche dans le titre et le H1 si elle y manque, enrichir le contenu, ajouter des liens internes vers cette page."],effort:"1-2 h / recherche",gain:"clics réels"});
     const prev=gsc.previous;
     if(prev&&prev.clicks>=20&&gsc.totals.clicks<prev.clicks*0.7) issues.push({sev:"warn",cat:"keywords",title:"Clics Google en baisse de "+Math.round(100-100*gsc.totals.clicks/prev.clicks)+" % sur 90 jours",
@@ -1450,6 +1636,66 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
       body:"Ce rapport s'appuie sur des estimations. En donnant un accès en lecture à Paparmane dans Google Search Console, le prochain audit affichera les vrais clics, les vraies recherches et les vraies positions des 90 derniers jours.",
       where:["Utilisateur à ajouter en lecture : <code>"+esc(gsc.serviceAccountEmail)+"</code>"],
       steps:["Ouvrir search.google.com/search-console et choisir la propriété du site.","Paramètres → Utilisateurs et autorisations → Ajouter un utilisateur.","Coller l'adresse ci-dessus ; l'autorisation « Restreint » (lecture) suffit."],effort:"5 min (client)",gain:"données réelles"});
+  }
+
+  // ---- Maillage interne : mots des liens, pages importantes peu liées, nofollow interne ----
+  let linking=null;
+  const linkPages=pages.filter(p=>Array.isArray(p.linkDetails));
+  if(linkPages.length>=2){
+    // Le tri menu / texte est déduit des balises nav, header et footer : sans
+    // elles sur la majorité des pages, le résultat n'est pas concluant.
+    const zonesKnown=linkPages.filter(p=>p.linkZones?.nav).length>=linkPages.length*0.6;
+    const GENERIC=/^(?:cliquez ici|cliquer ici|ici|en savoir plus|en savoir|lire la suite|lire plus|lire l article|voir plus|voir|plus d infos?|plus de details|details|decouvrir|suite|click here|here|read more|learn more|more|more info)$/;
+    const generic=new Map(), nofol=new Map(), inbound=new Map(), navTargets=new Set();
+    for(const p of linkPages){
+      const from=noSlash(p.finalUrl||p.url), counted=new Set();
+      for(const l of p.linkDetails){
+        const to=noSlash(l.u); if(to===from) continue;
+        if(l.nf) nofol.set(from+"→"+to,{from,to});
+        if(l.z==="nav"){ navTargets.add(to); continue; }
+        if(l.z!=="content") continue;
+        if(!l.img&&GENERIC.test(normKey(l.a))) generic.set(from+"→"+to+"|"+normKey(l.a),{from,to,a:l.a});
+        if(!counted.has(to)){ counted.add(to); inbound.set(to,(inbound.get(to)||0)+1); }
+      }
+    }
+    const pageByKey=new Map(pages.map(p=>[noSlash(p.finalUrl||p.url),p]));
+    const important=new Map();
+    const mark=(u,why)=>{const k=noSlash(u); const p=pageByKey.get(k); if(!p||k===noSlash(origin)||isUtilityPage(p)) return; if(!important.has(k)) important.set(k,why);};
+    for(const t of targetMap) if(t.covered&&t.best) mark(t.best.finalUrl||t.best.url,"page du mot-clé visé « "+t.keyword+" »");
+    for(const q of (gsc?.available?(gsc.pages||[]):[]).slice(0,5)) if(q.clicks>0) mark(q.url,"parmi les pages les plus cliquées dans Google");
+    for(const r of (disc.serp?.results||[])) if(r.url) mark(r.url,"page affichée par Google pour « "+r.keyword+" »");
+    if(zonesKnown) for(const k of navTargets) mark(k,"page du menu principal");
+    const weak=zonesKnown?[...important.entries()].map(([k,why])=>({url:k,why,n:inbound.get(k)||0})).filter(x=>x.n<=1).sort((a,b)=>a.n-b.n):[];
+    linking={conclusive:zonesKnown,generic:[...generic.values()],nofollow:[...nofol.values()],weak};
+    const lk=u=>"<code>"+esc(sh(u))+"</code>";
+    if(weak.length) issues.push({sev:"warn",cat:"liens",title:plur(weak.length,"page importante reçoit","pages importantes reçoivent")+" peu de liens depuis les textes du site",
+      body:"Les liens placés dans les textes disent à Google quelles pages comptent et aident les visiteurs à y arriver. Ces pages n'en reçoivent aucun, ou un seul, en dehors du menu et du pied de page. Le tri entre liens de menu et liens dans le texte est déduit de la structure des pages (balises nav, header, footer) : c'est une lecture du code, pas une mesure de Google.",
+      where:weak.slice(0,10).map(x=>lk(x.url)+" — <b>"+x.n+"</b> lien(s) depuis les textes · "+esc(x.why)),
+      steps:["Repérer deux ou trois pages qui parlent d'un sujet voisin (accueil, services, articles).","Y ajouter une phrase avec un lien vers la page, sur des mots qui décrivent son sujet.","Éviter « cliquez ici » : le texte du lien doit nommer la page visée."],effort:"1-2 h",gain:"moyen"});
+    if(linking.generic.length>=3) issues.push({sev:"info",cat:"liens",title:linking.generic.length+" liens internes écrits « cliquez ici » ou « en savoir plus »",
+      body:"Le texte d'un lien décrit la page vers laquelle il mène, pour Google comme pour les lecteurs d'écran. Un lien « en savoir plus » ne dit rien de sa destination.",
+      where:linking.generic.slice(0,10).map(x=>lk(x.from)+" → «&nbsp;"+esc(x.a)+"&nbsp;» → "+lk(x.to)),
+      steps:["Remplacer le texte du lien par quelques mots qui nomment la page visée (ex. « nos forfaits de production vidéo »).","Garder « en savoir plus » seulement s'il est accompagné d'un texte caché pour lecteurs d'écran."],effort:"~3 min / lien",gain:"faible à moyen"});
+    if(linking.nofollow.length) issues.push({sev:"info",cat:"liens",title:plur(linking.nofollow.length,"lien interne marqué","liens internes marqués")+" « nofollow »",
+      body:"L'attribut nofollow demande à Google de ne pas tenir compte du lien. Entre deux pages du même site, il est presque toujours inutile, souvent hérité d'un réglage d'extension.",
+      where:linking.nofollow.slice(0,8).map(x=>lk(x.from)+" → "+lk(x.to)),
+      steps:["Retirer <code>rel=\"nofollow\"</code> des liens vers ses propres pages, sauf pages de connexion ou de panier."],effort:"15 min",gain:"faible"});
+  }
+  // ---- Index Google (inspection facultative, données de Google) ----
+  const idx=disc.indexInspect;
+  if(idx?.available){
+    const inspected=idx.results.filter(r=>r.ok), absent=inspected.filter(r=>!INDEX_OK(r));
+    const homeAbsent=absent.some(r=>noSlash(r.url)===noSlash(origin));
+    if(absent.length) issues.push({sev:homeAbsent?"crit":"warn",cat:"indexation",title:plur(absent.length,"page absente","pages absentes")+" de l'index Google sur "+inspected.length+" inspectée(s)",
+      body:"Réponse de Google lui-même (inspection d'URL de la Search Console), avec son libellé exact. Une page absente de l'index ne peut apparaître dans aucun résultat. Google décrit son index, pas la page du jour : une correction récente n'y paraît pas encore. Les pages que le site exclut volontairement ne sont pas comptées ici.",
+      where:absent.slice(0,20).map(r=>"<code>"+esc(sh(r.url))+"</code> — «&nbsp;"+esc(r.coverage||r.verdict||"état non précisé")+"&nbsp;»"+(r.lastCrawl?" · dernier passage "+esc(r.lastCrawl):"")),
+      steps:["Ouvrir Search Console → Inspection de l'URL pour chaque page et lire le détail.","« Explorée, actuellement non indexée » : enrichir la page et lui ajouter des liens internes.","« Détectée, actuellement non indexée » : vérifier qu'elle est dans le plan de site et liée depuis d'autres pages.","Après correction, cliquer « Demander une indexation »."],effort:"variable",gain:"pages visibles dans Google"});
+    const canon=inspected.filter(r=>r.googleCanonical&&r.userCanonical&&noSlash(r.googleCanonical)!==noSlash(r.userCanonical));
+    if(canon.length) issues.push({sev:"info",cat:"indexation",title:"Google a retenu une autre adresse que celle déclarée pour "+plur(canon.length,"page","pages"),
+      body:"Le site indique une adresse canonique, mais Google en a choisi une autre : il considère ces pages comme des doubles. Aucun autre contrôle de cet audit ne peut le voir.",
+      where:canon.slice(0,10).map(r=>"<code>"+esc(sh(r.url))+"</code> — Google a retenu <code>"+esc(sh(r.googleCanonical))+"</code>"),
+      steps:["Vérifier si les deux pages ont réellement le même contenu.","Si oui, rediriger l'une vers l'autre ; sinon, différencier clairement leur contenu."],effort:"30 min / page",gain:"moyen"});
+    if(inspected.length&&!absent.length) wins.push(["Pages inspectées présentes dans l'index Google",inspected.length+" page(s) confirmée(s) par Google."]);
   }
 
   // ---- Pages quasi identiques (empreinte de similarité calculée par le serveur) ----
@@ -1844,7 +2090,22 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   }
 
   // ---- Gains (wins) ----
-  if(pages.every(p=>p.https)) wins.push(["Site sécurisé (HTTPS)","exigé par Google."]);
+  // ---- Les quatre adresses du site (http/https, avec et sans www) ----
+  const variantsCheck=variantsVerdict(disc.variants);
+  if(variantsCheck.verdict==="defaut"){
+    const mark={defaut:"<b>défaut</b>","non-verifie":"non vérifié",ok:"conforme"};
+    issues.push({sev:"warn",cat:"fondations",title:"Les quatre adresses du site ne mènent pas toutes au même endroit",
+      body:"Un site répond à quatre adresses : avec ou sans « www », en http ou en https. Toutes doivent conduire à une seule adresse sécurisée. Ici, au moins une ne le fait pas : un visiteur qui tape l'adresse autrement, ou un ancien lien, arrive sur une erreur, une version non sécurisée ou un double du site. Le test peut être refait dans un navigateur.",
+      where:variantsCheck.lines.map(l=>"<code>"+esc(l.start)+"</code> — "+mark[l.kind]+" : "+esc(l.text)+(l.trail&&l.kind!=="ok"?" <small>("+esc(l.trail)+")</small>":"")),
+      steps:["Demander à l'hébergeur de rediriger les quatre adresses vers une seule, en https (redirection permanente).",isWP?"Dans <b>WordPress → Réglages → Général</b>, vérifier que les deux adresses du site sont identiques et commencent par https.":"Vérifier le réglage « forcer HTTPS » et le domaine principal chez l'hébergeur.","Vérifier que le certificat de sécurité couvre aussi la version avec « www »."],effort:"30 min (hébergeur)",gain:"confiance + anciens liens conservés"});
+  } else if(variantsCheck.verdict==="conforme"){
+    if(variantsCheck.maxHops>2) issues.push({sev:"info",cat:"fondations",title:"Une des adresses du site passe par "+variantsCheck.maxHops+" redirections avant d'arriver",
+      body:"Deux étapes sont normales (http vers https, puis ajout ou retrait du « www »). Au-delà, chaque étape ajoute un délai inutile.",
+      where:variantsCheck.lines.filter(l=>(l.hops||0)>2).map(l=>"<code>"+esc(l.start)+"</code> — "+esc(l.trail)),steps:["Demander à l'hébergeur de rediriger directement vers l'adresse finale."],effort:"15 min (hébergeur)",gain:"faible"});
+    wins.push(["Les quatre adresses mènent au même endroit","http, https, avec et sans www arrivent à "+variantsCheck.target+"."]);
+  }
+  const insecureVariant=variantsCheck.lines.some(l=>l.insecure);
+  if(pages.every(p=>p.https)&&!insecureVariant) wins.push(["Site sécurisé (HTTPS)","exigé par Google."]);
   if(noViewport.length===0) wins.push(["Adapté au mobile","balise viewport présente partout."]);
   if(pages.every(p=>p.lang)) wins.push(["Langue déclarée",(pages[0].lang||"")+" — bon signal local."]);
   if(disc.sitemapFound) wins.push(["Plan de site présent",(disc.sitemapUrl?sh(disc.sitemapUrl)+" — ":"")+"Google découvre facilement les pages."]);
@@ -1972,7 +2233,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
     avgResponseMs,slowPages:slowPages.length,compressedPages:compressedPages.length,avgResources,heavyPages:resourceHeavyPages.length,
     orphanPages:orphanPages.length,googleTools,local,iframeTotal,iframeMissing:iframeMissingTotal,faviconReady,analyticsTools,hreflangLinks,inlineStyleCount,obsoletePages:obsoletePages.length,
   };
-  return {origin, disc, pages, keywordPages, deadPages, issues, wins, scores, scoreEvidence, global, imgPages, uniqFiles, isWP, aiReadiness, searchAgents, siteKeywords, cannibalization, targetMap, clientName:options.clientName||"",contactName:options.contactName||"",publicContacts,pagesNeedingWork,quickWins,proofCount,opportunityScore,schemaAudit:{inventory:schemaInventory,expectedMissing,entityNames,entityIds,identityReady,coordsReady:schemaCoordsReady},advancedAudit,auditMeta,
+  return {gscInsights, variantsCheck, linking, origin, disc, pages, keywordPages, deadPages, issues, wins, scores, scoreEvidence, global, imgPages, uniqFiles, isWP, aiReadiness, searchAgents, siteKeywords, cannibalization, targetMap, clientName:options.clientName||"",contactName:options.contactName||"",publicContacts,pagesNeedingWork,quickWins,proofCount,opportunityScore,schemaAudit:{inventory:schemaInventory,expectedMissing,entityNames,entityIds,identityReady,coordsReady:schemaCoordsReady},advancedAudit,auditMeta,
           counts,
           linksChecked: linkResults.length};
 }
@@ -2263,7 +2524,7 @@ function pagespeedHtml(m){
   const head=`<div class="sec-h"><h3>Vitesse et Core Web Vitals</h3><div class="rule"></div></div>`;
   if(!results.length&&!(gt&&gt.available)) return head+`<p class="sec-intro">Google PageSpeed n'a pas répondu pour ce site${failed[0]?.error?" ("+esc(failed[0].error)+")":""}. La vitesse n'a pas pu être mesurée cette fois ; cela ne modifie pas le score.</p>`;
   const isHome=r=>String(r.url).replace(/\/$/,"")===m.origin.replace(/\/$/,"");
-  const label=r=>(isHome(r)?"Accueil":short(r.url,m.origin))+" · "+(r.strategy==="mobile"?"mobile":"ordinateur");
+  const label=r=>(isHome(r)?"Accueil":short(r.url,m.origin)+(m.disc.psiReasons?.[r.url]?" ("+m.disc.psiReasons[r.url]+")":""))+" · "+(r.strategy==="mobile"?"mobile":"ordinateur");
   const color=p=>p>=90?"var(--good)":p>=50?"var(--warn)":"var(--crit)";
   const cards=results.map(r=>{const p=r.scores.performance;return `<div class="ai-card"><div class="ai-card-head"><span>${esc(label(r))}</span><span class="ai-card-score">${p==null?"—":p+"/100"}</span></div>${p==null?"":`<div class="track"><div class="fill" style="width:${p}%;background:${color(p)}"></div></div>`}<p>LCP ${esc(fmtSec(r.lab.lcp))} · CLS ${esc(fmtCls(r.lab.cls))} · TBT ${esc(fmtMs(r.lab.tbt))}${r.scores.accessibility!=null?" · accessibilité "+r.scores.accessibility:""}${r.scores.seo!=null?" · SEO technique "+r.scores.seo:""}</p></div>`;}).join("");
   const home=results.find(r=>r.strategy==="mobile"&&isHome(r))||results[0];
@@ -2330,7 +2591,7 @@ const SEV_ORDER={crit:0,warn:1,info:2};
 // réelles), et ce qu'il reste à aller chercher (estimations de marché).
 const OVERVIEW_GROUPS=[["c","Conformité technique","mesuré par Paparmane sur les pages du site"],["v","Visibilité réelle","données réelles de Google, de PageSpeed et du profil de liens"],["p","Potentiel","estimations de marché DataForSEO et marge de progression"]];
 const OVERVIEW_GROUP_OF={"Santé SEO":"c","Pages analysées":"c","Problèmes prioritaires":"c","Validité du balisage":"c","Accès aux robots IA":"c","Liens":"c","Indexabilité":"c","ALT vides — accueil":"c","Évolution":"c",
-  "Clics Google réels":"v","Vitesse mobile":"v","Backlinks":"v","Mentions IA réelles":"v",
+  "Clics Google réels":"v","Positions Google":"v","Index Google":"v","Vitesse mobile":"v","Backlinks":"v","Mentions IA réelles":"v",
   "Mots-clés organiques":"p","Sujets observés":"p","Mots-clés stratégiques":"p","Concurrents organiques":"p","Pages qui attirent":"p","Trafic organique":"p","Trafic payant":"p"};
 function draftSummary(m){
   const host=m.origin.replace(/^https?:\/\//,"");
@@ -2556,6 +2817,9 @@ function renderReport(m){
     ...(m.disc.gtmetrix?.configured&&m.disc.gtmetrix.available===false?["GTmetrix : "+(m.disc.gtmetrix.error||m.disc.gtmetrix.reason)]:[]),
     ...(m.disc.config&&!m.disc.config.pagespeedKey?["PageSpeed : aucune clé PAGESPEED_API_KEY configurée sur Netlify (mesures limitées par Google)"]:[]),
     ...(m.disc.places&&m.disc.places.available===false&&m.disc.places.reason!=="places_not_configured"?["Fiche Google : "+(m.disc.places.error||m.disc.places.reason)]:[]),
+    ...(m.variantsCheck?.verdict==="non-verifie"?["Les 4 adresses : au moins une variante sans réponse concluante (pare-feu ou délai) — non vérifié, aucun constat émis"]:[]),
+    ...(m.linking&&!m.linking.conclusive?["Maillage interne : menu et pied de page non reconnaissables dans le code — pages peu liées non évaluées"]:[]),
+    ...(m.targetMap.length&&m.disc.config&&!m.disc.config.serp?["Positions Google : identifiants DataForSEO absents — non mesurées"]:[]),
     ...(m.disc.config&&!m.disc.config.summary?["Résumé : aucune clé ANTHROPIC_API_KEY sur Netlify — résumé automatique par règles"]:[]),
     ...(m.disc.config&&!m.disc.config.places?["Fiche Google : aucune clé GOOGLE_PLACES_API_KEY sur Netlify — fiche non vérifiée"]:[]),
   ];
@@ -2577,6 +2841,8 @@ function renderReport(m){
     ["Concurrents organiques",competitorData.available?realCompetitors.length:"—",competitorData.available?(realCompetitors.length?(realCompetitors[0].domain+" · "+fmt(realCompetitors[0].intersections)+" mots-clés communs"):"aucun concurrent significatif — chevauchements accidentels seulement"):providerFailure(competitorData),competitorData.available?"DataForSEO · Canada":"non mesuré",competitorData.available?(marketCompetitors.length?"good":"warn"):""],
     ["Pages qui attirent",topPagesData.available?marketTopPages.length:"—",topPagesData.available?(marketTopPages.length?(sh(marketTopPages[0].url)+" · "+fmt(marketTopPages[0].organicTraffic)+" visites estimées"):"aucune page classée détectée"):providerFailure(topPagesData),topPagesData.available?"DataForSEO · mise à jour hebdomadaire":"non mesuré",topPagesData.available?(marketTopPages.length?"good":"warn"):""],
     ...(gscData.available?[["Clics Google réels",Number(gscData.totals.clicks||0).toLocaleString("fr-CA"),Number(gscData.totals.impressions||0).toLocaleString("fr-CA")+" impressions · position moyenne "+(gscData.totals.position==null?"—":Number(gscData.totals.position).toFixed(1).replace(".",","))+" · 90 jours","Search Console · réel",gscData.previous&&gscData.previous.clicks&&gscData.totals.clicks<gscData.previous.clicks*0.7?"warn":"good"]]:[]),
+    ...(m.disc.serp?.available&&m.disc.serp.results.length?[["Positions Google",m.disc.serp.results.filter(r=>r.position!=null&&r.position<=10).length+"/"+m.disc.serp.results.length,"mots-clés visés en première page · "+(m.disc.serp.location==="Canada"?"Canada":m.disc.serp.location.split(",")[0])+", téléphone","recherche réelle du "+(m.disc.serp.results[0].checkedAt||"").slice(0,10),m.disc.serp.results.some(r=>r.position!=null&&r.position<=10)?"good":"warn"]]:[]),
+    ...(m.disc.indexInspect?.available?[["Index Google",m.disc.indexInspect.results.filter(INDEX_OK).length+"/"+m.disc.indexInspect.results.filter(r=>r.ok).length,"pages inspectées présentes dans l'index"+(m.disc.indexInspect.shown?" · "+m.disc.indexInspect.shown+" autres déjà affichées par Google":""),"selon Google",m.disc.indexInspect.results.some(r=>r.ok&&!INDEX_OK(r))?"warn":"good"]]:[]),
     ...(psiMobileHome?[["Vitesse mobile",psiMobileHome.scores.performance==null?"—":psiMobileHome.scores.performance+"/100","Google PageSpeed · LCP "+fmtSec(psiMobileHome.lab.lcp)+((psiMobileHome.field||psiMobileHome.originField)?" · visiteurs réels : "+ratingLabel((psiMobileHome.field||psiMobileHome.originField).overall):" · pas de données de terrain"),"mesure Google · hors score",psiMobileHome.scores.performance==null?"warn":psiMobileHome.scores.performance>=90?"good":psiMobileHome.scores.performance>=50?"warn":"bad"]]:[]),
     ["Validité du balisage",m.scores.schema+"/100",schemaCovered+" page(s) balisée(s) · "+(m.schemaAudit?.coordsReady?"coordonnées présentes":"coordonnées absentes")+" · "+m.schemaAudit.expectedMissing.length+" suggestion(s)","Schema Studio",scoreClass(m.scores.schema),schemaProof,"conformite"],
     ["Accès aux robots IA",m.scores.ia+"/100",aiSearchBlocked+" robot(s) de recherche bloqué(s) · llms.txt "+(aiLlmsExists?"présent":"absent")+" · mesure l'accès technique, pas la probabilité d'être cité","score technique expliqué",scoreClass(m.scores.ia),iaProof,"conformite"],
@@ -2836,7 +3102,9 @@ function renderReport(m){
       ${m.targetMap.map(x=>`<tr><td><b>${esc(x.keyword)}</b></td><td class="pg">${x.best?esc(sh(x.best.url)):"—"}</td><td class="c"><span class="tag ${x.score>=60?"ok":x.covered?"mid":"no"}">${Math.min(100,x.score)}%</span></td><td>${x.score>=60?"Conserver et renforcer":x.covered?"Clarifier la cible":"Créer ou refondre une page"}</td></tr>`).join("")}
     </tbody></table></div>`:""}
 
-    ${searchConsoleHtml(m)}
+    ${serpHtml(m)}
+
+    ${searchConsoleHtml(m)}${m.disc?.searchConsole?.available?gscDeepHtml(m)+indexHtml(m):""}
 
     ${traffic.available||externalKeywords.available||competitorData.available||topPagesData.available||backlinkData.available||aiMentionData.available?`
 
@@ -2939,7 +3207,7 @@ function renderReport(m){
 
     <div class="note"><b>Méthodologie — score v${esc(m.auditMeta.scoreVersion)}, confiance ${esc(m.auditMeta.confidence)}.</b> Rapport produit par le moteur d'analyse Paparmane :
       ${m.pages.length} pages crawlées, ${m.pages.reduce((a,p)=>a+(p.images||[]).length,0)} images inspectées,
-      ${m.linksChecked} liens internes vérifiés, robots.txt, indexabilité META/HTTP, canoniques, hiérarchie H1–H6, ALT strict et sémantique, ressources HTML, iFrames, favicon, hreflang, données structurées et llms.txt analysés. Les URL et les liens sont triés avant échantillonnage pour rendre deux audits comparables; les erreurs réseau sont relancées une fois. Le plan de site est cherché à /sitemap.xml, aux adresses déclarées dans robots.txt, puis à sitemap_index.xml, wp-sitemap.xml et sitemaps.xml; une adresse restée sans réponse claire est redemandée une seconde fois. Une absence de réponse, une erreur du serveur, un refus ou une page anti-robot sont rapportés « non vérifiable », jamais comptés comme une absence : seule une réponse « introuvable » à chaque adresse conclut à l'absence. Vitesse : Google PageSpeed (Lighthouse) sur l'accueil, mobile et ordinateur, et deux autres pages, avec les Core Web Vitals des vrais visiteurs Chrome quand Google en publie ; une mesure échouée pour une raison passagère (page non chargée à temps par le robot Google, raté interne) est relancée une fois ; cette mesure n'entre pas dans le score. Courriels : SPF, DKIM et DMARC lus dans le DNS. Search Console : données Google réelles sur 90 jours quand le client en accorde l'accès. Pages quasi identiques détectées par empreinte de similarité du texte. Coordonnées comparées entre le site, le balisage Schema.org et la fiche Google Business Profile (retenue seulement si son site web est celui audité). Gravités : « critique » est réservé à ce qui coûte des visiteurs aujourd'hui (pages inaccessibles ou désindexées, titres identiques, vitesse mobile faible) ; les cibles d'affichage des titres et descriptions sont des recommandations éditoriales, non des pénalités. Le résumé d'ouverture est rédigé à partir des résultats${m.summary?.source==="Claude"?" par Claude, puis relu par Paparmane":""}. Le temps de réponse est un indicateur ponctuel et ne modifie pas le score. Les volumes Google, estimations de trafic, pages les plus visibles, concurrents organiques, backlinks et mentions IA affichés comme tels proviennent de DataForSEO; Paparmane ne fabrique jamais ces chiffres et les données externes ne modifient pas le score technique.</div>
+      ${m.linksChecked} liens internes vérifiés, robots.txt, indexabilité META/HTTP, canoniques, hiérarchie H1–H6, ALT strict et sémantique, ressources HTML, iFrames, favicon, hreflang, données structurées et llms.txt analysés. Les URL et les liens sont triés avant échantillonnage pour rendre deux audits comparables; les erreurs réseau sont relancées une fois. Le plan de site est cherché à /sitemap.xml, aux adresses déclarées dans robots.txt, puis à sitemap_index.xml, wp-sitemap.xml et sitemaps.xml; une adresse restée sans réponse claire est redemandée une seconde fois. Une absence de réponse, une erreur du serveur, un refus ou une page anti-robot sont rapportés « non vérifiable », jamais comptés comme une absence : seule une réponse « introuvable » à chaque adresse conclut à l'absence. Vitesse : Google PageSpeed (Lighthouse) sur l'accueil, mobile et ordinateur, et deux autres pages, avec les Core Web Vitals des vrais visiteurs Chrome quand Google en publie ; une mesure échouée pour une raison passagère (page non chargée à temps par le robot Google, raté interne) est relancée une fois ; cette mesure n'entre pas dans le score. Courriels : SPF, DKIM et DMARC lus dans le DNS. Search Console : données Google réelles sur 90 jours quand le client en accorde l'accès. Pages quasi identiques détectées par empreinte de similarité du texte. Coordonnées comparées entre le site, le balisage Schema.org et la fiche Google Business Profile (retenue seulement si son site web est celui audité). Positions Google : recherche réelle (DataForSEO) faite le jour de l'audit pour les dix premiers mots-clés visés, depuis la ville indiquée, sur téléphone ; « hors des résultats observés » ne veut pas dire « non classé ». Les quatre adresses du site (http, https, avec et sans www) sont suivies pas à pas : seuls une adresse inexistante, un certificat invalide, une réponse non sécurisée ou un double du site sont des défauts, un délai reste « non vérifié ». Search Console en profondeur : jusqu'à 1 000 recherches lues ; l'inspection d'index, facultative, reprend le libellé exact de Google pour au plus 40 pages. Maillage interne : la zone d'un lien (menu, pied de page, texte) est déduite des balises du code. Aucune de ces mesures ne modifie les scores. Gravités : « critique » est réservé à ce qui coûte des visiteurs aujourd'hui (pages inaccessibles ou désindexées, titres identiques, vitesse mobile faible) ; les cibles d'affichage des titres et descriptions sont des recommandations éditoriales, non des pénalités. Le résumé d'ouverture est rédigé à partir des résultats${m.summary?.source==="Claude"?" par Claude, puis relu par Paparmane":""}. Le temps de réponse est un indicateur ponctuel et ne modifie pas le score. Les volumes Google, estimations de trafic, pages les plus visibles, concurrents organiques, backlinks et mentions IA affichés comme tels proviennent de DataForSEO; Paparmane ne fabrique jamais ces chiffres et les données externes ne modifient pas le score technique.</div>
 
     <p class="note exec-only"><b>Version décideur.</b> Ce document reprend le résumé, les priorités, les problèmes critiques, les points forts et le plan d'action. L'annexe technique complète (détail page par page, photos à décrire, mots-clés, marché, backlinks, méthodologie) est fournie séparément sur demande.</p>
 

@@ -806,6 +806,31 @@ function analyzePage(url, html, finalUrl, response = {}) {
         && !/\/cdn-cgi\//i.test(h))
   )].slice(0, 400);
 
+  // Maillage interne : texte cliquable, zone de la page et nofollow de chaque
+  // lien interne. La zone est DÉDUITE des balises <nav>, <header> et <footer>
+  // (hors <main>/<article>) : sans ces balises, le tri n'est pas concluant.
+  const rangesOf = tag => [...html.matchAll(new RegExp(`<${tag}\\b[^>]*>[\\s\\S]*?<\\/${tag}>`, "gi"))].map(m => [m.index, m.index + m[0].length]);
+  const inside = (ranges, at) => ranges.some(([a, b]) => at >= a && at < b);
+  const navRanges = rangesOf("nav"), mainRanges = [...rangesOf("main"), ...rangesOf("article")];
+  const headerRanges = rangesOf("header").filter(([a]) => !inside(mainRanges, a));
+  const footerRanges = rangesOf("footer").filter(([a]) => !inside(mainRanges, a));
+  const linkDetails = [];
+  for (const m of html.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)) {
+    if (linkDetails.length >= 250) break;
+    const tag = "<a" + m[1] + ">";
+    const href = tagAttr(tag, "href");
+    if (!href || /^(?:mailto:|tel:|javascript:|#)/i.test(href)) continue;
+    let resolved; try { resolved = new URL(href, finalUrl).href.split("#")[0]; } catch { continue; }
+    if (!sameSite(resolved, origin) || !isPagePath(resolved) || /\/cdn-cgi\//i.test(resolved)) continue;
+    if (tagAttr(tag, "aria-hidden") === "true") continue;
+    const imgAlt = (m[2].match(/<img\b[^>]*>/i) || [null])[0];
+    const text = decode(strip(m[2])).replace(/\s+/g, " ").trim();
+    const anchor = (text || (imgAlt ? decode(tagAttr(imgAlt, "alt") || "").trim() : "") || decode(tagAttr(tag, "aria-label") || tagAttr(tag, "title") || "").trim()).slice(0, 80);
+    const zone = inside(footerRanges, m.index) ? "footer" : inside(navRanges, m.index) || inside(headerRanges, m.index) ? "nav" : "content";
+    linkDetails.push({ u: resolved, a: anchor, z: zone, nf: /\bnofollow\b/i.test(tagAttr(tag, "rel") || ""), img: !text && !!imgAlt });
+  }
+  const linkZones = { nav: navRanges.length + headerRanges.length > 0, footer: footerRanges.length > 0 };
+
   // Liens vers d'autres sites, vérifiés ensuite par le client : un lien mort
   // vers un partenaire ou une source nuit à la crédibilité. Les réseaux sociaux
   // sont exclus (ils refusent les robots, donc invérifiables).
@@ -895,6 +920,8 @@ function analyzePage(url, html, finalUrl, response = {}) {
       cacheControl: response.headers?.cacheControl || "",
     },
     links,
+    linkDetails,
+    linkZones,
     externalLinks,
     textFingerprint: simhash64(bodyText),
     nap,
@@ -1343,6 +1370,119 @@ async function verify(urls) {
   };
   await Promise.all(Array.from({ length: 5 }, worker));
   return results;
+}
+
+// ---------- LES QUATRE ADRESSES (http/https, avec et sans www) ----------
+// Chaque variante est suivie pas à pas. Seuls les faits prouvés sont nommés :
+// un délai dépassé ou un refus du pare-feu reste « non vérifié ».
+async function followVariant(start, deadline) {
+  const chain = [];
+  let current = start;
+  for (let hop = 0; hop <= 5; hop++) {
+    const left = deadline - Date.now();
+    if (left < 400) return { url: start, chain, error: "timeout" };
+    let host; try { host = new URL(current).hostname; } catch { return { url: start, chain, error: "invalid" }; }
+    try { await lookup(host); } catch (e) { return { url: start, chain, error: /ENOTFOUND|ENODATA|EAI_NONAME/i.test(e?.code || "") ? "dns" : "timeout" }; }
+    if (!(await resolvesPublic(current))) return { url: start, chain, error: "invalid" };
+    let res;
+    try {
+      res = await fetch(current, { headers: { "User-Agent": UA, "Accept": "text/html,*/*" }, redirect: "manual", signal: AbortSignal.timeout(Math.min(4500, left)) });
+    } catch (e) {
+      const code = String(e?.cause?.code || e?.code || "");
+      const error = e?.name === "TimeoutError" || e?.name === "AbortError" ? "timeout"
+        : /CERT|SSL|TLS|ALTNAME|SELF_SIGNED/i.test(code) ? "tls"
+        : /ECONNREFUSED/i.test(code) ? "refused" : "unreachable";
+      return { url: start, chain, error, at: current };
+    }
+    res.body?.cancel().catch(() => {});
+    const location = res.headers.get("location");
+    chain.push({ url: current, status: res.status });
+    if (res.status >= 300 && res.status < 400 && location) {
+      try { current = new URL(location, current).href; } catch { return { url: start, chain, error: "invalid" }; }
+      continue;
+    }
+    return { url: start, chain, finalUrl: current, status: res.status, hops: chain.length - 1 };
+  }
+  return { url: start, chain, error: "loop" };
+}
+async function siteVariants(site) {
+  const bare = new URL(site).hostname.replace(/^www\./i, "").toLowerCase();
+  const deadline = Date.now() + CALL_BUDGET - 500;
+  const starts = [`http://${bare}/`, `http://www.${bare}/`, `https://${bare}/`, `https://www.${bare}/`];
+  const variants = await Promise.all(starts.map(u => followVariant(u, deadline)));
+  return { checked: true, host: bare, variants };
+}
+
+// ---------- POSITIONS GOOGLE RÉELLES (DataForSEO SERP, file prioritaire) ----------
+// Une recherche Google prend plus de 10 s : les tâches sont déposées, puis
+// relues. Chaque mesure porte sa date, sa ville et l'appareil.
+function dfsAuth() {
+  const login = process.env.DATAFORSEO_LOGIN, password = process.env.DATAFORSEO_PASSWORD;
+  return login && password ? "Basic " + btoa(`${login}:${password}`) : null;
+}
+async function serpPost({ keywords = [], city = "", language = "fr" } = {}) {
+  const authorization = dfsAuth();
+  if (!authorization) return { configured: false, available: false, reason: "provider_credentials_missing" };
+  const list = [...new Set(keywords.map(k => String(k || "").replace(/\s+/g, " ").trim().slice(0, 80)).filter(Boolean))].slice(0, 10);
+  if (!list.length) return { configured: true, available: false, reason: "no_keywords" };
+  const town = String(city || "").replace(/\s+/g, " ").trim().slice(0, 60);
+  // Jamais de repli silencieux : sans ville, la mesure est dite « Canada ».
+  const location = town ? (/,/.test(town) ? town : town + ",Quebec,Canada") : "Canada";
+  try {
+    const res = await fetch("https://api.dataforseo.com/v3/serp/google/organic/task_post", {
+      method: "POST", headers: { Authorization: authorization, "Content-Type": "application/json" },
+      body: JSON.stringify(list.map(keyword => ({ keyword, location_name: location, language_code: /^en/i.test(language) ? "en" : "fr", device: "mobile", os: "android", depth: 20, priority: 2 }))),
+      signal: AbortSignal.timeout(8000),
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok || !Array.isArray(payload.tasks)) return { configured: true, ...unavailableProviderResult(Object.assign(new Error(payload.status_message || ("Erreur " + res.status)), { reason: res.status === 401 || res.status === 403 ? "provider_unauthorized" : "provider_error" })) };
+    const tasks = payload.tasks.map((t, i) => ({ keyword: list[i], id: t.id || "", ok: t.status_code === 20100, error: t.status_code === 20100 ? "" : String(t.status_message || "") }));
+    const locationUnknown = tasks.some(t => !t.ok && /location/i.test(t.error));
+    if (!tasks.some(t => t.ok)) {
+      if (locationUnknown) return { configured: true, available: false, reason: "location_unknown", location, error: "Ville non reconnue par DataForSEO : " + location };
+      return { configured: true, ...unavailableProviderResult(new Error(tasks[0]?.error || "Tâches refusées")) };
+    }
+    return { configured: true, available: true, location, device: "mobile", language: /^en/i.test(language) ? "en" : "fr", tasks, providerCostUsd: Number(payload.cost || 0) || 0 };
+  } catch (error) {
+    return { configured: true, available: false, reason: error?.name === "TimeoutError" ? "provider_timeout" : "provider_error", error: error?.message || "Erreur DataForSEO" };
+  }
+}
+const normPhone10 = v => { const d = String(v || "").replace(/\D/g, ""); return d.length === 11 && d[0] === "1" ? d.slice(1) : d.length === 10 ? d : ""; };
+async function serpGet({ ids = [], site = "", phones = [] } = {}) {
+  const authorization = dfsAuth();
+  if (!authorization) return { configured: false, available: false, reason: "provider_credentials_missing" };
+  const host = (() => { try { return new URL(site).hostname.replace(/^www\./i, "").toLowerCase(); } catch { return ""; } })();
+  const mine = d => !!host && String(d || "").replace(/^www\./i, "").toLowerCase() === host;
+  const clientPhones = phones.map(normPhone10).filter(Boolean);
+  const list = ids.map(x => String(x || "")).filter(x => /^[\w-]{8,64}$/.test(x)).slice(0, 10);
+  const results = await Promise.all(list.map(async id => {
+    try {
+      const res = await fetch("https://api.dataforseo.com/v3/serp/google/organic/task_get/regular/" + id, { headers: { Authorization: authorization }, signal: AbortSignal.timeout(7000) });
+      const payload = await res.json().catch(() => ({}));
+      const task = payload.tasks?.[0];
+      if (!task) return { id, ready: false, error: payload.status_message || ("Erreur " + res.status) };
+      // 40601 / 40602 : tâche remise ou en file — pas encore de résultat.
+      if (task.status_code === 40601 || task.status_code === 40602 || (task.status_code === 20000 && !task.result)) return { id, ready: false, pending: true };
+      if (task.status_code !== 20000) return { id, ready: false, error: String(task.status_message || "Erreur") };
+      const r = task.result[0] || {};
+      const items = Array.isArray(r.items) ? r.items : [];
+      const organic = items.filter(x => x.type === "organic");
+      const own = organic.find(x => mine(x.domain));
+      const pack = items.filter(x => x.type === "local_pack");
+      const packInfo = pack.map(x => ({ title: String(x.title || "").slice(0, 80), domain: String(x.domain || "").replace(/^www\./i, "").toLowerCase(), phone: normPhone10(x.phone) }));
+      const packMatch = packInfo.some(x => mine(x.domain) || (x.phone && clientPhones.includes(x.phone)));
+      const packKnown = packInfo.length > 0 && packInfo.every(x => x.domain || x.phone);
+      return {
+        id, ready: true, keyword: String(r.keyword || task.data?.keyword || ""), checkedAt: String(r.datetime || "").slice(0, 16),
+        observed: organic.length,
+        position: own ? Number(own.rank_group) : null, url: own ? String(own.url || "") : "",
+        top: organic.slice(0, 3).map(x => ({ position: Number(x.rank_group), domain: String(x.domain || "").replace(/^www\./i, ""), title: String(x.title || "").slice(0, 90) })),
+        localPack: { present: pack.length > 0, names: packInfo.slice(0, 3).map(x => x.title), client: !pack.length ? "none" : packMatch ? "yes" : packKnown && (host || clientPhones.length) ? "no" : "unknown" },
+        costUsd: Number(task.cost || 0) || 0,
+      };
+    } catch (error) { return { id, ready: false, error: error?.name === "TimeoutError" ? "délai dépassé" : (error?.message || "Erreur") }; }
+  }));
+  return { configured: true, available: true, results };
 }
 
 // ---------- INTELLIGENCE EXTERNE (DataForSEO, identifiants serveur seulement) ----------
@@ -1939,20 +2079,86 @@ async function gscFetch(token, path, body) {
   return data;
 }
 const isoDay = date => date.toISOString().slice(0, 10);
-async function searchConsoleIntelligence(site, { days = 90, lite = false } = {}) {
+// Jeton + propriété Search Console du site : partagé par les trois lectures.
+async function gscResolve(site) {
   const creds = gscCredentials();
-  if (!creds) return { configured: false, available: false, reason: "gsc_not_configured" };
+  if (!creds) return { fail: { configured: false, available: false, reason: "gsc_not_configured" } };
   const host = new URL(site).hostname.replace(/^www\./i, "").toLowerCase();
   let token;
   try { token = await gscAccessToken(creds); }
-  catch (error) { return { configured: true, available: false, reason: "gsc_auth", error: error.message, serviceAccountEmail: creds.email }; }
+  catch (error) { return { fail: { configured: true, available: false, reason: "gsc_auth", error: error.message, serviceAccountEmail: creds.email } }; }
   let sites;
   try { sites = (await gscFetch(token, "/sites")).siteEntry || []; }
-  catch (error) { return { configured: true, available: false, reason: "gsc_error", error: error.message, serviceAccountEmail: creds.email }; }
+  catch (error) { return { fail: { configured: true, available: false, reason: "gsc_error", error: error.message, serviceAccountEmail: creds.email } }; }
   const usable = sites.filter(entry => entry.permissionLevel && entry.permissionLevel !== "siteUnverifiedUser");
   const candidates = ["sc-domain:" + host, `https://${host}/`, `https://www.${host}/`, `http://${host}/`, `http://www.${host}/`];
   const property = candidates.map(c => usable.find(entry => String(entry.siteUrl).toLowerCase() === c)).find(Boolean);
-  if (!property) return { configured: true, available: false, reason: "gsc_no_access", serviceAccountEmail: creds.email, properties: usable.length };
+  if (!property) return { fail: { configured: true, available: false, reason: "gsc_no_access", serviceAccountEmail: creds.email, properties: usable.length } };
+  return { creds, token, property };
+}
+const gscWindow = (days = 90) => {
+  const end = new Date(); end.setUTCDate(end.getUTCDate() - 3);
+  const start = new Date(end); start.setUTCDate(start.getUTCDate() - (days - 1));
+  return { start, end };
+};
+// Lecture profonde : jusqu'à 1000 recherches (au lieu de 25) et les couples
+// recherche + page, pour les mots-clés visés, les recherches proches de la
+// page 1 et les recherches où Google a affiché plusieurs pages.
+async function searchConsoleDeep(site) {
+  const r = await gscResolve(site);
+  if (r.fail) return r.fail;
+  const { token, property } = r;
+  const { start, end } = gscWindow(90);
+  const encoded = encodeURIComponent(property.siteUrl);
+  const query = (dimensions, rowLimit) => gscFetch(token, `/sites/${encoded}/searchAnalytics/query`, { startDate: isoDay(start), endDate: isoDay(end), dimensions, rowLimit, type: "web", dataState: "final" });
+  const [queries, pairs] = await Promise.allSettled([query(["query"], 1000), query(["query", "page"], 2500)]);
+  if (queries.status !== "fulfilled") return { configured: true, available: false, reason: "gsc_error", error: queries.reason?.message || "Lecture impossible", property: property.siteUrl };
+  const byQuery = new Map();
+  for (const row of pairs.status === "fulfilled" ? (pairs.value.rows || []) : []) {
+    const q = String(row.keys?.[0] || ""), u = String(row.keys?.[1] || "");
+    if (!q || !u) continue;
+    (byQuery.get(q) || byQuery.set(q, []).get(q)).push({ url: u, clicks: Math.round(row.clicks || 0), impressions: Math.round(row.impressions || 0), position: row.position == null ? null : Number(row.position) });
+  }
+  for (const list of byQuery.values()) list.sort((a, b) => b.impressions - a.impressions);
+  const rows = (queries.value.rows || []).map(row => {
+    const q = String(row.keys?.[0] || "");
+    return { query: q, clicks: Math.round(row.clicks || 0), impressions: Math.round(row.impressions || 0), position: row.position == null ? null : Number(row.position), url: byQuery.get(q)?.[0]?.url || "" };
+  }).filter(x => x.query);
+  // Plusieurs pages affichées pour une même recherche : fait mesuré, pas un verdict.
+  const multi = [...byQuery.entries()].map(([q, list]) => ({ query: q, pages: list.filter(p => p.impressions >= 5).slice(0, 4) }))
+    .filter(x => x.pages.length >= 2).sort((a, b) => b.pages[1].impressions - a.pages[1].impressions).slice(0, 60);
+  return { configured: true, available: true, property: property.siteUrl, period: { start: isoDay(start), end: isoDay(end), days: 90 },
+    queries: rows, sampled: rows.length, pairsAvailable: pairs.status === "fulfilled", multi,
+    // Toutes les pages que Google a affichées au moins une fois : elles sont indexées.
+    pagesSeen: [...new Set([...byQuery.values()].flat().filter(x => x.impressions > 0).map(x => x.url))].slice(0, 1000) };
+}
+// Inspection d'index : Google dit lui-même si la page est indexée, et sinon
+// pourquoi. Trois adresses par appel au plus ; un refus reste « non vérifié ».
+async function searchConsoleInspect(site, urls) {
+  const r = await gscResolve(site);
+  if (r.fail) return r.fail;
+  const { token, property } = r;
+  const list = [...new Set((urls || []).map(String).filter(isSafeUrl))].slice(0, 3);
+  const results = await Promise.all(list.map(async url => {
+    try {
+      const res = await fetch("https://searchconsole.googleapis.com/v1/urlInspection/index:inspect", {
+        method: "POST", headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+        body: JSON.stringify({ inspectionUrl: url, siteUrl: property.siteUrl, languageCode: "fr-CA" }),
+        signal: AbortSignal.timeout(7500),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return { url, ok: false, status: res.status, reason: res.status === 403 ? "inspect_forbidden" : res.status === 429 ? "inspect_quota" : "inspect_error", error: String(data.error?.message || ("Erreur " + res.status)).slice(0, 200) };
+      const x = data.inspectionResult?.indexStatusResult || {};
+      return { url, ok: true, verdict: String(x.verdict || ""), coverage: String(x.coverageState || ""), indexing: String(x.indexingState || ""), robots: String(x.robotsTxtState || ""), fetch: String(x.pageFetchState || ""),
+        googleCanonical: String(x.googleCanonical || ""), userCanonical: String(x.userCanonical || ""), lastCrawl: String(x.lastCrawlTime || "").slice(0, 10) };
+    } catch (error) { return { url, ok: false, reason: error?.name === "TimeoutError" ? "inspect_timeout" : "inspect_error", error: error?.message || "Erreur" }; }
+  }));
+  return { configured: true, available: true, property: property.siteUrl, permission: property.permissionLevel, results };
+}
+async function searchConsoleIntelligence(site, { days = 90, lite = false } = {}) {
+  const resolved = await gscResolve(site);
+  if (resolved.fail) return resolved.fail;
+  const { creds, token, property } = resolved;
 
   // Google publie avec deux à trois jours de retard : fenêtre de 90 jours
   // close trois jours avant aujourd'hui, comparée aux 90 jours précédents.
@@ -2291,6 +2497,13 @@ export default async (req) => {
       return json(await discover(site));
     }
 
+    if (mode === "variants") {
+      let site = (q.get("site") || "").trim();
+      if (!/^https?:\/\//i.test(site)) site = "https://" + site;
+      if (!isSafeUrl(site)) return json({ error: "Adresse invalide." }, 400);
+      return json(await siteVariants(site));
+    }
+
     if (mode === "sitemap") {
       const url = q.get("url") || "";
       const origin = q.get("origin") || "";
@@ -2343,7 +2556,7 @@ export default async (req) => {
     }
 
     // Modules protégés par le code d'accès (comme trafic et gap).
-    const guarded = ["config", "gsc", "gtmetrix", "history", "places", "summary", "watch", "veille"].includes(mode);
+    const guarded = ["config", "gsc", "gscinspect", "serp", "gtmetrix", "history", "places", "summary", "watch", "veille"].includes(mode);
     if (guarded) {
       if (!accessKey) return json({ configured: false, available: false, reason: "server_protection_missing", error: "La protection privée n'est pas configurée sur le serveur." }, 503);
       if (req.headers.get("x-paparmane-key") !== accessKey) return json({ configured: false, available: false, reason: "access_key_invalid", error: "Le code d'accès courant ne permet pas d'utiliser ce module." }, 401);
@@ -2358,6 +2571,7 @@ export default async (req) => {
         pagespeedKey: process.env.PAGESPEED_API_KEY || "",
         gtmetrix: !!process.env.GTMETRIX_API_KEY,
         searchConsole: { configured: !!gsc, email: gsc?.email || "" },
+        serp: !!dfsAuth(),
         history,
         places: !!process.env.GOOGLE_PLACES_API_KEY,
         summary: !!process.env.ANTHROPIC_API_KEY,
@@ -2394,7 +2608,19 @@ export default async (req) => {
       let site = (q.get("site") || "").trim();
       if (!/^https?:\/\//i.test(site)) site = "https://" + site;
       if (!isSafeUrl(site)) return json({ error: "Adresse invalide." }, 400);
-      return json(await searchConsoleIntelligence(site));
+      return json(q.get("deep") === "1" ? await searchConsoleDeep(site) : await searchConsoleIntelligence(site));
+    }
+    if (mode === "gscinspect" && req.method === "POST") {
+      const body = await req.json().catch(() => ({}));
+      let site = String(body.site || "").trim();
+      if (!/^https?:\/\//i.test(site)) site = "https://" + site;
+      if (!isSafeUrl(site)) return json({ error: "Adresse invalide." }, 400);
+      return json(await searchConsoleInspect(site, Array.isArray(body.urls) ? body.urls : []));
+    }
+    if (mode === "serp" && req.method === "POST") {
+      const body = await req.json().catch(() => ({}));
+      if (q.get("action") === "post") return json(await serpPost({ keywords: Array.isArray(body.keywords) ? body.keywords : [], city: body.city || "", language: body.language || "fr" }));
+      return json(await serpGet({ ids: Array.isArray(body.ids) ? body.ids : [], site: String(body.site || ""), phones: Array.isArray(body.phones) ? body.phones : [] }));
     }
     if (mode === "gtmetrix") {
       const url = q.get("url") || "";
