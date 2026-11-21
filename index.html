@@ -128,23 +128,20 @@
     /* Sections */
     .sec{position:relative;padding:var(--space) var(--pad)}
     /* Les blocs glissent les uns par-dessus les autres, comme une pile de feuilles */
-    .pile{position:sticky;top:0;isolation:isolate}
-    .pile.sec{padding-bottom:calc(var(--space) + 26vh)}
+    .pile{position:relative;isolation:isolate}
     .pile.sec--jeu{padding-bottom:0}
     /* Cellulaire et tablette : un haut de page simple et bien ordonné */
     @media (max-width:999px){
       .hero{display:flex;flex-direction:column}
-      .statut{order:-1;align-self:flex-start;margin:0 0 1.4rem}
+      .statut{order:-1;align-self:flex-start;margin:0 0 3rem}
       .hero .badge{display:none}
-      .ordi{width:min(74vw,340px);margin:5rem auto 0}
+      .ordi{width:min(74vw,340px);margin:8rem auto 3rem}
     }
     @media (max-width:600px){
       .cta h2 br{display:none}
       .foot{padding-bottom:6.5rem}
       .dock__btn{padding:.55rem;font-size:1.05rem}
     }
-    .pile + .pile{border-radius:clamp(28px,4vw,56px) clamp(28px,4vw,56px) 0 0;box-shadow:0 -24px 60px rgba(8,0,50,.35)}
-    .pile::after{content:"";position:absolute;inset:0;border-radius:inherit;background:#080030;opacity:var(--couvert,0);pointer-events:none;z-index:5}
     .pile--1{z-index:1}.pile--2{z-index:2;background:var(--bg)}.pile--3{z-index:3;background:#2c0f9c}.pile--4{z-index:4;background:#160470}.pile--5{z-index:5;background:var(--accent)}
     .foot{position:relative;z-index:6;background:var(--accent)}
     .sec h2{font-size:clamp(2.8rem,5.4vw,4.8rem);margin-top:.9rem;line-height:.95}
@@ -254,15 +251,17 @@
 
     @media (min-width:1000px){
       /* Haut de page : titre GÉANT sur 3 lignes, centré dans l'écran ; badge et avancement dans les espaces libres à droite */
-      .top{padding-left:3vw;padding-right:3vw}
-      .hero{display:flex;flex-direction:column;justify-content:center;min-height:calc(100svh - 86px);padding:clamp(2rem,4vh,3.5rem) 3vw}
-      .statut{order:-1;align-self:flex-start;margin:0 0 clamp(1rem,2.4vh,1.6rem)}
-      .hero__title{font-size:clamp(4.5rem,min(13.9vw,26vh),200px);line-height:.88;max-width:none}
-      .hero__sub{margin-top:clamp(.6rem,1.6vh,1.1rem);font-size:clamp(1.1rem,1.5vw,1.4rem)}
-      .hero .badge{position:absolute;right:3vw;top:clamp(.75rem,2vh,1.5rem);width:clamp(130px,10vw,170px)}
-      .hero__rang{display:flex;align-items:flex-start;gap:3vw}
+      :root{--hpad:max(5vw,calc((100vw - 1400px) / 2))}
+      .top{padding-left:var(--hpad);padding-right:var(--hpad)}
+      .hero{display:flex;flex-direction:column;justify-content:flex-start;min-height:calc(100svh - 6rem);padding:clamp(4rem,10vh,7rem) var(--hpad) clamp(8rem,17vh,12rem)}
+      .statut{order:-1;align-self:flex-start;margin:0 0 clamp(3.2rem,7vh,5rem)}
+      .avancement{margin-bottom:clamp(5rem,11vh,7.5rem)}
+      .hero__title{font-size:clamp(4.5rem,min(11vw,26vh),200px);line-height:.88;max-width:none}
+      .hero__sub{margin-top:clamp(2.6rem,5.5vh,4rem);font-size:clamp(1.1rem,1.5vw,1.4rem)}
+      .hero .badge{position:absolute;right:var(--hpad);top:clamp(.75rem,2vh,1.5rem);width:clamp(130px,10vw,170px)}
+      .hero__rang{display:flex;align-items:flex-start;justify-content:space-between;gap:clamp(2rem,4vw,4.5rem)}
       .hero__gauche{flex:none}
-      .ordi{position:relative;flex:0 1 min(23vw,40vh);min-width:200px;max-width:440px;margin:clamp(3rem,8vh,5.5rem) 0 0 1vw}
+      .ordi{position:relative;flex:0 1 min(23vw,40vh);min-width:175px;max-width:430px;margin:clamp(8rem,17vh,12rem) 0 0 0}
     }
     @media (max-width:560px){
       .services__grille{gap:.7rem}
@@ -280,7 +279,7 @@
       .filtre{font-size:.85rem;padding:.5rem .9rem}
     }
     @media (max-width:720px){
-      .hero{padding-top:1.5rem}
+      .hero{padding-top:4.5rem}
       .badge{position:relative;right:auto;top:auto;width:150px;margin:0 0 1.5rem auto}
       .item__url{display:none}
     }
@@ -311,7 +310,7 @@
     .avancement__msg{justify-self:start;padding:0;border-radius:0;background:none;color:#fff;font-size:1rem;font-weight:800;line-height:1;white-space:nowrap;text-shadow:0 1px 2px rgba(8,0,50,.6)}
     .avancement__msg.fade{transform:translateY(-6px)}
     @media (max-width:600px){
-      .avancement{height:48px;padding:0 .8rem;gap:1.1rem;margin-bottom:2rem}
+      .avancement{height:48px;padding:0 .8rem;gap:1.1rem;margin-bottom:3.4rem}
       .avancement__pct{font-size:1.7rem}
       .avancement__bas{padding-left:1.1rem}
       .avancement__label,.avancement__note{display:none}
@@ -405,6 +404,10 @@
     .quiz__tard{margin-top:.9rem;border:0;background:none;color:#13007f;font:600 .85rem/1 var(--body);text-decoration:underline;cursor:pointer}
     .onglet-films{position:fixed;left:0;top:58%;z-index:74;display:flex;align-items:center;gap:.4rem;padding:.7rem .8rem .7rem .6rem;border:3px solid #000;border-left:0;background:#ffd400;color:#000;font:10px/1 "Press Start 2P",monospace;box-shadow:4px 4px 0 #000;cursor:pointer;transform:translateX(-4px);transition:transform .2s}
     .onglet-films:hover{transform:translateX(0);background:var(--accent);color:#fff}
+    .onglet-films span{max-width:0;overflow:hidden;white-space:nowrap;transition:max-width .3s ease}
+    .onglet-films:hover span,.onglet-films:focus-visible span{max-width:9rem}
+    .onglet-films{gap:0;padding:.6rem .6rem .6rem .5rem;font-size:16px}
+    .onglet-films:hover,.onglet-films:focus-visible{gap:.4rem;font-size:10px;padding:.7rem .8rem .7rem .6rem}
     .onglet-films[hidden]{display:none}
     @media (max-width:600px){.onglet-films span{display:none}.onglet-films{font-size:16px;padding:.5rem .55rem}}
     /* les dessins en pixels qui traversent l'écran */
@@ -1789,31 +1792,6 @@
       ecran.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); affiche(); } });
     })();
 
-    /* Pile de blocs : chaque bloc reste en place pendant que le suivant glisse par-dessus */
-    (() => {
-      const blocs = [...document.querySelectorAll('.pile')];
-      if (!blocs.length) return;
-      const reduit = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      const cale = () => blocs.forEach(b => { b.style.top = Math.min(0, innerHeight - b.offsetHeight) + 'px'; });
-      let attente = false;
-      const ombre = () => {
-        attente = false;
-        blocs.forEach((b, i) => {
-          const suivant = blocs[i + 1];
-          if (!suivant) return;
-          const haut = suivant.getBoundingClientRect().top;
-          const p = Math.min(1, Math.max(0, 1 - haut / innerHeight));
-          b.style.setProperty('--couvert', (p * .4).toFixed(3));
-          if (!reduit) b.style.transform = p > 0 ? `scale(${(1 - p * .03).toFixed(4)})` : '';
-        });
-      };
-      const demande = () => { if (!attente) { attente = true; requestAnimationFrame(ombre); } };
-      cale(); ombre();
-      addEventListener('scroll', demande, { passive: true });
-      addEventListener('resize', () => { cale(); demande(); });
-      addEventListener('load', () => { cale(); demande(); });
-      if ('ResizeObserver' in window) { const ro = new ResizeObserver(() => { cale(); demande(); }); blocs.forEach(b => ro.observe(b)); }
-    })();
 
     /* Apparitions au scroll */
     const items = document.querySelectorAll('.reveal');
