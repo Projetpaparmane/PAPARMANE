@@ -412,7 +412,7 @@
       <div class="brand-name" style="font-size:13px">PAPARMANE<span>.</span></div>
     </div>
     <div class="screen-only">Outil interne · Les rapports générés sont confidentiels</div>
-    <div class="print-only" id="printFoot">Paparmane · Studio créatif · bonjour@paparmane.com · paparmane.netlify.app</div>
+    <div class="print-only" id="printFoot">Paparmane · Studio créatif · bonjour@paparmane.com · paparmane.com</div>
   </footer>
 </div>
 
@@ -455,6 +455,7 @@ const plur = (n,sing,plural) => n+" "+(n>1?plural:sing);
 // 0 (délai), 401/403 (accès refusé au robot), 429 (limite de débit) et 503 viennent
 // le plus souvent d'un pare-feu : ce n'est pas une page morte prouvée.
 const isUnverifiableStatus = s => !s||s===401||s===403||s===429||s===503;
+let CHALLENGE_PAUSE_MS=12000;
 // Verdict sur le plan de site à partir des essais réels. « Absent » n'est conclu
 // que si CHAQUE adresse essayée a répondu introuvable (ou par une page ordinaire) :
 // un pare-feu, une page anti-robot, un délai ou une erreur serveur ne prouvent
@@ -577,6 +578,13 @@ const RICH_HINTS = ["FAQPage","LocalBusiness","LodgingBusiness","Product","Artic
 const GOOGLE_RICH_SCHEMA = new Set(["Article","BlogPosting","BreadcrumbList","Dataset","DiscussionForumPosting","Event","JobPosting","LocalBusiness","Organization","Product","Recipe","Review","AggregateRating","SoftwareApplication","VideoObject","VacationRental","ProfilePage","QAPage"]);
 
 function detectAuditBarrier(pagesAll){
+  // Pages d'attente anti-robot : si l'accueil ou la moitié du site en reçoit
+  // une, l'audit ne décrit plus le site mais sa protection.
+  const challenged=pagesAll.filter(p=>p.dead&&p.challenge);
+  const isHomeUrl=p=>{try{return (new URL(p.finalUrl||p.url).pathname.replace(/\/$/,"")||"/")==="/";}catch{return false;}};
+  if(challenged.length&&(challenged.some(isHomeUrl)||challenged.length>=Math.ceil(pagesAll.length*.5))) return {
+    kind:"challenge",count:challenged.length,total:pagesAll.length,title:challenged[0].title||"",
+    reason:"page d'attente anti-robot servie à la place du contenu",examples:challenged.slice(0,8).map(p=>p.url)};
   const pages=pagesAll.filter(p=>!p.dead);
   // Aucune page lisible : un score calculé sur zéro page afficherait « site
   // sécurisé », « adapté au mobile »… sans avoir rien observé.
@@ -845,7 +853,7 @@ async function runAudit(){
           done++;
           // Statut 0, 429 ou 503 = délai, erreur réseau ou limite de débit : ce n'est pas
           // une page morte prouvée, elle ne doit ni pénaliser ni être comparée.
-          if(p.dead&&isUnverifiableStatus(p.status)) p.transient=true;
+          if(p.dead&&(p.challenge||isUnverifiableStatus(p.status))) p.transient=true;
           if(p.skipped){ skippedFiles++; }
           else if(p.dead){ pages.push(p); log("✗ "+(p.status||"erreur")+" "+short(u,origin), "critl"); }
           else{
@@ -864,15 +872,19 @@ async function runAudit(){
     // un serveur surchargé par 5 requêtes simultanées répond souvent à 2.
     const retryList=pages.filter(p=>p.transient);
     if(retryList.length){
-      log("Nouvelle tentative pour "+retryList.length+" page(s) qui n'ont pas répondu à temps…");
+      const challenged=retryList.some(p=>p.challenge);
+      log("Nouvelle tentative pour "+retryList.length+" page(s) "+(challenged?"remplacées par une page d'attente anti-robot — pause, puis une à la fois…":"qui n'ont pas répondu à temps…"));
+      // Une protection anti-robot se déclenche sur la cadence : on attend, puis
+      // on redemande une page à la fois.
+      if(challenged) await new Promise(r=>setTimeout(r,CHALLENGE_PAUSE_MS));
       const retryQueue=[...retryList];
-      await Promise.all(Array.from({length:2},async()=>{
+      await Promise.all(Array.from({length:challenged?1:2},async()=>{
         while(retryQueue.length){
           const old=retryQueue.shift();
           try{
             const p=await api({mode:"page",url:old.url});
             if(p.skipped){ pages.splice(pages.indexOf(old),1); continue; }
-            if(p.dead&&isUnverifiableStatus(p.status)) continue;
+            if(p.dead&&(p.challenge||isUnverifiableStatus(p.status))){ if(p.challenge) old.challenge=true; continue; }
             pages[pages.indexOf(old)]=p;
           }catch{}
         }
@@ -1161,14 +1173,28 @@ function indexHtml(m){
 // « 12 rue X, Sherbrooke (Québec) J1H 1A1 ». Rien d'inventé : vide si incertain.
 function cityFromAddress(addr){
   const a=String(addr||"").replace(/\s+/g," ").trim(); if(!a) return "";
-  let m=a.match(/,\s*([A-Za-zÀ-ÿ'’. -]{2,40}?)\s*,\s*(?:QC|Québec|Quebec|ON|Ontario|NB|NS|MB|SK|AB|BC|PE|NL)\b/i);
+  let m=a.match(/(?:^|,)\s*([A-Za-zÀ-ÿ'’. -]{2,40}?)\s*,\s*(?:QC|Québec|Quebec|ON|Ontario|NB|NS|MB|SK|AB|BC|PE|NL)\b/i);
   if(m) return m[1].trim();
   m=a.match(/,\s*([A-Za-zÀ-ÿ'’. -]{2,40}?)\s*\((?:Québec|Quebec|Ontario)\)/i);
   return m?m[1].trim():"";
 }
 function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, options={}){
   // Statut 0, 429 ou 503 = délai, réseau ou limite de débit : pas une page morte prouvée.
-  for(const p of pagesAll) if(p.dead&&isUnverifiableStatus(p.status)) p.transient=true;
+  // Une adresse qui redirige n'est pas une page : son contenu est celui de la
+  // destination. Elle est enregistrée sous son adresse finale, ou écartée si
+  // la destination est déjà auditée — sinon elle passait pour une page
+  // « jumelle » (même titre, même description, même contenu).
+  const sitemapRedirects=[];
+  { const keyU=u=>String(u||"").split("#")[0].replace(/\/$/,"");
+    const sameHost=(a,b)=>{try{return new URL(a).hostname.replace(/^www\./,"")===new URL(b).hostname.replace(/^www\./,"");}catch{return false;}};
+    const seenFinal=new Set(pagesAll.filter(p=>!p.dead&&!(p.redirected&&keyU(p.finalUrl)!==keyU(p.url))).map(p=>keyU(p.finalUrl||p.url)));
+    pagesAll=pagesAll.filter(p=>{
+      if(p.dead||!p.redirected||!p.finalUrl||keyU(p.finalUrl)===keyU(p.url)) return true;
+      sitemapRedirects.push({from:p.url,to:p.finalUrl});
+      if(!sameHost(p.finalUrl,origin)||seenFinal.has(keyU(p.finalUrl))) return false;
+      seenFinal.add(keyU(p.finalUrl)); p.sourceUrl=p.url; p.url=p.finalUrl; p.redirected=false; return true;
+    }); }
+  for(const p of pagesAll) if(p.dead&&(p.challenge||isUnverifiableStatus(p.status))) p.transient=true;
   const pages = pagesAll.filter(p=>!p.dead);
   const deadPages = pagesAll.filter(p=>p.dead);
   const auditBarrier=options.auditBarrier||detectAuditBarrier(pagesAll);
@@ -1181,6 +1207,23 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
     };
   }
   const n = Math.max(1,pages.length);
+  // Une image n'est comptée qu'une fois pour tout le site, sur la première
+  // page où elle apparaît (l'accueil d'abord). Sans cela, le portrait du
+  // gabarit commun était recompté sur chaque page et les totaux divergeaient.
+  // Clé : adresse de l'image sans paramètres ni suffixe de taille (-300x200, -scaled, @2x).
+  const imageKey=(im,base)=>{ let k=String(im.src||im.file||""); try{ k=new URL(k,base).pathname; }catch{ k=k.split("?")[0]; }
+    return k.toLowerCase().replace(/-\d{2,4}x\d{2,4}(?=\.[a-z0-9]+$)/,"").replace(/-scaled(?=\.[a-z0-9]+$)/,"").replace(/@[23]x(?=\.[a-z0-9]+$)/,""); };
+  const homeFirst=[...pages].sort((a,b)=>(String(b.finalUrl||b.url).replace(/\/$/,"")===origin.replace(/\/$/,""))-(String(a.finalUrl||a.url).replace(/\/$/,"")===origin.replace(/\/$/,"")));
+  // Si une copie de l'image porte un ALT (carrousel dont les doublons sont
+  // volontairement muets), c'est cette copie qui représente le fichier.
+  const imageOwner=new Map();
+  for(const p of homeFirst){
+    if(!p.imagesAll) p.imagesAll=p.images||[];
+    for(const im of p.imagesAll){ if(!im.src&&!im.file) continue; const k=imageKey(im,p.finalUrl||p.url); const cur=imageOwner.get(k); if(!cur||(!cur.im.alt&&im.alt)) imageOwner.set(k,{im,page:cur?cur.page:p}); }
+  }
+  for(const p of homeFirst) p.images=p.imagesAll.filter(im=>!im.src&&!im.file);
+  for(const {im,page} of imageOwner.values()) page.images.push(im);
+
   const keywordPages=pages.filter(isKeywordPage);
   const isWP = pages.some(p=>p.isWordPress);
   const S = short; const sh = u=>short(u,origin);
@@ -1190,7 +1233,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   // ---- Mots-clés observés (analyse interne, sans volumes externes) ----
   const keywordTotals=new Map();
   for(const p of keywordPages) for(const k of p.keywords||[]){
-    const cur=keywordTotals.get(k.term)||{term:k.term,count:0,pages:0,kind:k.kind};
+    const cur=keywordTotals.get(k.term)||{term:k.term,label:k.label||k.term,count:0,pages:0,kind:k.kind};
     cur.count+=k.count; cur.pages++; keywordTotals.set(k.term,cur);
   }
   const siteKeywords=[...keywordTotals.values()].sort((a,b)=>b.count-a.count).slice(0,25);
@@ -1217,20 +1260,24 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
     steps:["Valider l'intention derrière chaque expression : information, comparaison, service ou achat.","Créer une nouvelle page si aucun contenu ne répond à cette intention; sinon renforcer la meilleure page existante.","Utiliser l'expression dans le titre, le H1, l'introduction et quelques sous-titres naturels.","Ajouter des liens internes vers cette page depuis les contenus connexes."],effort:"1-4 h / sujet",gain:"élevé"});
   if(cannibalization.length) issues.push({sev:"warn",cat:"keywords",title:cannibalization.length+" sujet(s) semblent ciblés par plusieurs pages",
     body:"Plusieurs pages insistent sur la même expression dominante. Elles peuvent se concurrencer dans Google au lieu de renforcer une page principale. C'est une alerte de cannibalisation basée sur le contenu observé — à confirmer avec les requêtes de Google Search Console.",
-    where:cannibalization.slice(0,12).flatMap(([kw,group])=>["<b>« "+esc(kw)+" »</b> : "+group.map(p=>"<code>"+esc(sh(p.url))+"</code>").join(", ")]),
+    where:cannibalization.slice(0,12).flatMap(([kw,group])=>["<b>« "+esc(group[0].focusLabel||kw)+" »</b> : "+group.map(p=>"<code>"+esc(sh(p.url))+"</code>").join(", ")]),
     steps:["Choisir une page principale par intention de recherche.","Différencier les autres pages avec un besoin précis, un lieu, un public ou une étape du parcours client.","Créer des liens internes descriptifs vers la page principale.","Si deux pages répondent vraiment à la même intention, les fusionner et rediriger l'ancienne URL."],effort:"30-90 min / groupe",gain:"élevé"});
   if(weakAlignment.length) issues.push({sev:"info",cat:"keywords",title:weakAlignment.length+" page(s) n'annoncent pas clairement leur sujet dominant",
     body:"Le contenu parle surtout d'un sujet, mais ce sujet n'apparaît pas à la fois dans le titre SEO et le H1. Google et le client doivent pouvoir comprendre la promesse de la page immédiatement.",
-    where:weakAlignment.slice(0,15).map(p=>"<code>"+esc(sh(p.url))+"</code> — expression observée : <b>« "+esc(p.focusKeyword)+" »</b> · titre "+(p.keywordAlignment.title?"✓":"✗")+" · H1 "+(p.keywordAlignment.h1?"✓":"✗")),
+    where:weakAlignment.slice(0,15).map(p=>"<code>"+esc(sh(p.url))+"</code> — expression observée : <b>« "+esc(p.focusLabel||p.focusKeyword)+" »</b> · titre "+(p.keywordAlignment.title?"✓":"✗")+" · H1 "+(p.keywordAlignment.h1?"✓":"✗")),
     steps:["Confirmer dans Google Search Console la requête réellement visée.","Placer l'expression principale naturellement dans le titre SEO et dans l'unique H1.","Employer des variantes et sous-questions dans les H2; éviter de répéter mécaniquement le même mot."],effort:"10 min / page",gain:"moyen"});
 
   // Emplacement du champ selon le CMS
-  const champTitre = isWP ? "champ <b>Titre SEO</b> du bloc Yoast/RankMath, sous l'éditeur de la page" : "balise <code>&lt;title&gt;</code> dans le <code>&lt;head&gt;</code> de la page";
-  const champDesc  = isWP ? "champ <b>Méta description</b> du bloc Yoast/RankMath" : "balise <code>&lt;meta name=\"description\"&gt;</code> dans le <code>&lt;head&gt;</code>";
+  // Extension SEO réellement détectée ; à défaut, on ne suppose pas laquelle.
+  const _seoCounts={}; for(const p of pages) if(p.seoPlugin) _seoCounts[p.seoPlugin]=(_seoCounts[p.seoPlugin]||0)+1;
+  const seoPlugin=Object.entries(_seoCounts).sort((a,b)=>b[1]-a[1])[0]?.[0]||"";
+  const seoExt=seoPlugin?esc(seoPlugin):"de l'extension SEO (Yoast, Rank Math, SEOPress ou All in One SEO)";
+  const champTitre = isWP ? "champ <b>Titre SEO</b> du bloc "+seoExt+", sous l'éditeur de la page" : "balise <code>&lt;title&gt;</code> dans le <code>&lt;head&gt;</code> de la page";
+  const champDesc  = isWP ? "champ <b>Méta description</b> du bloc "+seoExt : "balise <code>&lt;meta name=\"description\"&gt;</code> dans le <code>&lt;head&gt;</code>";
 
   // Exemple d'ALT personnalisé : nom du client et ville quand on les connaît.
   const _clientForAlt=String(options.clientName||"").trim();
-  const _cityForAlt=cityFromAddress(disc.places?.match?.address)||cityFromAddress(pagesAll.flatMap(p=>p.nap?.addressSnippets||[])[0])||"";
+  const _cityForAlt=cityFromAddress(disc.places?.match?.address)||cityFromAddress(pagesAll.map(p=>p.nap?.schema?.address).find(Boolean))||cityFromAddress(pagesAll.flatMap(p=>p.nap?.addressSnippets||[])[0])||"";
   const altExample=_clientForAlt&&_cityForAlt?"« L'équipe de "+esc(_clientForAlt)+" devant ses locaux à "+esc(_cityForAlt)+" »":_clientForAlt?"« L'équipe de "+esc(_clientForAlt)+" au travail »":_cityForAlt?"« Vitrine du commerce, rue principale à "+esc(_cityForAlt)+" »":"« Technicienne au travail dans l'atelier »";
 
   // ---- Doublons titres / descriptions ----
@@ -1340,7 +1387,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   if(tShort.length) issues.push({sev:"info",cat:"balises",title:tShort.length+" titre(s) très courts — de l'espace inutilisé",
     body:"Un titre trop court gaspille l'espace d'affichage : on peut y ajouter un mot-clé ou un argument.",
     where:tShort.map(p=>"<code>"+esc(sh(p.url))+"</code> — "+p.titleLen+" caractères"),
-    steps:["Compléter le titre avec le service + la région (ex. « — plomberie résidentielle à Sherbrooke »)."],
+    steps:["Compléter le titre avec le service + la région"+(siteKeywords[0]?" (ex. « — "+esc(siteKeywords.find(k=>k.kind==="expression")?.label||siteKeywords[0].label||siteKeywords[0].term)+(_cityForAlt?" à "+esc(_cityForAlt):"")+" »)":"")+"."],
     effort:"~3 min / page", gain:"faible"});
   const dLong = pages.filter(p=>p.descLen>165);
   if(dLong.length) issues.push({sev:"info",cat:"balises",title:dLong.length+" description(s) plus longues que l'affichage habituel",
@@ -1475,7 +1522,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   if(utilityNoindex.length) issues.push({sev:"info",cat:"indexation",title:plur(utilityNoindex.length,"page utilitaire est listée","pages utilitaires sont listées")+" dans le sitemap",
     body:"Panier, compte client ou confirmation de commande : ces pages sont correctement exclues de Google avec <code>noindex</code>. Elles n'ont simplement pas leur place dans le plan de site. Aucun impact sur le score.",
     where:utilityNoindex.slice(0,10).map(p=>"<code>"+esc(sh(p.url))+"</code>"),
-    steps:["Dans l'extension SEO (Yoast, Rank Math), exclure ces pages du sitemap.","Garder le <code>noindex</code> tel quel."],effort:"5 min",gain:"propreté du sitemap"});
+    steps:["Dans l'extension SEO"+(seoPlugin?" ("+esc(seoPlugin)+")":"")+", exclure ces pages du sitemap.","Garder le <code>noindex</code> tel quel."],effort:"5 min",gain:"propreté du sitemap"});
   if(nofollowPages.length) issues.push({sev:"warn",cat:"indexation",title:nofollowPages.length+" page(s) demandent aux moteurs de ne suivre aucun lien",
     body:"La directive <code>nofollow</code> au niveau de la page coupe le chemin d'exploration de tous ses liens. Sur une page publique normale, elle peut empêcher Google de découvrir ou de renforcer les destinations internes.",
     where:nofollowPages.slice(0,20).map(p=>"<code>"+esc(sh(p.url))+"</code> — "+esc(p.indexability.xRobotsTag||p.indexability.robotsDirectives||"nofollow")),
@@ -1495,7 +1542,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   if(noCanon.length && noCanon.length<pages.length) issues.push({sev:"info",cat:"fondations",title:noCanon.length+" page(s) sans URL canonique",
     body:"L'URL canonique dit à Google quelle est l'adresse « officielle » d'une page — utile contre le contenu dupliqué technique.",
     where:noCanon.slice(0,8).map(p=>"<code>"+esc(sh(p.url))+"</code>"),
-    steps:[isWP?"L'extension SEO (Yoast/RankMath) la génère automatiquement — vérifier qu'elle est active sur ces pages.":"Ajouter <code>&lt;link rel=\"canonical\" href=\"…\"&gt;</code> dans le <code>&lt;head&gt;</code>."], effort:"30 min", gain:"faible"});
+    steps:[isWP?"L'extension SEO"+(seoPlugin?" ("+esc(seoPlugin)+")":"")+" la génère automatiquement — vérifier qu'elle est active sur ces pages.":"Ajouter <code>&lt;link rel=\"canonical\" href=\"…\"&gt;</code> dans le <code>&lt;head&gt;</code>."], effort:"30 min", gain:"faible"});
   const sitemapProbes=disc.sitemapProbes||[];
   const sitemapDeclaredSet=new Set(disc.sitemapDeclared||[]);
   const sitemapLine=p=>"<code>"+esc(sh(p.url))+"</code>"+(sitemapDeclaredSet.has(p.url)||p.declared?" (déclaré dans robots.txt)":"")+" — "+esc(sitemapOutcomeLabel(p));
@@ -1518,7 +1565,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   else if(!disc.sitemapFound) issues.push({sev:"warn",cat:"fondations",title:"Aucun plan de site (sitemap.xml) trouvé",
     body:"Le plan de site aide Google à découvrir toutes les pages. Sans lui, certaines pages peuvent rester invisibles. "+(disc.sitemapDeclaredMissing?.length?"<b>Le fichier robots.txt annonce un plan de site à "+disc.sitemapDeclaredMissing.map(u=>"<code>"+esc(sh(u))+"</code>").join(", ")+", mais cette adresse n'en renvoie pas</b> : Google la suit pour rien. ":"")+"Chaque adresse ci-dessous a été demandée, et aucune ne renvoie un plan de site.",
     where:sitemapWhere,
-    steps:[isWP?"Activer le plan de site dans l'extension SEO (Yoast : réglé par défaut).":"Générer un sitemap.xml et le déposer à la racine du site.","Le déclarer dans robots.txt et dans Google Search Console."], effort:"30 min", gain:"moyen"});
+    steps:[isWP?"Activer le plan de site dans l'extension SEO"+(seoPlugin?" ("+esc(seoPlugin)+")":"")+".":"Générer un sitemap.xml et le déposer à la racine du site.","Le déclarer dans robots.txt et dans Google Search Console."], effort:"30 min", gain:"moyen"});
   // Plan de site trouvé, mais des fichiers annoncés (par robots.txt ou par l'index) ne mènent à rien.
   const sitemapBroken=[...(disc.sitemapDeclaredMissing||[]).filter(u=>!(disc.sitemapBroken||[]).some(p=>p.url===u)).map(u=>sitemapProbes.find(p=>p.url===u)||{url:u,outcome:"missing",status:0}),...(disc.sitemapBroken||[])];
   if(disc.sitemapFound&&sitemapBroken.length) issues.push({sev:"warn",cat:"fondations",title:plur(sitemapBroken.length,"fichier annoncé du plan de site ne mène à rien","fichiers annoncés du plan de site ne mènent à rien"),
@@ -1785,7 +1832,11 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   };
   if(googleTools.measured){
     const g=googleTools;
-    if(!g.gtm.count&&!g.ga4.count) issues.push({sev:"warn",cat:"qualite",title:g.ua.count?"Seul l'ancien Google Analytics (Universal) est installé : il ne mesure plus rien":"Aucun outil de mesure d'audience Google détecté",
+    if(!g.gtm.count&&!g.ga4.count&&g.siteKit&&!g.ua.count) issues.push({sev:"info",cat:"qualite",title:"Mesure d'audience à vérifier : Site Kit est installé, mais aucun identifiant n'apparaît dans le code",
+      body:"L'extension Site Kit de Google est présente. Elle peut charger Google Analytics seulement après le consentement aux témoins, ou pour les visiteurs non connectés : notre robot ne voit alors aucun identifiant. Ce n'est donc pas une absence prouvée.",
+      where:["Site Kit détecté · aucun identifiant GTM-… ni G-… dans le code servi au robot"],
+      steps:["Ouvrir <b>WordPress → Site Kit → Réglages</b> et vérifier qu'Analytics est connecté.","Vérifier dans Google Analytics (Temps réel) qu'une visite est bien enregistrée."],effort:"5 min",gain:"mesure des résultats"});
+    else if(!g.gtm.count&&!g.ga4.count) issues.push({sev:"warn",cat:"qualite",title:g.ua.count?"Seul l'ancien Google Analytics (Universal) est installé : il ne mesure plus rien":"Aucun outil de mesure d'audience Google détecté",
       body:(g.ua.count?"Le site charge encore Universal Analytics ("+g.ua.ids.map(esc).join(", ")+"), arrêté par Google en juillet 2023 : il ne collecte plus aucune donnée. ":"Ni Google Tag Manager ni Google Analytics 4 n'ont été trouvés dans le code des pages. ")+"Sans mesure, impossible de savoir d'où viennent les visiteurs, quelles pages convertissent et si le travail SEO porte ses fruits.",
       where:["Pages analysées : "+plur(trackedPages.length,"page","pages")+" — aucun identifiant GTM-… ni G-… trouvé dans les scripts"],
       steps:["Créer une propriété Google Analytics 4 (analytics.google.com).","Installer la balise : directement, via Google Tag Manager, ou avec l'extension Site Kit sur WordPress.","Relier Analytics à Google Search Console."],effort:"30 min",gain:"mesure des résultats"});
@@ -1807,7 +1858,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   if(disc.robots&&!disc.robots.exists&&!disc.robots.unverifiable) issues.push({sev:"info",cat:"indexation",title:"Aucun fichier robots.txt",
     body:"Le site n'a pas de fichier <code>robots.txt</code>. Google explore alors tout le site, ce qui convient souvent, mais le fichier sert aussi à indiquer l'adresse du plan de site et à encadrer les robots d'IA.",
     where:["<code>"+esc(origin)+"/robots.txt</code> — "+(disc.robots.status?"statut "+esc(disc.robots.status):"introuvable")],
-    steps:[isWP?"L'extension SEO (Yoast, Rank Math) peut le générer.":"Créer un fichier robots.txt à la racine du site.","Y déclarer le plan de site : <code>Sitemap: "+esc(origin)+"/sitemap.xml</code>"],effort:"10 min",gain:"exploration"});
+    steps:[isWP?"L'extension SEO"+(seoPlugin?" ("+esc(seoPlugin)+")":"")+" peut le générer.":"Créer un fichier robots.txt à la racine du site.","Y déclarer le plan de site : <code>Sitemap: "+esc(origin)+"/sitemap.xml</code>"],effort:"10 min",gain:"exploration"});
   const hreflangLinks=pages.reduce((sum,p)=>sum+(p.hreflang||[]).length,0);
 
   // ---- Validation hreflang (entièrement en mémoire, aucun appel réseau) ----
@@ -2091,6 +2142,10 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   }
 
   // ---- Gains (wins) ----
+  if(sitemapRedirects.length) issues.push({sev:"info",cat:"fondations",title:plur(sitemapRedirects.length,"adresse du plan de site redirige","adresses du plan de site redirigent")+" vers une autre page",
+    body:"Le plan de site doit lister les adresses finales. Une adresse qui redirige y est inutile : Google la suit puis l'ignore. Ces adresses ne sont pas auditées comme des pages ; seule leur destination l'est.",
+    where:sitemapRedirects.slice(0,15).map(r=>"<code>"+esc(sh(r.from))+"</code> ⤳ <code>"+esc(sh(r.to))+"</code>"),
+    steps:[isWP?"Dans l'extension SEO, exclure ces adresses du plan de site, ou supprimer les anciennes pages devenues des redirections.":"Retirer ces adresses du fichier sitemap.xml."],effort:"10 min",gain:"faible"});
   // ---- Les quatre adresses du site (http/https, avec et sans www) ----
   const variantsCheck=variantsVerdict(disc.variants);
   if(variantsCheck.verdict==="defaut"){
@@ -2210,7 +2265,7 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   const transientPages=deadPages.filter(p=>p.transient);
   if(transientPages.length) issues.unshift({sev:"warn",cat:"fondations",title:"Score provisoire : "+transientPages.length+" page(s) n'ont pas pu être relues après deux tentatives",
     body:"Le score reste affiché pour permettre le diagnostic, mais sa comparaison avec un autre audit est suspendue. Une panne réseau ou une protection anti-robot ne doit pas être interprétée comme une baisse SEO.",
-    where:transientPages.slice(0,20).map(p=>"<code>"+esc(sh(p.url))+"</code> — "+(p.status===401||p.status===403?"accès refusé au robot ("+p.status+") — probablement un pare-feu":p.status===429?"trop de requêtes (429) — limite de débit":"réponse réseau indisponible")),
+    where:transientPages.slice(0,20).map(p=>"<code>"+esc(sh(p.url))+"</code> — "+(p.challenge?"page d'attente anti-robot servie à la place du contenu":p.status===401||p.status===403?"accès refusé au robot ("+p.status+") — probablement un pare-feu":p.status===429?"trop de requêtes (429) — limite de débit":"réponse réseau indisponible")),
     steps:["Relancer l'audit quelques minutes plus tard.","Si les mêmes pages échouent encore, vérifier le pare-feu, le CDN ou la protection anti-robot.","Ne comparer les scores que lorsque la confiance est indiquée comme élevée."],effort:"5 min",gain:"fiabilité de la mesure"});
   const counts={crit:issues.filter(i=>i.sev==="crit").length,warn:issues.filter(i=>i.sev==="warn").length,info:issues.filter(i=>i.sev==="info").length,wins:wins.length};
   const publicContacts={
@@ -2224,7 +2279,22 @@ function buildModel(origin, disc, pagesAll, linkResults, llmsLinkResults, option
   const quickWins=issues.filter(i=>/\b(?:3|5|10|15|20|30) min|~(?:3|5|10|15|20|30) min/i.test(i.effort||"")).length;
   const proofCount=issues.reduce((sum,i)=>sum+(i.where?.length||0),0);
   const opportunityScore=Math.max(0,Math.min(100,Math.round((100-global)*1.05+counts.crit*4+counts.warn*1.5)));
-  const auditMeta={scoreVersion:"2.8",requested:pagesAll.length,successful:pages.length,transient:transientPages.length,confidence:options.quick?"aperçu":(transientPages.length||disc.sitemapBlocked||disc.sitemapUnverifiable||disc.sitemapUnread?.length||disc.robots?.unverifiable?"provisoire":"élevée"),mode:options.quick?"rapide":"complet",conclusive:true};
+  // Une même anomalie sur une part anormale des pages ou des liens ressemble
+  // plus à une erreur de lecture (gabarit, pare-feu, cache) qu'à un vrai
+  // défaut du site : la confiance baisse et la cause est nommée.
+  const anomalies=[];
+  const biggestDupTitle=dupT.reduce((n,g)=>Math.max(n,g.length),0);
+  if(n>=8&&biggestDupTitle>=Math.max(5,Math.ceil(n*.3))) anomalies.push(biggestDupTitle+" pages sur "+n+" portent exactement le même titre");
+  if(linkResults.length>=10&&dead.length>=Math.max(8,Math.ceil(linkResults.length*.3))) anomalies.push(dead.length+" liens sur "+linkResults.length+" vérifiés répondent en erreur");
+  const deadByShape=new Map(); for(const r of dead){ const k=String(r.url).replace(/^https?:\/\/[^/]+/,"").split("/").pop()||"/"; deadByShape.set(k,(deadByShape.get(k)||0)+1); }
+  const repeatedDead=[...deadByShape.entries()].sort((a,b)=>b[1]-a[1])[0];
+  if(repeatedDead&&repeatedDead[1]>=5) anomalies.push(repeatedDead[1]+" liens brisés se terminent tous par « "+repeatedDead[0].slice(0,40)+" »");
+  if(n>=8&&h1Zero.length>=Math.ceil(n*.5)) anomalies.push(h1Zero.length+" pages sur "+n+" sans aucun titre H1");
+  if(anomalies.length) issues.unshift({sev:"warn",cat:"fondations",title:"Confiance réduite : une même anomalie touche une part inhabituelle du site",
+    body:"Quand un même défaut apparaît sur une grande part des pages ou des liens, la cause est souvent une erreur de lecture (gabarit de page, pare-feu, page d'attente) plutôt qu'un vrai défaut répété. Vérifier un exemple à la main avant d'envoyer ce rapport.",
+    where:anomalies.map(esc),steps:["Ouvrir deux des pages ou liens concernés dans un navigateur.","Si le défaut n'y est pas, relancer l'audit quelques minutes plus tard et nous signaler le cas."],effort:"5 min",gain:"fiabilité de la mesure"});
+  if(anomalies.length) counts.warn++;
+  const auditMeta={scoreVersion:"2.8",anomalies,requested:pagesAll.length,successful:pages.length,transient:transientPages.length,confidence:options.quick?"aperçu":(anomalies.length||transientPages.length||disc.sitemapBlocked||disc.sitemapUnverifiable||disc.sitemapUnread?.length||disc.robots?.unverifiable?"provisoire":"élevée"),mode:options.quick?"rapide":"complet",conclusive:true};
   const avgResources=pages.length?Math.round(pages.reduce((sum,p)=>sum+(p.resources?.total||0),0)/pages.length):0;
   const homepageStrictImages=(homepage?.images||[]).filter(im=>im.cls!=="tech");
   const homepageStrictFlagged=homepageStrictImages.filter(im=>im.alt===null||im.alt==="");
@@ -2323,7 +2393,7 @@ function renderNextStep(m){
         <div class="next-contact">
           <span><b>Paparmane</b> · Studio créatif</span>
           <a href="mailto:bonjour@paparmane.com?subject=${encodeURIComponent("Audit SEO — "+(client||m.origin.replace(/^https?:\/\//,"")))}">bonjour@paparmane.com</a>
-          <a href="https://paparmane.netlify.app" target="_blank" rel="noopener">paparmane.netlify.app</a>
+          <a href="https://paparmane.com" target="_blank" rel="noopener">paparmane.com</a>
         </div>
         <div class="next-note">Rapport préparé le ${new Date().toLocaleDateString("fr-CA",{year:"numeric",month:"long",day:"numeric"})} — devis sur demande.</div>
       </div>
@@ -2354,7 +2424,7 @@ function renderCover(m){
       </div>
       <div class="cover-bot">
         Rapport confidentiel préparé par Paparmane le ${new Date().toLocaleDateString("fr-CA",{year:"numeric",month:"long",day:"numeric"})}.<br>
-        bonjour@paparmane.com · paparmane.netlify.app
+        bonjour@paparmane.com · paparmane.com
       </div>
     </section>`;
 }
@@ -3060,7 +3130,7 @@ function renderReport(m){
 
     <section class="overview" aria-labelledby="overview-title">
       <div class="overview-head"><h3 id="overview-title">Vue d'ensemble</h3><span>Chaque score inférieur à 100 est expliqué, preuves à l'appui</span></div>
-      ${OVERVIEW_GROUPS.map(([gid,gtitle,gsub])=>{const cards=overviewCards.filter(c=>(OVERVIEW_GROUP_OF[c[0]]||"p")===gid);return cards.length?`<div class="ov-group"><h4>${esc(gtitle)}</h4><span>${esc(gsub)}</span></div>
+      ${OVERVIEW_GROUPS.map(([gid,gtitle,gsub])=>{const cards=overviewCards.map(c=>/dataforseo/i.test(String(c[3]))&&(c[1]===0||c[1]==="0")?[c[0],"—","Aucune donnée pour ce marché",c[3],"",c[5]]:c).filter(c=>(OVERVIEW_GROUP_OF[c[0]]||"p")===gid);return cards.length?`<div class="ov-group"><h4>${esc(gtitle)}</h4><span>${esc(gsub)}</span></div>
       <div class="overview-grid">${cards.map(([label,value,detail,state,cls,proof])=>`<div class="ov"><div class="ov-label">${esc(label)}</div><div class="ov-value ${cls}">${esc(value)}</div><div class="ov-detail">${esc(detail)}</div>${scoreProofHtml(proof)}<span class="ov-state">${esc(state)}</span></div>`).join("")}</div>`:"";}).join("")}
     </section>
 
@@ -3092,10 +3162,10 @@ function renderReport(m){
 
     <div class="sec-h"><h3>Analyse des mots-clés observés</h3><span class="cnt">${m.siteKeywords.length}</span><div class="rule"></div></div>
     <p class="sec-intro">Expressions les plus présentes dans le contenu utile des pages à positionner. Les pages légales, de connexion, de panier et de contact sont exclues de cette section, mais restent vérifiées dans l'audit technique. Le chiffre représente le nombre d'occurrences observées pendant le crawl — <b>pas un volume de recherche Google</b>.</p>
-    <div class="kw-cloud">${m.siteKeywords.length?m.siteKeywords.map(k=>`<span class="kw"><b>${esc(k.term)}</b><small>${k.count}× · ${k.pages} p.</small></span>`).join(""):`<span class="sec-intro">Pas assez de contenu textuel pour dégager des sujets fiables.</span>`}</div>
+    <div class="kw-cloud">${m.siteKeywords.length?m.siteKeywords.map(k=>`<span class="kw"><b>${esc(k.label||k.term)}</b><small>${k.count}× · ${k.pages} p.</small></span>`).join(""):`<span class="sec-intro">Pas assez de contenu textuel pour dégager des sujets fiables.</span>`}</div>
     <div class="tbl-wrap"><table>
       <thead><tr><th>Page</th><th>Expression dominante observée</th><th class="c">Titre</th><th class="c">H1</th><th class="c">Description</th></tr></thead>
-      <tbody>${m.keywordPages.map(p=>`<tr class="${m.pages.length>60&&p.keywordAlignment?.title&&p.keywordAlignment?.h1?"screen-only":""}"><td class="pg">${esc(sh(p.url))}</td><td>${p.focusKeyword?`<b>${esc(p.focusKeyword)}</b>`:"—"}</td>
+      <tbody>${m.keywordPages.map(p=>`<tr class="${m.pages.length>60&&p.keywordAlignment?.title&&p.keywordAlignment?.h1?"screen-only":""}"><td class="pg">${esc(sh(p.url))}</td><td>${p.focusKeyword?`<b>${esc(p.focusLabel||p.focusKeyword)}</b>`:"—"}</td>
         <td class="c"><span class="dot ${p.keywordAlignment?.title?"ok":"no"}"></span></td>
         <td class="c"><span class="dot ${p.keywordAlignment?.h1?"ok":"no"}"></span></td>
         <td class="c"><span class="dot ${p.keywordAlignment?.desc?"ok":"mid"}"></span></td></tr>`).join("")}</tbody>
