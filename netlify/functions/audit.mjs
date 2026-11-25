@@ -294,7 +294,8 @@ function detectPageState(title, h1, html, bodyText) {
   ].find(marker => heading.includes(marker) || (shortInterstitial && hay.includes(marker)));
   if (maintenance) return { kind: "maintenance", reason: maintenance };
   const challenge = [
-    "checking your browser", "just a moment", "verifying you are human", "verify you are human",
+    "checking your browser", "just a moment", "one moment, please", "one moment please", "verifying you are human", "verify you are human",
+    "please wait while your request is being verified", "sgcaptcha",
     "enable javascript and cookies to continue", "attention required cloudflare", "security check",
   ].find(marker => heading.includes(marker) || (shortInterstitial && hay.includes(marker)));
   if (challenge) return { kind: "challenge", reason: challenge };
@@ -528,23 +529,49 @@ function inferExpectedSchema(url, title, h1, bodyText) {
   return expected;
 }
 
-const STOPWORDS = new Set((`a afin ai ainsi alors au aucun aussi autre aux avec avoir bon car ce ces cette comme dans de des du elle en encore est et eu fait font il ils je la le les leur lui ma mais me mes moi mon ne nos notre nous on ont ou où par pas pour pourquoi quand que quel quelle quelles quels qui sa sans se ses si son sont sous sur ta te tes toi ton tous tout toute toutes très tu un une vos votre vous y the and for from that this with are was were have has into not your you our their its but can`).split(/\s+/));
+const STOPWORDS = new Set((`a afin ai ainsi alors au aucun aussi autre aux avec avoir bon car ce ces cette comme dans de des du elle en encore est et eu fait font il ils je la le les leur lui ma mais me mes moi mon ne nos notre nous on ont ou où par pas pour pourquoi quand que quel quelle quelles quels qui sa sans se ses si son sont sous sur ta te tes toi ton tous tout toute toutes très tu un une vos votre vous y the and for from that this with are was were have has into not your you our their its but can
+  chaque plus moins plusieurs quelque quelques beaucoup trop peu assez tres bien mieux aussi autres meme memes tel telle tels telles
+  cela ceci celui celle ceux celles dont donc puis soit selon vers chez lors ici voici voila deja toujours jamais souvent parfois
+  etre ete etait sera serait suis sommes etes avait avons avez peut peuvent pouvez pouvoir doit doivent devez faire fais faites veut voulez
+  entre depuis pendant avant apres jusqu contre parmi comment combien quoi oui non
+  jour jours mois an ans annee annees heure heures semaine semaines minute minutes
+  clique cliquer cliquez voir lire suite savoir menu fermer ouvrir suivant precedent envoyer telecharger retour haut bas
+  taxe taxes tps tvq
+  will more all any how what when who also than then them they there here about been being does did most other some such only own same very just`).split(/\s+/).filter(Boolean));
 
 function extractKeywords(text) {
-  const tokens = (text.toLocaleLowerCase("fr-CA").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").match(/[a-z][a-z'-]{2,}/g) || [])
-    .map(w => w.replace(/^['-]+|['-]+$/g, ""))
-    .filter(w => w.length > 2 && !STOPWORDS.has(w) && !/^\d+$/.test(w));
-  const uni = new Map(), bi = new Map();
-  tokens.forEach(w => uni.set(w, (uni.get(w) || 0) + 1));
-  for (let i = 0; i < tokens.length - 1; i++) {
-    const phrase = tokens[i] + " " + tokens[i + 1];
-    bi.set(phrase, (bi.get(phrase) || 0) + 1);
+  // La comparaison se fait sans accents, mais l'affichage garde la forme
+  // d'origine la plus fréquente : « procès-verbal », pas « proce verbal ».
+  const fold = w => w.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/œ/g, "oe").replace(/’/g, "'");
+  const words = (text.toLocaleLowerCase("fr-CA").match(/[a-zà-öø-ÿœ][a-zà-öø-ÿœ'’-]{2,}/g) || [])
+    // Élision retirée : « l'outil » est le mot « outil », « c'est » le mot vide « est ».
+    .map(w => w.replace(/^(?:l|d|j|n|s|c|m|t|qu|jusqu|lorsqu|puisqu)['’]/, "").replace(/^['’-]+|['’-]+$/g, ""))
+    .map(w => ({ surface: w, key: fold(w) }))
+    .filter(w => w.key.length > 2 && !STOPWORDS.has(w.key));
+  const uni = new Map(), bi = new Map(), surfaces = new Map();
+  const note = (key, surface) => { const m = surfaces.get(key) || surfaces.set(key, new Map()).get(key); m.set(surface, (m.get(surface) || 0) + 1); };
+  words.forEach(w => { uni.set(w.key, (uni.get(w.key) || 0) + 1); note(w.key, w.surface); });
+  for (let i = 0; i < words.length - 1; i++) {
+    const phrase = words[i].key + " " + words[i + 1].key;
+    bi.set(phrase, (bi.get(phrase) || 0) + 1); note(phrase, words[i].surface + " " + words[i + 1].surface);
   }
+  const label = key => [...(surfaces.get(key) || new Map([[key, 1]])).entries()].sort((x, y) => y[1] - x[1])[0][0];
   const ranked = [
-    ...[...bi].filter(([, count]) => count >= 2).map(([term, count]) => ({ term, count, score: count * 2.2, kind: "expression" })),
-    ...[...uni].filter(([, count]) => count >= 2).map(([term, count]) => ({ term, count, score: count, kind: "mot" })),
+    ...[...bi].filter(([, count]) => count >= 2).map(([term, count]) => ({ term, label: label(term), count, score: count * 2.2, kind: "expression" })),
+    ...[...uni].filter(([, count]) => count >= 2).map(([term, count]) => ({ term, label: label(term), count, score: count, kind: "mot" })),
   ].sort((a, b) => b.score - a.score || b.count - a.count).slice(0, 12);
-  return { top: ranked, tokenCount: tokens.length };
+  return { top: ranked, tokenCount: words.length };
+}
+// Forme d'origine d'une expression ramenée à ses racines (« gabarit proce
+// verbal » → « gabarit procès-verbal »), retrouvée dans le titre et le H1.
+function surfaceForStems(stems, sources) {
+  const words = sources.join(" ").toLocaleLowerCase("fr-CA").match(/[a-zà-öø-ÿœ][a-zà-öø-ÿœ'’-]{1,}/g) || [];
+  const out = [];
+  for (const stem of String(stems || "").split(/\s+/).filter(Boolean)) {
+    const hit = words.find(w => stemTopicToken(w) === stem) || words.find(w => w.split(/[-'’]/).some(part => stemTopicToken(part) === stem));
+    if (!hit) out.push(stem); else if (!out.includes(hit)) out.push(hit);
+  }
+  return out.join(" ");
 }
 
 const TOPIC_NOISE = new Set([
@@ -603,6 +630,12 @@ function classifyImg(srcRaw) {
 // ---------- MODE: page ----------
 function analyzePage(url, html, finalUrl, response = {}) {
   const head = html.slice(0, 200000);
+  // DOM utile : sans commentaires ni contenu de <script>, <style>, <template>
+  // et <textarea>. Un gabarit JavaScript (« '<a href="/'+u+'">' ») n'est pas un
+  // lien de la page : rien n'est extrait de ces blocs.
+  const dom = html.replace(/<!--[\s\S]*?-->/g, " ").replace(/<(script|style|template|textarea)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, " ");
+  // Adresse impossible dans un vrai lien : reste de concaténation ou de gabarit.
+  const brokenTemplateHref = href => /['"{}<>`\\]|\s|\+|\(|\)|%7B|%7D|%27|%22/i.test(String(href || "").trim());
   const contentHtml = usefulContentHtml(html);
   // Retours à la ligne et indentation ne comptent pas dans la longueur affichée par Google.
   const squash = value => value == null ? null : value.replace(/\s+/g, " ").trim();
@@ -615,8 +648,8 @@ function analyzePage(url, html, finalUrl, response = {}) {
   const descTag = metaNamed("description");
   const desc = descTag ? squash(tagAttr(descTag, "content") ?? "") : null;
 
-  const h1 = all(/<h1[^>]*>([\s\S]*?)<\/h1>/gi, html).map(x => decode(strip(x))).filter(Boolean);
-  const h2 = all(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, html).map(x => decode(strip(x))).filter(Boolean);
+  const h1 = all(/<h1[^>]*>([\s\S]*?)<\/h1>/gi, dom).map(x => decode(strip(x))).filter(Boolean);
+  const h2 = all(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, dom).map(x => decode(strip(x))).filter(Boolean);
   const headings = [...contentHtml.matchAll(/<h([1-6])\b([^>]*)>([\s\S]*?)<\/h\1>/gi)]
     .filter(match => !/\b(?:hidden|aria-hidden\s*=\s*["']?true)|display\s*:\s*none/i.test(match[2] || ""))
     .map(match => ({ level: Number(match[1]), text: decode(strip(match[3])) }));
@@ -634,7 +667,7 @@ function analyzePage(url, html, finalUrl, response = {}) {
     previousHeading = heading;
   }
 
-  const imgs = [...html.matchAll(/<img\b[^>]*>/gi)].map(m => m[0]);
+  const imgs = [...dom.matchAll(/<img\b[^>]*>/gi)].map(m => m[0]);
   const images = imgs.map(tag => {
     const lazySrc = tagAttr(tag, "data-src") || tagAttr(tag, "data-lazy-src") || tagAttr(tag, "data-original") || tagAttr(tag, "data-litespeed-src");
     const rawSrc = tagAttr(tag, "src");
@@ -771,7 +804,7 @@ function analyzePage(url, html, finalUrl, response = {}) {
   };
 
   const origin = new URL(finalUrl).origin;
-  const rawHrefs = [...html.matchAll(/<a\b[^>]*>/gi)]
+  const rawHrefs = [...dom.matchAll(/<a\b[^>]*>/gi)]
     .map(match => [match[0], tagAttr(match[0], "href")])
     .filter(([, href]) => href)
     .filter(([tag, href]) => {
@@ -794,11 +827,12 @@ function analyzePage(url, html, finalUrl, response = {}) {
   const socials = [...new Set(rawHrefs
     .filter(h => /^https?:\/\//i.test(h) && /(?:facebook|instagram|linkedin|tiktok|youtube)\.com/i.test(h))
     .map(h => h.split("#")[0]))].slice(0, 12);
-  const ctas = all(/<(?:a|button)\b[^>]*>([\s\S]*?)<\/(?:a|button)>/gi, html)
+  const ctas = all(/<(?:a|button)\b[^>]*>([\s\S]*?)<\/(?:a|button)>/gi, dom)
     .map(x => decode(strip(x)).replace(/\s+/g, " ").trim())
     .filter(x => x && /contact|joindre|réserv|reserve|devis|soumission|appel|call|acheter|commander|prendre rendez-vous/i.test(x));
   const links = [...new Set(
     rawHrefs
+      .filter(h => !brokenTemplateHref(h))
       .map(h => { try { return new URL(h, finalUrl).href.split("#")[0]; } catch { return null; } })
       .filter(h => h && sameSite(h, origin) && isPagePath(h)
         // Lien de protection d'adresse courriel Cloudflare : décodé par le
@@ -809,17 +843,17 @@ function analyzePage(url, html, finalUrl, response = {}) {
   // Maillage interne : texte cliquable, zone de la page et nofollow de chaque
   // lien interne. La zone est DÉDUITE des balises <nav>, <header> et <footer>
   // (hors <main>/<article>) : sans ces balises, le tri n'est pas concluant.
-  const rangesOf = tag => [...html.matchAll(new RegExp(`<${tag}\\b[^>]*>[\\s\\S]*?<\\/${tag}>`, "gi"))].map(m => [m.index, m.index + m[0].length]);
+  const rangesOf = tag => [...dom.matchAll(new RegExp(`<${tag}\\b[^>]*>[\\s\\S]*?<\\/${tag}>`, "gi"))].map(m => [m.index, m.index + m[0].length]);
   const inside = (ranges, at) => ranges.some(([a, b]) => at >= a && at < b);
   const navRanges = rangesOf("nav"), mainRanges = [...rangesOf("main"), ...rangesOf("article")];
   const headerRanges = rangesOf("header").filter(([a]) => !inside(mainRanges, a));
   const footerRanges = rangesOf("footer").filter(([a]) => !inside(mainRanges, a));
   const linkDetails = [];
-  for (const m of html.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)) {
+  for (const m of dom.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)) {
     if (linkDetails.length >= 250) break;
     const tag = "<a" + m[1] + ">";
     const href = tagAttr(tag, "href");
-    if (!href || /^(?:mailto:|tel:|javascript:|#)/i.test(href)) continue;
+    if (!href || /^(?:mailto:|tel:|javascript:|#)/i.test(href) || brokenTemplateHref(href)) continue;
     let resolved; try { resolved = new URL(href, finalUrl).href.split("#")[0]; } catch { continue; }
     if (!sameSite(resolved, origin) || !isPagePath(resolved) || /\/cdn-cgi\//i.test(resolved)) continue;
     if (tagAttr(tag, "aria-hidden") === "true") continue;
@@ -847,10 +881,18 @@ function analyzePage(url, html, finalUrl, response = {}) {
   // Coordonnées visibles (téléphone, code postal, adresse) et balisées : en
   // référencement local, Google relie le site à la fiche d'entreprise par
   // leur cohérence. Les numéros sont ramenés à dix chiffres.
-  // Scripts et styles retirés : un bloc JSON-LD contient des codes postaux.
-  const fullText = decode(strip(html.replace(/<script\b[\s\S]*?<\/script>/gi, " ").replace(/<style\b[\s\S]*?<\/style>/gi, " ")));
-  const normalizePhone = value => { const d = String(value || "").replace(/\D/g, ""); return d.length === 11 && d[0] === "1" ? d.slice(1) : d.length === 10 ? d : null; };
-  const textPhones = [...fullText.matchAll(/(?:\+?1[\s.-]?)?\(?([2-9]\d{2})\)?[\s.-]?(\d{3})[\s.-]?(\d{4})\b/g)].map(m => m[1] + m[2] + m[3]);
+  // Sources admises seulement : en-tête et pied de page du site, page de
+  // contact, liens tel: et Schema.org. Un numéro cité dans un article (un
+  // organisme, un fournisseur) n'est pas celui de l'entreprise.
+  const isContactPage = /contact|joindre|coordonn/i.test(decodeURIComponent(new URL(finalUrl).pathname));
+  const chromeHtml = [...headerRanges, ...footerRanges].map(([from, to]) => dom.slice(from, to)).join(" ");
+  const fullText = decode(strip(chromeHtml + (isContactPage ? " " + dom : "")));
+  // Plan de numérotation nord-américain : indicatif NXX (N = 2 à 9, jamais
+  // N9X ni N11), central NXX (jamais N11). Une suite de chiffres quelconque
+  // n'est pas un numéro de téléphone.
+  const validNanp = d => /^[2-9][0-8]\d[2-9]\d{6}$/.test(d) && !/^.11/.test(d) && !/^...\d11/.test(d) && !/^(\d)\1{9}$/.test(d);
+  const normalizePhone = value => { const digits = String(value || "").replace(/\D/g, ""); const d = digits.length === 11 && digits[0] === "1" ? digits.slice(1) : digits.length === 10 ? digits : null; return d && validNanp(d) ? d : null; };
+  const textPhones = [...fullText.matchAll(/(?:\+?1[\s.-]?)?\(?([2-9]\d{2})\)?[\s.-]?(\d{3})[\s.-]?(\d{4})\b/g)].map(m => m[1] + m[2] + m[3]).filter(validNanp);
   const postalCodes = [...new Set([...fullText.matchAll(/\b([A-Z]\d[A-Z])\s?(\d[A-Z]\d)\b/g)].map(m => m[1] + " " + m[2]))].slice(0, 4);
   const addressSnippets = postalCodes.map(code => {
     const i = Math.max(fullText.indexOf(code), fullText.indexOf(code.replace(" ", "")));
@@ -865,6 +907,9 @@ function analyzePage(url, html, finalUrl, response = {}) {
   };
   const keywords = extractKeywords(bodyText);
   const focusKeyword = inferFocusKeyword(title, h1, finalUrl, keywords);
+  const focusLabel = focusKeyword ? (keywords.top.find(k => k.term === focusKeyword)?.label || surfaceForStems(focusKeyword, [title || "", (h1 || []).join(" ")])) : null;
+  // Extension SEO réellement installée, d'après sa signature dans le code.
+  const seoPlugin = /yoast seo|yoast-schema-graph|wpseo/i.test(html) ? "Yoast SEO" : /rank math|rank-math|rankmath/i.test(html) ? "Rank Math" : /seopress/i.test(html) ? "SEOPress" : /all in one seo|aioseo/i.test(html) ? "All in One SEO" : /the seo framework/i.test(html) ? "The SEO Framework" : null;
   const focusTokens = topicTokens(focusKeyword);
   const inField = field => {
     if (!focusTokens.length) return false;
@@ -900,7 +945,7 @@ function analyzePage(url, html, finalUrl, response = {}) {
     jsOnly,
     contentSignature: hashText(signatureBasis),
     pageState,
-    keywords: keywords.top, focusKeyword,
+    keywords: keywords.top, focusKeyword, focusLabel, seoPlugin,
     keywordAlignment: { title: inField(title), h1: inField(h1.join(" ")), desc: inField(desc) },
     contact: { emails, phones, socials, hasForm: /<form\b/i.test(html), ctas: [...new Set(ctas)].slice(0, 10) },
     sizeKB: Math.round(html.length / 1024),
@@ -2654,7 +2699,12 @@ export default async (req) => {
       const type = String(r.headers?.contentType || "").toLowerCase();
       const looksHtml = /html|xml/.test(type) || (!type && /<html|<!doctype html/i.test(r.body.slice(0, 1000)));
       if (!looksHtml || !isPagePath(r.finalUrl || url)) return json({ url, skipped: true, reason: "not_html", contentType: type });
-      return json(analyzePage(url, r.body, cleanAuditUrl(r.finalUrl), r));
+      const analyzed = analyzePage(url, r.body, cleanAuditUrl(r.finalUrl), r);
+      // Page d'attente anti-robot servie à la place du contenu : ce n'est pas
+      // la page du site. Elle n'est ni auditée ni comptée comme morte ; le
+      // client la redemande plus lentement, puis la dit « provisoire ».
+      if (analyzed.pageState?.kind === "challenge" || looksLikeChallenge(r)) return json({ url, dead: true, status: r.status, challenge: true, title: analyzed.title || "" });
+      return json(analyzed);
     }
 
     if (mode === "verify" && req.method === "POST") {
